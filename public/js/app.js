@@ -50,6 +50,12 @@ const STATE = {
             ]
         }
     },
+    radio: {
+        activeTrack: null,
+        isPlaying: false,
+        isSeeking: false,
+        audioEl: null
+    },
     pendingEditAvatarUrl: null,
     pendingAuthAvatarUrl: null
 };
@@ -403,6 +409,18 @@ function initSocket() {
 
     STATE.socket.on('webrtc_ice_candidate', (data) => {
         handleIncomingIceCandidate(data);
+    });
+
+    // 🎵 SYNCHRONIZED CLASSROOM RADIO EVENTS 🎵
+    STATE.socket.on('radio_sync_state', (state) => {
+        handleRadioSyncState(state);
+    });
+
+    // 👁️ LIVE STORY VIEW UPDATE
+    STATE.socket.on('story_view_updated', ({ storyId, viewsCount }) => {
+        if (currentViewingGroup && currentViewingGroup.stories[activeStoryIndex]?.id === storyId) {
+            updateStoryViewsDisplay(viewsCount);
+        }
     });
 
     // 🚨 GLOBAL PANIC & STEALTH BROADCAST 🚨
@@ -1151,11 +1169,17 @@ function renderCurrentStory() {
     const avatarEl = document.getElementById('storyViewerAvatar');
     const nameEl = document.getElementById('storyViewerName');
     const contentEl = document.getElementById('storyViewerBody');
-    const viewsCountEl = document.getElementById('storyViewersBadge');
 
     if (avatarEl) avatarEl.innerHTML = renderAvatarHTML(currentViewingGroup.authorAvatar);
     if (nameEl) nameEl.textContent = currentViewingGroup.authorName;
-    if (viewsCountEl) viewsCountEl.textContent = `👀 ${story.views_count || 1} مشاهدة`;
+    updateStoryViewsDisplay(story.views_count || 1);
+
+    // Fetch fresh live views count from server
+    fetch(`/api/stories/${story.id}/views`).then(r => r.json()).then(data => {
+        if (data.viewers) {
+            updateStoryViewsDisplay(data.viewers.length);
+        }
+    }).catch(() => {});
 
     if (story.media_type === 'image') {
         contentEl.innerHTML = `
@@ -1248,6 +1272,14 @@ function prevStory() {
     }
 }
 
+function updateStoryViewsDisplay(count) {
+    const badge = document.getElementById('storyViewersBadge');
+    const bottomLabel = document.getElementById('storyViewersBottomBtnText');
+    const displayCount = count !== undefined ? count : 1;
+    if (badge) badge.textContent = `👀 ${displayCount} مشاهدة`;
+    if (bottomLabel) bottomLabel.textContent = `المشاهدات (${displayCount}) • اضغط لرؤية من شاهد الاستوري`;
+}
+
 // 7b. Story Viewers Modal (👀 مين شاف الاستوري)
 async function openStoryViewsModal() {
     if (!currentViewingGroup) return;
@@ -1267,6 +1299,7 @@ async function openStoryViewsModal() {
         const viewers = data.viewers || [];
 
         if (countEl) countEl.textContent = viewers.length;
+        updateStoryViewsDisplay(viewers.length);
 
         if (viewers.length === 0) {
             listEl.innerHTML = `
@@ -2228,6 +2261,365 @@ async function handleIncomingIceCandidate({ fromSocketId, candidate }) {
     } catch (e) {
         console.warn('Error adding ICE candidate:', e);
     }
+}
+
+// ----------------------------------------------------
+// 9d. Synchronized Online Classroom Radio & Music Hub 🎵⚡
+// ----------------------------------------------------
+
+function openMusicModal() {
+    showModal('musicSearchModal');
+    setTimeout(() => {
+        const inp = document.getElementById('musicSearchInput');
+        if (inp) inp.focus();
+    }, 150);
+}
+
+function quickSearchMusic(query) {
+    const input = document.getElementById('musicSearchInput');
+    if (input) input.value = query;
+    searchOnlineMusic(query);
+}
+
+function handleMusicSearchSubmit(e) {
+    e.preventDefault();
+    const input = document.getElementById('musicSearchInput');
+    if (input && input.value.trim()) {
+        searchOnlineMusic(input.value.trim());
+    }
+}
+
+async function searchOnlineMusic(query) {
+    const container = document.getElementById('musicResultsContainer');
+    const searchBtn = document.getElementById('musicSearchBtn');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="text-center py-10 text-slate-400 text-xs flex flex-col items-center justify-center gap-2">
+            <div class="w-7 h-7 border-3 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+            <span>جاري البحث عن "${escapeHtml(query)}" في مكتبة الأغاني أونلاين... 🔍</span>
+        </div>
+    `;
+
+    if (searchBtn) searchBtn.disabled = true;
+
+    try {
+        const res = await fetch(`/api/music/search?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        const tracks = data.tracks || [];
+
+        renderMusicResults(tracks, query);
+    } catch (err) {
+        container.innerHTML = `
+            <div class="text-center py-8 text-red-400 text-xs">
+                <span class="text-3xl block mb-2">⚠️</span>
+                <p class="font-bold">فشل البحث عن الأغنية! تأكد من اتصال الإنترنت وحاول مرة أخرى.</p>
+            </div>
+        `;
+    } finally {
+        if (searchBtn) searchBtn.disabled = false;
+    }
+}
+
+function renderMusicResults(tracks, query) {
+    const container = document.getElementById('musicResultsContainer');
+    if (!container) return;
+
+    if (tracks.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-10 text-slate-500">
+                <span class="text-3xl block mb-2">🔍</span>
+                <p class="text-xs font-bold text-slate-400">لم يتم العثور على أغاني لـ "${escapeHtml(query)}"</p>
+                <p class="text-[10px] text-slate-500 mt-1">جرب البحث باسم مختلف أو اسم المغني</p>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    window._lastSearchedTracks = tracks;
+
+    tracks.forEach((track, idx) => {
+        html += `
+            <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-pink-500/40 transition-all group">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-11 h-11 rounded-xl bg-slate-800 border border-white/10 overflow-hidden shrink-0 shadow-md">
+                        <img src="${track.cover || ''}" onerror="this.style.display='none'" class="w-full h-full object-cover">
+                    </div>
+                    <div class="min-w-0">
+                        <h4 class="text-xs font-bold text-white truncate max-w-[170px] sm:max-w-xs group-hover:text-pink-300 transition-colors">${escapeHtml(track.title)}</h4>
+                        <p class="text-[10px] text-slate-400 truncate">${escapeHtml(track.artist)} ${track.duration ? '• ' + track.duration : ''}</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <!-- Share to Chat -->
+                    <button onclick="shareTrackToChatByIndex(${idx})" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all" title="مشاركة الأغنية في الشات 💬">
+                        💬
+                    </button>
+                    <!-- Play for Class -->
+                    <button onclick="playTrackForEveryoneByIndex(${idx})" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1">
+                        <span>تشغيل للكل 🎵</span>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function playTrackForEveryoneByIndex(idx) {
+    const track = window._lastSearchedTracks?.[idx];
+    if (!track) return;
+
+    if (STATE.socket) {
+        STATE.socket.emit('radio_play', {
+            track,
+            currentTime: 0,
+            djName: STATE.user ? STATE.user.nickname : 'زميلك',
+            djId: STATE.user ? STATE.user.id : null
+        });
+    }
+    hideModal('musicSearchModal');
+    showNotification(`🎶 تم تشغيل "${track.title}" لجميع الطلاب في الفصل!`);
+}
+
+function shareTrackToChatByIndex(idx) {
+    const track = window._lastSearchedTracks?.[idx];
+    if (!track) return;
+
+    sendChatMessagePayload({
+        content: `🎵 أستمع الآن إلى: **${track.title}** - *${track.artist}* 🎧`,
+        mediaType: 'text',
+        mediaName: track.title
+    });
+    hideModal('musicSearchModal');
+    showNotification('تمت مشاركة الأغنية في الشات 💬');
+}
+
+function playDirectAudioUrl() {
+    const input = document.getElementById('directAudioUrlInput');
+    const url = input ? input.value.trim() : '';
+    if (!url) {
+        showNotification('الرجاء إدخال رابط صوتي مباشر أولاً!');
+        return;
+    }
+
+    const track = {
+        id: 'direct_' + Date.now(),
+        title: 'بث صوتي مباشر',
+        artist: 'رابط خارجي',
+        cover: '',
+        audioUrl: url,
+        rawAudioUrl: url,
+        duration: ''
+    };
+
+    if (STATE.socket) {
+        STATE.socket.emit('radio_play', {
+            track,
+            currentTime: 0,
+            djName: STATE.user ? STATE.user.nickname : 'دي جي الفصل',
+            djId: STATE.user ? STATE.user.id : null
+        });
+    }
+
+    if (input) input.value = '';
+    hideModal('musicSearchModal');
+    showNotification('تم تشغيل الرابط الصوتي لجميع الطلاب! 🎶');
+}
+
+async function handleRadioFileUpload(file) {
+    if (!file || !STATE.user) return;
+    showNotification('جاري رفع وتشغيل الملف الصوتي للفصل... ⏳');
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('senderId', STATE.user.id);
+
+    try {
+        const res = await fetch('/api/chat/upload', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (data.fileUrl) {
+            const track = {
+                id: 'file_' + Date.now(),
+                title: file.name.replace(/\.[^/.]+$/, ''),
+                artist: STATE.user.nickname,
+                cover: '',
+                audioUrl: data.fileUrl,
+                rawAudioUrl: data.fileUrl,
+                duration: ''
+            };
+
+            if (STATE.socket) {
+                STATE.socket.emit('radio_play', {
+                    track,
+                    currentTime: 0,
+                    djName: STATE.user.nickname,
+                    djId: STATE.user.id
+                });
+            }
+            hideModal('musicSearchModal');
+            showNotification(`تم تشغيل "${track.title}" للفصل بالكامل! 🎵`);
+        } else {
+            showNotification('فشل رفع الملف الصوتي.');
+        }
+    } catch (e) {
+        showNotification('حدث خطأ أثناء رفع الملف الصوتي.');
+    }
+}
+
+function handleRadioSyncState(state) {
+    const bar = document.getElementById('classroomMusicBar');
+    const audio = getRadioAudioElement();
+    const titleEl = document.getElementById('radioTrackTitle');
+    const artistEl = document.getElementById('radioTrackArtist');
+    const coverImg = document.getElementById('radioCoverImg');
+    const defaultCover = document.getElementById('radioDefaultCover');
+    const playIcon = document.getElementById('radioPlayIcon');
+    const indicator = document.getElementById('radioPlayingIndicator');
+
+    if (!state || !state.track) {
+        STATE.radio.activeTrack = null;
+        STATE.radio.isPlaying = false;
+        if (audio) {
+            audio.pause();
+            audio.src = '';
+        }
+        if (bar) bar.classList.add('hidden');
+        if (indicator) indicator.classList.add('hidden');
+        return;
+    }
+
+    STATE.radio.activeTrack = state.track;
+    STATE.radio.isPlaying = !!state.isPlaying;
+
+    if (bar) bar.classList.remove('hidden');
+    if (indicator) indicator.classList.remove('hidden');
+
+    if (titleEl) titleEl.textContent = state.track.title || 'أغنية';
+    if (artistEl) artistEl.textContent = `${state.track.artist || 'فنان'} • مشغل بواسطة: ${state.djName || 'دي جي الفصل 🎧'}`;
+
+    if (coverImg && state.track.cover) {
+        coverImg.src = state.track.cover;
+        coverImg.classList.remove('hidden');
+        if (defaultCover) defaultCover.classList.add('hidden');
+    } else {
+        if (coverImg) coverImg.classList.add('hidden');
+        if (defaultCover) defaultCover.classList.remove('hidden');
+    }
+
+    if (playIcon) playIcon.textContent = state.isPlaying ? '⏸' : '▶';
+
+    if (audio) {
+        const targetSrc = state.track.audioUrl;
+        if (audio.src !== targetSrc && !audio.src.endsWith(targetSrc)) {
+            audio.src = targetSrc;
+            audio.load();
+        }
+
+        const expectedTime = state.currentTime || 0;
+        if (Math.abs(audio.currentTime - expectedTime) > 2) {
+            audio.currentTime = expectedTime;
+        }
+
+        if (state.isPlaying && !STATE.isStealthActive) {
+            audio.play().catch(e => console.warn('Radio autoplay error:', e));
+        } else {
+            audio.pause();
+        }
+    }
+}
+
+function getRadioAudioElement() {
+    if (!STATE.radio.audioEl) {
+        STATE.radio.audioEl = document.getElementById('classroomAudioElement');
+        if (STATE.radio.audioEl) {
+            STATE.radio.audioEl.addEventListener('timeupdate', updateRadioProgressUI);
+            STATE.radio.audioEl.addEventListener('error', () => {
+                if (STATE.radio.activeTrack && STATE.radio.activeTrack.rawAudioUrl && STATE.radio.audioEl.src !== STATE.radio.activeTrack.rawAudioUrl) {
+                    console.warn('Proxy audio stream failed, falling back to direct stream:', STATE.radio.activeTrack.rawAudioUrl);
+                    STATE.radio.audioEl.src = STATE.radio.activeTrack.rawAudioUrl;
+                    if (STATE.radio.isPlaying && !STATE.isStealthActive) {
+                        STATE.radio.audioEl.play().catch(() => {});
+                    }
+                }
+            });
+            STATE.radio.audioEl.addEventListener('ended', () => {
+                if (STATE.socket && STATE.radio.activeTrack) {
+                    STATE.socket.emit('radio_stop');
+                }
+            });
+        }
+    }
+    return STATE.radio.audioEl;
+}
+
+function updateRadioProgressUI() {
+    if (STATE.radio.isSeeking) return;
+    const audio = STATE.radio.audioEl;
+    if (!audio) return;
+
+    const progressBar = document.getElementById('radioProgressBar');
+    const curTimeEl = document.getElementById('radioCurrentTime');
+    const totTimeEl = document.getElementById('radioTotalDuration');
+
+    if (audio.duration && !isNaN(audio.duration)) {
+        if (progressBar) progressBar.value = (audio.currentTime / audio.duration) * 100;
+        if (totTimeEl) totTimeEl.textContent = formatAudioSeconds(audio.duration);
+    }
+    if (curTimeEl) curTimeEl.textContent = formatAudioSeconds(audio.currentTime);
+}
+
+function handleRadioProgressInput(percent) {
+    const audio = STATE.radio.audioEl;
+    if (!audio || !audio.duration) return;
+    const newTime = (percent / 100) * audio.duration;
+    audio.currentTime = newTime;
+
+    if (STATE.socket) {
+        STATE.socket.emit('radio_seek', { currentTime: newTime });
+    }
+}
+
+function toggleRadioPlayPause() {
+    const audio = getRadioAudioElement();
+    if (!audio || !STATE.radio.activeTrack) return;
+
+    if (STATE.radio.isPlaying) {
+        if (STATE.socket) {
+            STATE.socket.emit('radio_pause', { currentTime: audio.currentTime });
+        }
+    } else {
+        if (STATE.socket) {
+            STATE.socket.emit('radio_play', {
+                track: STATE.radio.activeTrack,
+                currentTime: audio.currentTime,
+                djName: STATE.user ? STATE.user.nickname : 'أنت'
+            });
+        }
+    }
+}
+
+function closeRadioBar() {
+    if (confirm('هل تريد إيقاف الأغنية للجميع في الفصل؟')) {
+        if (STATE.socket) {
+            STATE.socket.emit('radio_stop');
+        }
+    } else {
+        const bar = document.getElementById('classroomMusicBar');
+        if (bar) bar.classList.add('hidden');
+    }
+}
+
+function formatAudioSeconds(sec) {
+    if (isNaN(sec) || sec < 0) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
 }
 
 // ----------------------------------------------------

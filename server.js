@@ -1,5 +1,6 @@
 const express = require('express');
 const http = require('http');
+const https = require('https');
 const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
@@ -54,6 +55,18 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Story images fallback resolver (checks both uploads/stories and uploads/media)
+app.use('/uploads/stories/:filename', (req, res, next) => {
+    const storiesPath = path.join(__dirname, 'uploads/stories', req.params.filename);
+    const mediaPath = path.join(__dirname, 'uploads/media', req.params.filename);
+    if (fs.existsSync(storiesPath)) {
+        return res.sendFile(storiesPath);
+    } else if (fs.existsSync(mediaPath)) {
+        return res.sendFile(mediaPath);
+    }
+    next();
+});
+
 // Ensure Upload directories exist
 const uploadDirs = ['uploads', 'uploads/media', 'uploads/audio', 'uploads/stories', 'uploads/airdrop', 'uploads/avatars'];
 uploadDirs.forEach(dir => {
@@ -66,7 +79,7 @@ const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         let dest = 'uploads/media';
         if (req.path.includes('audio')) dest = 'uploads/audio';
-        else if (req.path.includes('story')) dest = 'uploads/stories';
+        else if (req.path.includes('stori') || req.path.includes('story')) dest = 'uploads/stories';
         else if (req.path.includes('airdrop')) dest = 'uploads/airdrop';
         else if (req.path.includes('avatar')) dest = 'uploads/avatars';
         cb(null, path.join(__dirname, dest));
@@ -87,6 +100,7 @@ let sharedCodePadText = '// كشكول الأكواد والنصوص المشت�
 let isChatFocusLocked = false;
 let isStealthEngaged = false;
 let activeScreenShare = null; // { presenterSocketId, presenterId, presenterName, hasAudio, startedAt }
+let activeRadioTrack = null; // { track: { id, title, artist, cover, audioUrl }, currentTime, isPlaying, startedAt, djName, djId }
 
 // ---------------------- REST API ROUTES ----------------------
 
@@ -528,6 +542,147 @@ app.get('/api/screen-share/status', (req, res) => {
     });
 });
 
+// 11. Online Free Music API (JioSaavn + iTunes + Proxied Stream) 🎵
+app.get('/api/music/search', async (req, res) => {
+    const query = req.query.q || '';
+    if (!query.trim()) return res.json({ success: true, tracks: [] });
+
+    try {
+        const agent = new https.Agent({ rejectUnauthorized: false });
+
+        // 1. Try JioSaavn API on Vercel (Fast, Full-length tracks, bypasses firewall)
+        const jioResults = await new Promise((resolve) => {
+            const clientReq = https.get({
+                hostname: 'jiosaavn-api.vercel.app',
+                path: '/search?query=' + encodeURIComponent(query),
+                agent,
+                headers: { 'User-Agent': 'Mozilla/5.0' },
+                timeout: 5000
+            }, (apiRes) => {
+                let d = '';
+                apiRes.on('data', c => d += c);
+                apiRes.on('end', async () => {
+                    try {
+                        const json = JSON.parse(d);
+                        const results = (json.results || []).slice(0, 10);
+                        const detailed = await Promise.all(results.map(async r => {
+                            return new Promise((resDetails) => {
+                                https.get({
+                                    hostname: 'jiosaavn-api.vercel.app',
+                                    path: '/song?id=' + r.id,
+                                    agent,
+                                    headers: { 'User-Agent': 'Mozilla/5.0' },
+                                    timeout: 4000
+                                }, (dRes) => {
+                                    let detData = '';
+                                    dRes.on('data', c => detData += c);
+                                    dRes.on('end', () => {
+                                        try {
+                                            const song = JSON.parse(detData);
+                                            resDetails({
+                                                id: r.id,
+                                                title: song.song || r.title,
+                                                artist: song.singers || r.description || r.more_info?.singers || 'فنان',
+                                                cover: song.image || r.image,
+                                                audioUrl: song.media_url ? `/api/music/stream?url=${encodeURIComponent(song.media_url)}` : null,
+                                                rawAudioUrl: song.media_url,
+                                                duration: song.duration || ''
+                                            });
+                                        } catch(e) {
+                                            resDetails(null);
+                                        }
+                                    });
+                                }).on('error', () => resDetails(null));
+                            });
+                        }));
+                        resolve(detailed.filter(t => t && t.audioUrl));
+                    } catch(e) {
+                        resolve([]);
+                    }
+                });
+            });
+            clientReq.on('error', () => resolve([]));
+            clientReq.on('timeout', () => { clientReq.destroy(); resolve([]); });
+        });
+
+        if (jioResults && jioResults.length > 0) {
+            return res.json({ success: true, tracks: jioResults });
+        }
+
+        // 2. Try iTunes Search API as fallback
+        const itunesResults = await new Promise((resolve) => {
+            const clientReq = https.get({
+                hostname: 'itunes.apple.com',
+                path: `/search?term=${encodeURIComponent(query)}&media=music&entity=song&limit=12`,
+                agent,
+                headers: { 'User-Agent': 'Mozilla/5.0' },
+                timeout: 4000
+            }, (apiRes) => {
+                let d = '';
+                apiRes.on('data', c => d += c);
+                apiRes.on('end', () => {
+                    try {
+                        const json = JSON.parse(d);
+                        const tracks = (json.results || []).map(r => ({
+                            id: String(r.trackId),
+                            title: r.trackName,
+                            artist: r.artistName,
+                            cover: r.artworkUrl100?.replace('100x100', '300x300') || r.artworkUrl100,
+                            audioUrl: r.previewUrl ? `/api/music/stream?url=${encodeURIComponent(r.previewUrl)}` : null,
+                            rawAudioUrl: r.previewUrl,
+                            duration: r.trackTimeMillis ? `${Math.floor(r.trackTimeMillis / 60000)}:${String(Math.floor((r.trackTimeMillis % 60000) / 1000)).padStart(2, '0')}` : ''
+                        }));
+                        resolve(tracks.filter(t => t.audioUrl));
+                    } catch(e) {
+                        resolve([]);
+                    }
+                });
+            });
+            clientReq.on('error', () => resolve([]));
+            clientReq.on('timeout', () => { clientReq.destroy(); resolve([]); });
+        });
+
+        res.json({ success: true, tracks: itunesResults });
+    } catch(err) {
+        res.status(500).json({ error: err.message, tracks: [] });
+    }
+});
+
+// 12. Audio Stream Proxy Endpoint (Bypasses CORS & Network Blocks)
+app.get('/api/music/stream', (req, res) => {
+    const audioUrl = req.query.url;
+    if (!audioUrl) return res.status(400).send('URL required');
+
+    try {
+        const parsed = new URL(audioUrl);
+        const protocol = parsed.protocol === 'http:' ? require('http') : https;
+        const agent = new https.Agent({ rejectUnauthorized: false });
+
+        const clientReq = protocol.get(audioUrl, {
+            agent,
+            headers: {
+                'User-Agent': 'Mozilla/5.0',
+                'Referer': parsed.origin,
+                'Range': req.headers.range || ''
+            }
+        }, (streamRes) => {
+            const headers = { ...streamRes.headers };
+            delete headers['content-security-policy'];
+            headers['Access-Control-Allow-Origin'] = '*';
+            headers['Accept-Ranges'] = 'bytes';
+
+            res.writeHead(streamRes.statusCode, headers);
+            streamRes.pipe(res);
+        });
+
+        clientReq.on('error', (err) => {
+            if (!res.headersSent) res.status(502).send(err.message);
+        });
+    } catch(err) {
+        if (!res.headersSent) res.status(400).send('Invalid audio URL');
+    }
+});
+
 // 9b. Shared Classroom CodePad / Plain Text Bin
 app.get('/api/codepad', async (req, res) => {
     try {
@@ -685,6 +840,14 @@ io.on('connection', async (socket) => {
         // Send active screen share state if currently broadcasting
         if (activeScreenShare) {
             socket.emit('screen_share_started', activeScreenShare);
+        }
+        // Send active synchronized radio state
+        if (activeRadioTrack) {
+            let currentTime = activeRadioTrack.currentTime || 0;
+            if (activeRadioTrack.isPlaying && activeRadioTrack.startedAt) {
+                currentTime = (Date.now() - activeRadioTrack.startedAt) / 1000;
+            }
+            socket.emit('radio_sync_state', { ...activeRadioTrack, currentTime });
         }
 
         // Broadcast presence
@@ -904,6 +1067,55 @@ io.on('connection', async (socket) => {
             fromSocketId: socket.id,
             candidate
         });
+    });
+
+    // 9. Synchronized Classroom Radio / Music Hub 🎵
+    socket.on('get_radio_status', () => {
+        let currentTime = 0;
+        if (activeRadioTrack) {
+            if (activeRadioTrack.isPlaying && activeRadioTrack.startedAt) {
+                currentTime = (Date.now() - activeRadioTrack.startedAt) / 1000;
+            } else {
+                currentTime = activeRadioTrack.currentTime || 0;
+            }
+            socket.emit('radio_sync_state', { ...activeRadioTrack, currentTime });
+        } else {
+            socket.emit('radio_sync_state', null);
+        }
+    });
+
+    socket.on('radio_play', (data) => {
+        activeRadioTrack = {
+            track: data.track,
+            currentTime: data.currentTime || 0,
+            isPlaying: true,
+            startedAt: Date.now() - ((data.currentTime || 0) * 1000),
+            djName: data.djName || 'أحد الزملاء',
+            djId: data.djId || null
+        };
+        console.log(`🎵 [RADIO PLAY] ${data.track?.title} by DJ ${data.djName}`);
+        io.emit('radio_sync_state', activeRadioTrack);
+    });
+
+    socket.on('radio_pause', (data) => {
+        if (activeRadioTrack) {
+            activeRadioTrack.isPlaying = false;
+            activeRadioTrack.currentTime = data.currentTime || 0;
+            io.emit('radio_sync_state', activeRadioTrack);
+        }
+    });
+
+    socket.on('radio_seek', (data) => {
+        if (activeRadioTrack) {
+            activeRadioTrack.currentTime = data.currentTime || 0;
+            activeRadioTrack.startedAt = Date.now() - ((data.currentTime || 0) * 1000);
+            io.emit('radio_sync_state', activeRadioTrack);
+        }
+    });
+
+    socket.on('radio_stop', () => {
+        activeRadioTrack = null;
+        io.emit('radio_sync_state', null);
     });
 
     // Disconnect Handling
