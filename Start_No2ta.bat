@@ -9,10 +9,42 @@ echo =========================================================================
 echo    ⚡🚀 مرحباً بك في منصة "نؤطة" (No2ta) - شبكة الفصل الاجتماعية 🚀⚡
 echo =========================================================================
 echo.
+echo   اختر طريقة التشغيل على هذا الجهاز:
+echo.
+echo   [1] أنا جهاز طالب (Client) - الدخول الفوري للشات (بدون سيرفر أو حزم!)
+echo   [2] أنا السيرفر المضيف (Host Server) - تشغيل السيرفر على هذا الجهاز (للأدمن)
+echo.
+echo =========================================================================
+set /p MODE="أدخل رقم الاختيار [1 أو 2]: "
 
-:: 1. Check if Node.js is installed
+if "%MODE%"=="1" goto CLIENT_MODE
+if "%MODE%"=="2" goto HOST_MODE
+
+:: Default to Client mode if invalid
+goto CLIENT_MODE
+
+:CLIENT_MODE
+echo.
+echo -------------------------------------------------------------------------
+echo  [+] وضع الطالب: لا تحتاج لتثبيت أي حزم أو تشغيل سيرفر على جهازك!
+set /p HOST_IP="أدخل عنوان IP سيرفر الأدمن [اضغط Enter لاستخدام 192.168.20.54]: "
+if not defined HOST_IP set HOST_IP=192.168.20.54
+echo.
+echo  [+] جاري فتح المتصفح والدخول للمنصة: http://%HOST_IP%:5000 ...
+start "" "http://%HOST_IP%:5000"
+timeout /t 3 /nobreak >nul
+exit /b
+
+:HOST_MODE
+echo.
+echo =========================================================================
+echo  [+] وضع السيرفر المضيف (Host Server): جاري الفحص والتشغيل...
+echo =========================================================================
+
+:: 1. Check Node.js
 where node >nul 2>nul
 if %errorlevel% neq 0 (
+    echo.
     echo [X] خطأ: برنامج Node.js غير مثبت على هذا الجهاز!
     echo يرجى تحميله وتثبيته أولاً من: https://nodejs.org
     echo ثم أعد تشغيل هذا الملف مجدداً.
@@ -21,15 +53,14 @@ if %errorlevel% neq 0 (
     exit /b
 )
 
-:: 2. Check and auto-install dependencies if missing
-echo [+] جاري فحص مكتبات وحزم التشغيل...
-node -e "require('express'); require('socket.io'); require('sqlite3'); require('multer');" >nul 2>nul
+:: 2. Check and auto-install dependencies
+echo.
+echo [+] جاري فحص مكتبات التشغيل (Dependencies)...
+node -e "require('express'); require('socket.io'); require('sqlite3'); require('multer'); require('cors'); require('qrcode');" >nul 2>nul
 if %errorlevel% neq 0 (
     echo.
     echo =========================================================================
-    echo  [!] تنبيه: الحزم والمكتبات غير مثبتة على هذا الجهاز!
-    echo  [!] جاري تثبيت جميع مكاتب المشروع تلقائياً (npm install)...
-    echo  [!] قد يستغرق هذا بضع ثوانٍ لأول مرة فقط...
+    echo  [!] الحزم غير مثبتة! جاري التثبيت التلقائي لأول مرة عبر npm install...
     echo =========================================================================
     echo.
     
@@ -42,71 +73,24 @@ if %errorlevel% neq 0 (
     
     if %errorlevel% neq 0 (
         echo.
-        echo [X] حدث خطأ أثناء تثبيت الحزم! يرجى التأكد من اتصال الإنترنت ثم إعادة المحاولة.
+        echo [X] حدث خطأ أثناء تثبيت الحزم! يرجى التأكد من اتصال الإنترنت لتنزيل المكتبات لأول مرة.
         pause
         exit /b
     )
-    
     echo.
     echo  [+] تم تثبيت كافة الحزم والمكتبات بنجاح 100%%! 🚀
-    echo =========================================================================
 ) else (
-    echo  [+] تم التحقق: جميع الحزم والمكتبات مثبتة وجاهزة للعمل! ✅
+    echo  [+] تم التحقق: جميع الحزم مثبتة وجاهزة للعمل! ✅
 )
 
-echo.
-:: 3. Fast LAN Auto-Discovery: Listen for active No2ta Host server on network
-echo [+] جاري فحص شبكة الفصل لاكتشاف سيرفر الأدمن تلقائياً...
-node services/find_server.js > "%temp%\no2ta_discovery.tmp" 2>nul
-if %errorlevel% equ 0 (
-    for /f "tokens=2,3 delims=:" %%a in ('type "%temp%\no2ta_discovery.tmp" ^| findstr "FOUND:"') do set "DISCOVERED_URL=http:%%a:%%b"
-)
-
-if defined DISCOVERED_URL (
-    echo.
-    echo =========================================================================
-    echo  [+] تم العثور على سيرفر الفصل الرئيسي تلقائياً على الشبكة! 📡
-    echo      الرابط: %DISCOVERED_URL%
-    echo  [+] جاري فتح المتصفح والاتصال بزميلك فوراً...
-    echo =========================================================================
-    start "" "%DISCOVERED_URL%"
-    timeout /t 3 /nobreak >nul
-    exit /b
-)
-
-:: 4. If no server was auto-detected, ask user for mode
 echo.
 echo =========================================================================
-echo   اختر طريقة التشغيل على هذا الجهاز:
-echo.
-echo   [1] تشغيل كـ "سيرفر الفصل الرئيسي (Host)" - (جهاز الأدمن فقط)
-echo   [2] أنا جهاز طالب (Client) - الاتصال بسيرفر زميلي في الفصل
-echo.
-echo =========================================================================
-set /p MODE="أدخل رقم الاختيار [1 أو 2]: "
-
-if "%MODE%"=="2" (
-    echo.
-    echo -------------------------------------------------------------------------
-    set /p HOST_IP="أدخل عنوان IP جهاز زميلك الأدمن (مثال: 192.168.20.54): "
-    if not defined HOST_IP set HOST_IP=192.168.20.54
-    echo.
-    echo [+] جاري فتح المتصفح والاتصال بـ http://%HOST_IP%:5000 ...
-    start "" "http://%HOST_IP%:5000"
-    timeout /t 3 /nobreak >nul
-    exit /b
-)
-
-:: Mode 1: Host Server
-echo.
-echo =========================================================================
-echo  [+] جاري تشغيل سيرفر الفصل الرئيسي (Host Server)...
+echo  [+] جاري تشغيل سيرفر الفصل...
 echo.
 echo  ⚠️  تنبيه هام لكي يراك زملاؤك في الفصل:
 echo      1. يجب أن تفتح أنت: http://localhost:5000
 echo      2. يجب أن يفتح زملاؤك عنوان الـ IP الخاص بك (مثلاً: 192.168.20.54)
 echo         وليس localhost!
-echo.
 echo =========================================================================
 
 :: Attempt to add Windows Firewall rule silently

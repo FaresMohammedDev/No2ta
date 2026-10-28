@@ -11,7 +11,13 @@ const crypto = require('crypto');
 const { db, run, get, all, initDB } = require('./data/db');
 const { cleanIP, getServerLanIPs, resolveMacAddress } = require('./services/network');
 const { recordInteraction, getStreakBetween, getAllUserStreaks, isWeekendFreeze } = require('./services/streaks');
-const { startBeacon } = require('./services/discovery');
+
+let startBeacon = () => {};
+try {
+    startBeacon = require('./services/discovery').startBeacon;
+} catch (e) {
+    console.log('Discovery service notice:', e.message);
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -24,26 +30,21 @@ const PORT = process.env.PORT || 5000;
 const MASTER_PASSWORD = 'SdSdSdSd';
 const ADMIN_PASSWORD = 'SdSdSdSdAdmin';
 
-// MAC Addresses for the Host Admin Device
-const HOST_ADMIN_MACS = new Set([
-    'D0:8E:79:18:9F:A0',
-    'D0-8E-79-18-9F-A0',
-    'd0:8e:79:18:9f:a0',
-    '00:50:56:C0:00:01',
-    '00:50:56:C0:00:08'
-]);
+// The ONE and ONLY physical MAC address of the Classroom Admin machine
+const STRICT_ADMIN_MAC = 'D0:8E:79:18:9F:A0';
 
 // Helper to determine if the connecting device is THIS Admin Machine
 function isHostAdmin(clientIp, clientMac) {
     if (clientMac) {
         const cleanMac = clientMac.toUpperCase().replace(/-/g, ':');
-        for (const m of HOST_ADMIN_MACS) {
-            if (m.toUpperCase().replace(/-/g, ':') === cleanMac) return true;
-        }
+        if (cleanMac === STRICT_ADMIN_MAC) return true;
     }
-    if (clientIp === '127.0.0.1' || clientIp === '::1' || clientIp === 'localhost') return true;
-    const lanIps = getServerLanIPs();
-    if (lanIps.some(item => item.address === clientIp)) return true;
+    // Only allow localhost if THIS physical machine has the STRICT_ADMIN_MAC adapter!
+    const hostLanIps = getServerLanIPs();
+    const hasAdminHardware = hostLanIps.some(net => net.mac && net.mac.toUpperCase().replace(/-/g, ':') === STRICT_ADMIN_MAC);
+    if (hasAdminHardware && (clientIp === '127.0.0.1' || clientIp === '::1' || clientIp === 'localhost')) {
+        return true;
+    }
     return false;
 }
 

@@ -79,7 +79,7 @@ async function fetchNetworkInfo() {
             }
         }
 
-        // Auto-promote this machine to Admin
+        // Auto-promote ONLY this machine to Admin
         if (data.isHostAdmin || data.isAdmin) {
             if (STATE.user) {
                 STATE.user.role = 'admin';
@@ -91,6 +91,13 @@ async function fetchNetworkInfo() {
             if (nickInput && !nickInput.value) nickInput.value = 'كبير الفصل (الأدمن) 👑';
             const adminRadio = document.querySelector('input[name="authAvatar"][value="👑"]');
             if (adminRadio) adminRadio.checked = true;
+        } else {
+            // Demote any non-admin device to student
+            if (STATE.user && STATE.user.role === 'admin') {
+                STATE.user.role = 'student';
+                localStorage.setItem('no2ta_user', JSON.stringify(STATE.user));
+                updateProfileUI();
+            }
         }
 
         // Check if user is on standalone localhost on a secondary machine
