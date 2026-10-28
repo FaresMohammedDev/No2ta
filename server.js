@@ -86,6 +86,7 @@ let whiteboardHistory = []; // Last 1000 draw actions for live sync
 let sharedCodePadText = '// كشكول الأكواد والنصوص المشترك للفصل 💻⚡\n// الصق أي كود أو مسألة برمجية هنا ليراها الجميع فوراً!';
 let isChatFocusLocked = false;
 let isStealthEngaged = false;
+let activeScreenShare = null; // { presenterSocketId, presenterId, presenterName, hasAudio, startedAt }
 
 // ---------------------- REST API ROUTES ----------------------
 
@@ -519,6 +520,14 @@ app.post('/api/airdrop/download/:id', async (req, res) => {
     }
 });
 
+// 10. Live Screen Share Status Endpoint
+app.get('/api/screen-share/status', (req, res) => {
+    res.json({
+        active: !!activeScreenShare,
+        share: activeScreenShare
+    });
+});
+
 // 9b. Shared Classroom CodePad / Plain Text Bin
 app.get('/api/codepad', async (req, res) => {
     try {
@@ -672,6 +681,10 @@ io.on('connection', async (socket) => {
         // Send stealth state if already engaged
         if (isStealthEngaged) {
             socket.emit('GLOBAL_STEALTH_ENGAGED', { timestamp: 0 });
+        }
+        // Send active screen share state if currently broadcasting
+        if (activeScreenShare) {
+            socket.emit('screen_share_started', activeScreenShare);
         }
 
         // Broadcast presence
@@ -834,8 +847,72 @@ io.on('connection', async (socket) => {
         }
     });
 
+    // 8. Screen Share & WebRTC Signaling Hub 🖥️
+    socket.on('get_screen_share_status', () => {
+        socket.emit('screen_share_status', activeScreenShare);
+    });
+
+    socket.on('screen_share_start', (data) => {
+        activeScreenShare = {
+            presenterSocketId: socket.id,
+            presenterId: data.presenterId,
+            presenterName: data.presenterName,
+            hasAudio: !!data.hasAudio,
+            startedAt: Date.now()
+        };
+        console.log(`🖥️ [SCREEN SHARE] Started by ${data.presenterName} (${socket.id})`);
+        io.emit('screen_share_started', activeScreenShare);
+    });
+
+    socket.on('screen_share_stop', () => {
+        if (activeScreenShare && activeScreenShare.presenterSocketId === socket.id) {
+            console.log(`⏹️ [SCREEN SHARE] Stopped by presenter (${socket.id})`);
+            activeScreenShare = null;
+            io.emit('screen_share_ended');
+        }
+    });
+
+    // Signaling: Viewer requests to join presenter's stream
+    socket.on('webrtc_viewer_join', (data) => {
+        if (activeScreenShare) {
+            io.to(activeScreenShare.presenterSocketId).emit('webrtc_viewer_joined', {
+                viewerSocketId: socket.id,
+                viewerName: data.viewerName || 'طالب'
+            });
+        }
+    });
+
+    // Signaling: Presenter sends offer to specific viewer
+    socket.on('webrtc_offer', ({ targetSocketId, offer }) => {
+        io.to(targetSocketId).emit('webrtc_offer', {
+            presenterSocketId: socket.id,
+            offer
+        });
+    });
+
+    // Signaling: Viewer sends answer to presenter
+    socket.on('webrtc_answer', ({ targetSocketId, answer }) => {
+        io.to(targetSocketId).emit('webrtc_answer', {
+            viewerSocketId: socket.id,
+            answer
+        });
+    });
+
+    // Signaling: ICE Candidate relay
+    socket.on('webrtc_ice_candidate', ({ targetSocketId, candidate }) => {
+        io.to(targetSocketId).emit('webrtc_ice_candidate', {
+            fromSocketId: socket.id,
+            candidate
+        });
+    });
+
     // Disconnect Handling
     socket.on('disconnect', async () => {
+        if (activeScreenShare && activeScreenShare.presenterSocketId === socket.id) {
+            console.log(`⏹️ [SCREEN SHARE] Presenter disconnected, ending live stream`);
+            activeScreenShare = null;
+            io.emit('screen_share_ended');
+        }
         const userInfo = onlineUsers.get(socket.id);
         if (userInfo) {
             onlineUsers.delete(socket.id);

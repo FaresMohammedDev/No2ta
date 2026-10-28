@@ -86,6 +86,13 @@
                     <span class="hidden md:inline">كشكول الأكواد</span>
                 </button>
 
+                <!-- Screen Share Button 🖥️ -->
+                <button id="screenShareToggleBtn" onclick="toggleScreenShare()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-bold transition-all shadow-sm relative" title="بث شاشتي أو مشاهدة البث الحي لزملائي">
+                    <span class="text-sm">🖥️</span>
+                    <span class="hidden md:inline" id="screenShareBtnLabel">بث الشاشة</span>
+                    <span id="screenShareLiveDot" class="hidden w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                </button>
+
                 <!-- Admin Dashboard Button -->
                 <button id="adminDashboardBtn" onclick="openAdminDashboard()" class="hidden flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-400 text-xs font-bold transition-all">
                     <span>👑</span>
@@ -196,6 +203,71 @@
                             <button onclick="setDisappearingTimer(60)" class="text-right px-2.5 py-1 text-xs text-red-400 hover:bg-slate-800 rounded">🔥 1 دقيقة</button>
                             <button onclick="setDisappearingTimer(300)" class="text-right px-2.5 py-1 text-xs text-red-400 hover:bg-slate-800 rounded">🔥 5 دقائق</button>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 📢 INCOMING SCREEN SHARE BANNER (For Classmates) -->
+            <div id="screenShareJoinNotification" class="hidden bg-gradient-to-r from-emerald-600/90 via-cyan-600/90 to-emerald-600/90 border-b border-white/10 px-4 py-2 text-xs font-bold text-white flex items-center justify-between shadow-lg">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-red-400 animate-ping"></span>
+                    <span id="screenShareJoinText">🔴 بدأ أحد الزملاء بث شاشته الآن! يمكنك المشاهدة والتفاعل جنباً إلى جنب في الشات.</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="joinScreenShare()" class="px-3.5 py-1 rounded-xl bg-slate-950 hover:bg-slate-900 text-cyan-400 font-black text-xs transition-all shadow-md flex items-center gap-1">
+                        <span>مشاهدة البث 🖥️</span>
+                    </button>
+                    <button onclick="dismissScreenShareNotification()" class="w-6 h-6 rounded-full bg-black/20 hover:bg-black/40 text-white flex items-center justify-center text-xs">
+                        ✕
+                    </button>
+                </div>
+            </div>
+
+            <!-- 🖥️ LIVE SCREEN SHARE THEATER PANEL (بث الشاشة المباشر وسينما الفصل) -->
+            <div id="screenShareTheaterPanel" class="hidden border-b border-white/10 bg-slate-950 flex flex-col transition-all duration-300 relative shrink-0">
+                <!-- Screen Share Header -->
+                <div class="px-3.5 py-2 bg-slate-900/90 border-b border-white/5 flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+                        <div class="flex items-center gap-1.5">
+                            <span class="font-bold text-white text-xs">بث مباشر:</span>
+                            <span id="screenSharePresenterName" class="text-cyan-400 font-extrabold text-xs">فارس</span>
+                        </div>
+                        <span id="screenShareStatusPill" class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
+                            🔴 مباشر (Live)
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <!-- Volume mute/unmute toggle -->
+                        <button id="screenShareAudioToggleBtn" onclick="toggleScreenShareAudio()" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all flex items-center gap-1" title="كتم / تشغيل الصوت">
+                            <span id="screenShareAudioIcon">🔊</span>
+                        </button>
+                        <!-- Fullscreen -->
+                        <button onclick="toggleScreenShareFullscreen()" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all flex items-center gap-1" title="ملء الشاشة">
+                            <span>⛶</span>
+                            <span class="hidden sm:inline">شاشة كاملة</span>
+                        </button>
+                        <!-- Picture-in-Picture -->
+                        <button onclick="toggleScreenSharePiP()" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all flex items-center gap-1" title="نافذة عائمة أثناء تصفح باقي التطبيقات">
+                            <span>🗗</span>
+                            <span class="hidden sm:inline">نافذة عائمة</span>
+                        </button>
+                        <!-- Stop or Close -->
+                        <button id="screenShareControlBtn" onclick="handleScreenShareControlClick()" class="px-2.5 py-1 rounded-lg bg-red-600/90 hover:bg-red-500 text-white text-xs font-bold transition-all flex items-center gap-1">
+                            <span>⏹️</span>
+                            <span id="screenShareControlBtnText">إيقاف البث</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Video Frame -->
+                <div id="screenShareVideoWrapper" class="relative w-full bg-black flex items-center justify-center overflow-hidden h-[38vh] sm:h-[46vh] max-h-[500px]">
+                    <video id="screenShareVideo" autoplay playsinline class="w-full h-full object-contain bg-black"></video>
+
+                    <!-- Loading / Connecting Overlay -->
+                    <div id="screenShareLoadingOverlay" class="hidden absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center gap-2 text-white">
+                        <div class="w-8 h-8 border-3 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+                        <p class="text-xs font-bold text-cyan-300">جاري الاتصال بالبث المباشر للشاشة عبر الشبكة...</p>
                     </div>
                 </div>
             </div>

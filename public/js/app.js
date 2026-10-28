@@ -37,6 +37,19 @@ const STATE = {
         text: '',
         debounceTimer: null
     },
+    screenShare: {
+        isSharing: false,
+        isViewing: false,
+        localStream: null,
+        peerConnections: new Map(), // viewerSocketId -> RTCPeerConnection
+        viewerPeerConnection: null,
+        activeShareInfo: null,
+        rtcConfig: {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' }
+            ]
+        }
+    },
     pendingEditAvatarUrl: null,
     pendingAuthAvatarUrl: null
 };
@@ -367,6 +380,31 @@ function initSocket() {
         showAnnouncementModal(data);
     });
 
+    // 🖥️ SCREEN SHARE & WEBRTC SOCKET EVENTS 🖥️
+    STATE.socket.on('screen_share_started', (shareInfo) => {
+        handleScreenShareStarted(shareInfo);
+    });
+
+    STATE.socket.on('screen_share_ended', () => {
+        handleScreenShareEnded();
+    });
+
+    STATE.socket.on('webrtc_viewer_joined', (data) => {
+        handleViewerJoined(data);
+    });
+
+    STATE.socket.on('webrtc_offer', (data) => {
+        handleIncomingOffer(data);
+    });
+
+    STATE.socket.on('webrtc_answer', (data) => {
+        handleIncomingAnswer(data);
+    });
+
+    STATE.socket.on('webrtc_ice_candidate', (data) => {
+        handleIncomingIceCandidate(data);
+    });
+
     // 🚨 GLOBAL PANIC & STEALTH BROADCAST 🚨
     STATE.socket.on('GLOBAL_STEALTH_ENGAGED', (data) => {
         // If data.timestamp > 0 and fresh (within 15 seconds), this is a fresh global panic!
@@ -451,6 +489,13 @@ function engageStealthMode(info) {
     STATE.isStealthActive = true;
     window.soundEngine.killAllAudio();
 
+    // Mute and pause any active screen share immediately!
+    const screenVideo = document.getElementById('screenShareVideo');
+    if (screenVideo) {
+        screenVideo.pause();
+        screenVideo.muted = true;
+    }
+
     // 1. Change Document Title & Favicon to Physics Exam
     document.title = 'نموذج إجابة ومراجعة الفيزياء - الوحدة الأولى (التأثير المغناطيسي)';
     const favicon = document.getElementById('appFavicon');
@@ -472,6 +517,15 @@ function engageStealthMode(info) {
 function releaseStealthMode(info) {
     STATE.isStealthActive = false;
     window.soundEngine.resumeAudio();
+
+    // Resume screen share video if active
+    const screenVideo = document.getElementById('screenShareVideo');
+    if (screenVideo && screenVideo.srcObject) {
+        screenVideo.play().catch(() => {});
+        if (!STATE.screenShare.isSharing) {
+            screenVideo.muted = false;
+        }
+    }
 
     // Restore Title & Favicon
     document.title = 'نؤطة (No2ta) 💬⚡ - شبكة الفصل الاجتماعية';
@@ -1781,6 +1835,398 @@ function handleTextareaTabKey(e) {
         this.value = value.substring(0, start) + '    ' + value.substring(end);
         this.selectionStart = this.selectionEnd = start + 4;
         this.dispatchEvent(new Event('input'));
+    }
+}
+
+// ----------------------------------------------------
+// 9c. Classroom Real-time Screen Sharing & Live Cinema 🖥️🍿 (WebRTC)
+// ----------------------------------------------------
+
+// Toggle Button in Header
+function toggleScreenShare() {
+    if (STATE.screenShare.isSharing) {
+        stopScreenShare();
+    } else if (STATE.screenShare.isViewing) {
+        closeScreenShareView();
+    } else if (STATE.screenShare.activeShareInfo) {
+        // Someone else is sharing: join it!
+        joinScreenShare();
+    } else {
+        // Start new screen share as presenter
+        startScreenShare();
+    }
+}
+
+async function startScreenShare() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        alert('ميزة مشاركة الشاشة غير مدعومة في هذا المتصفح. يرجى استخدام متصفح حديث (Chrome / Edge / Firefox).');
+        return;
+    }
+
+    try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+            video: {
+                cursor: 'always',
+                displaySurface: 'monitor',
+                frameRate: { ideal: 30, max: 60 }
+            },
+            audio: {
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false
+            }
+        });
+
+        STATE.screenShare.localStream = stream;
+        STATE.screenShare.isSharing = true;
+        STATE.screenShare.isViewing = false;
+
+        const videoEl = document.getElementById('screenShareVideo');
+        if (videoEl) {
+            videoEl.srcObject = stream;
+            videoEl.muted = true; // Mute locally to prevent audio feedback loop!
+            videoEl.play().catch(e => console.warn('Video play error:', e));
+        }
+
+        openScreenSharePanel({
+            presenterName: STATE.user ? STATE.user.nickname : 'أنا',
+            isPresenter: true
+        });
+
+        // Listen for native browser stop sharing bar click
+        const videoTrack = stream.getVideoTracks()[0];
+        if (videoTrack) {
+            videoTrack.onended = () => {
+                stopScreenShare();
+            };
+        }
+
+        // Notify server
+        if (STATE.socket) {
+            STATE.socket.emit('screen_share_start', {
+                presenterId: STATE.user ? STATE.user.id : null,
+                presenterName: STATE.user ? STATE.user.nickname : 'زميلك',
+                hasAudio: stream.getAudioTracks().length > 0
+            });
+        }
+
+        showNotification('تم بدء بث الشاشة بنجاح! 🖥️ زمايلك في الفصل يقدروا يشوفوا البث الآن.');
+    } catch (err) {
+        console.error('Error starting screen share:', err);
+        if (err.name !== 'NotAllowedError') {
+            alert('حدث خطأ أثناء محاولة مشاركة الشاشة. يرجى المحاولة مرة أخرى.');
+        }
+    }
+}
+
+function stopScreenShare() {
+    if (STATE.screenShare.localStream) {
+        STATE.screenShare.localStream.getTracks().forEach(track => {
+            track.stop();
+        });
+        STATE.screenShare.localStream = null;
+    }
+
+    // Close all viewer peer connections
+    STATE.screenShare.peerConnections.forEach(pc => pc.close());
+    STATE.screenShare.peerConnections.clear();
+
+    STATE.screenShare.isSharing = false;
+    closeScreenSharePanel();
+
+    if (STATE.socket) {
+        STATE.socket.emit('screen_share_stop');
+    }
+
+    showNotification('تم إيقاف بث الشاشة ⏹️');
+}
+
+function joinScreenShare() {
+    if (!STATE.screenShare.activeShareInfo) {
+        showNotification('لا يوجد بث شاشة مباشر حالياً.');
+        return;
+    }
+
+    STATE.screenShare.isViewing = true;
+    STATE.screenShare.isSharing = false;
+
+    // Dismiss join banner
+    dismissScreenShareNotification();
+
+    openScreenSharePanel({
+        presenterName: STATE.screenShare.activeShareInfo.presenterName || 'زميلك',
+        isPresenter: false
+    });
+
+    const loadingOverlay = document.getElementById('screenShareLoadingOverlay');
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+
+    // Initialize or Reset Viewer RTCPeerConnection
+    if (STATE.screenShare.viewerPeerConnection) {
+        STATE.screenShare.viewerPeerConnection.close();
+    }
+
+    const pc = new RTCPeerConnection(STATE.screenShare.rtcConfig);
+    STATE.screenShare.viewerPeerConnection = pc;
+
+    pc.ontrack = (event) => {
+        console.log('🎥 Received remote screen share track:', event.track.kind);
+        const videoEl = document.getElementById('screenShareVideo');
+        if (videoEl) {
+            videoEl.srcObject = event.streams[0];
+            videoEl.muted = false; // Audio on for viewers
+            videoEl.play().catch(e => console.warn('Autoplay error:', e));
+        }
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+    };
+
+    pc.onicecandidate = (event) => {
+        if (event.candidate && STATE.screenShare.activeShareInfo && STATE.socket) {
+            STATE.socket.emit('webrtc_ice_candidate', {
+                targetSocketId: STATE.screenShare.activeShareInfo.presenterSocketId,
+                candidate: event.candidate
+            });
+        }
+    };
+
+    // Request presenter to send an offer
+    if (STATE.socket) {
+        STATE.socket.emit('webrtc_viewer_join', {
+            viewerName: STATE.user ? STATE.user.nickname : 'طالب'
+        });
+    }
+}
+
+function closeScreenShareView() {
+    if (STATE.screenShare.viewerPeerConnection) {
+        STATE.screenShare.viewerPeerConnection.close();
+        STATE.screenShare.viewerPeerConnection = null;
+    }
+    STATE.screenShare.isViewing = false;
+    closeScreenSharePanel();
+    showNotification('تم الخروج من مشاهدة البث 🚪');
+}
+
+function handleScreenShareControlClick() {
+    if (STATE.screenShare.isSharing) {
+        stopScreenShare();
+    } else {
+        closeScreenShareView();
+    }
+}
+
+function openScreenSharePanel({ presenterName, isPresenter }) {
+    const panel = document.getElementById('screenShareTheaterPanel');
+    const nameEl = document.getElementById('screenSharePresenterName');
+    const controlBtnText = document.getElementById('screenShareControlBtnText');
+    const statusPill = document.getElementById('screenShareStatusPill');
+
+    if (panel) panel.classList.remove('hidden');
+    if (nameEl) nameEl.textContent = isPresenter ? `${presenterName} (أنت)` : presenterName;
+    if (controlBtnText) controlBtnText.textContent = isPresenter ? 'إيقاف البث' : 'خروج من المشاهدة';
+    if (statusPill) {
+        statusPill.textContent = isPresenter ? '🔴 أنت تبث الآن' : '🔴 بث حي مباشر';
+    }
+
+    updateScreenShareHeaderButton();
+}
+
+function closeScreenSharePanel() {
+    const panel = document.getElementById('screenShareTheaterPanel');
+    const videoEl = document.getElementById('screenShareVideo');
+    if (panel) panel.classList.add('hidden');
+    if (videoEl) {
+        videoEl.pause();
+        videoEl.srcObject = null;
+    }
+    updateScreenShareHeaderButton();
+}
+
+function updateScreenShareHeaderButton() {
+    const btn = document.getElementById('screenShareToggleBtn');
+    const label = document.getElementById('screenShareBtnLabel');
+    const dot = document.getElementById('screenShareLiveDot');
+    if (!btn || !label || !dot) return;
+
+    if (STATE.screenShare.isSharing) {
+        label.textContent = 'إيقاف البث';
+        btn.classList.add('bg-red-500/20', 'border-red-500/40', 'text-red-400');
+        btn.classList.remove('bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-400');
+        dot.classList.remove('hidden');
+    } else if (STATE.screenShare.isViewing) {
+        label.textContent = 'الخروج من البث';
+        btn.classList.add('bg-cyan-500/20', 'border-cyan-500/40', 'text-cyan-400');
+        btn.classList.remove('bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-400');
+        dot.classList.remove('hidden');
+    } else if (STATE.screenShare.activeShareInfo) {
+        label.textContent = 'مشاهدة البث 🔴';
+        btn.classList.add('bg-emerald-500/20', 'border-emerald-500/40', 'text-emerald-400');
+        dot.classList.remove('hidden');
+    } else {
+        label.textContent = 'بث الشاشة';
+        btn.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-bold transition-all shadow-sm relative';
+        dot.classList.add('hidden');
+    }
+}
+
+// Fullscreen & PiP & Audio Helpers
+function toggleScreenShareFullscreen() {
+    const videoEl = document.getElementById('screenShareVideo');
+    if (!videoEl) return;
+    if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+    } else {
+        if (videoEl.requestFullscreen) {
+            videoEl.requestFullscreen();
+        } else if (videoEl.webkitRequestFullscreen) {
+            videoEl.webkitRequestFullscreen();
+        }
+    }
+}
+
+async function toggleScreenSharePiP() {
+    const videoEl = document.getElementById('screenShareVideo');
+    if (!videoEl || !document.pictureInPictureEnabled) return;
+    try {
+        if (document.pictureInPictureElement) {
+            await document.exitPictureInPicture();
+        } else {
+            await videoEl.requestPictureInPicture();
+        }
+    } catch (e) {
+        console.warn('PiP error:', e);
+    }
+}
+
+function toggleScreenShareAudio() {
+    const videoEl = document.getElementById('screenShareVideo');
+    const iconEl = document.getElementById('screenShareAudioIcon');
+    if (!videoEl || !iconEl) return;
+    videoEl.muted = !videoEl.muted;
+    iconEl.textContent = videoEl.muted ? '🔇' : '🔊';
+    showNotification(videoEl.muted ? 'تم كتم صوت البث 🔇' : 'تم تفعيل صوت البث 🔊');
+}
+
+function dismissScreenShareNotification() {
+    const banner = document.getElementById('screenShareJoinNotification');
+    if (banner) banner.classList.add('hidden');
+}
+
+// ----------------- WebRTC Event Handlers -----------------
+
+function handleScreenShareStarted(shareInfo) {
+    STATE.screenShare.activeShareInfo = shareInfo;
+    updateScreenShareHeaderButton();
+
+    // If I am NOT the presenter, show incoming notification banner
+    const isMe = STATE.socket && STATE.socket.id === shareInfo.presenterSocketId;
+    if (!isMe) {
+        const banner = document.getElementById('screenShareJoinNotification');
+        const textEl = document.getElementById('screenShareJoinText');
+        if (banner && textEl) {
+            textEl.textContent = `🔴 ${shareInfo.presenterName} بدأ بث شاشته الآن! اضغط لمشاهدة البث مباشرة جنب الشات.`;
+            banner.classList.remove('hidden');
+        }
+        showNotification(`🖥️ ${shareInfo.presenterName} بدأ بث شاشته الآن!`);
+    }
+}
+
+function handleScreenShareEnded() {
+    STATE.screenShare.activeShareInfo = null;
+    dismissScreenShareNotification();
+
+    if (STATE.screenShare.isViewing) {
+        closeScreenShareView();
+        showNotification('انتهى البث المباشر للشاشة ⏹️');
+    } else if (STATE.screenShare.isSharing) {
+        stopScreenShare();
+    } else {
+        updateScreenShareHeaderButton();
+    }
+}
+
+// Presenter: Handle viewer join request -> send WebRTC offer
+async function handleViewerJoined({ viewerSocketId, viewerName }) {
+    if (!STATE.screenShare.isSharing || !STATE.screenShare.localStream) return;
+    console.log(`📡 Presenter establishing WebRTC stream to viewer ${viewerName} (${viewerSocketId})`);
+
+    const pc = new RTCPeerConnection(STATE.screenShare.rtcConfig);
+    STATE.screenShare.peerConnections.set(viewerSocketId, pc);
+
+    // Add local tracks to peer connection
+    STATE.screenShare.localStream.getTracks().forEach(track => {
+        pc.addTrack(track, STATE.screenShare.localStream);
+    });
+
+    pc.onicecandidate = (event) => {
+        if (event.candidate && STATE.socket) {
+            STATE.socket.emit('webrtc_ice_candidate', {
+                targetSocketId: viewerSocketId,
+                candidate: event.candidate
+            });
+        }
+    };
+
+    try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        if (STATE.socket) {
+            STATE.socket.emit('webrtc_offer', {
+                targetSocketId: viewerSocketId,
+                offer: pc.localDescription
+            });
+        }
+    } catch (e) {
+        console.error('Error creating offer for viewer:', e);
+    }
+}
+
+// Viewer: Handle incoming offer from presenter -> send WebRTC answer
+async function handleIncomingOffer({ presenterSocketId, offer }) {
+    if (!STATE.screenShare.isViewing) return;
+    const pc = STATE.screenShare.viewerPeerConnection;
+    if (!pc) return;
+
+    try {
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+        if (STATE.socket) {
+            STATE.socket.emit('webrtc_answer', {
+                targetSocketId: presenterSocketId,
+                answer: pc.localDescription
+            });
+        }
+    } catch (e) {
+        console.error('Error handling incoming offer:', e);
+    }
+}
+
+// Presenter: Handle incoming answer from viewer
+async function handleIncomingAnswer({ viewerSocketId, answer }) {
+    const pc = STATE.screenShare.peerConnections.get(viewerSocketId);
+    if (pc) {
+        try {
+            await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        } catch (e) {
+            console.error('Error setting remote answer for viewer:', e);
+        }
+    }
+}
+
+// Both: Handle incoming ICE candidate
+async function handleIncomingIceCandidate({ fromSocketId, candidate }) {
+    try {
+        if (STATE.screenShare.isSharing) {
+            const pc = STATE.screenShare.peerConnections.get(fromSocketId);
+            if (pc) await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } else if (STATE.screenShare.isViewing && STATE.screenShare.viewerPeerConnection) {
+            await STATE.screenShare.viewerPeerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+    } catch (e) {
+        console.warn('Error adding ICE candidate:', e);
     }
 }
 
