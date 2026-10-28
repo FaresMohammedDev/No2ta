@@ -28,7 +28,6 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 5000;
 const MASTER_PASSWORD = 'SdSdSdSd';
-const ADMIN_PASSWORD = 'SdSdSdSdAdmin';
 
 // The ONE and ONLY physical MAC address of the Classroom Admin machine
 const STRICT_ADMIN_MAC = 'D0:8E:79:18:9F:A0';
@@ -123,11 +122,10 @@ app.post('/api/auth/login', async (req, res) => {
         const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
         const clientMac = await resolveMacAddress(clientIp);
 
-        // Hardware-based Admin detection: THIS MACHINE (MAC D0:8E:79:18:9F:A0 / localhost) is ALWAYS ADMIN!
+        // Hardware-based Admin detection: ONLY physical MAC D0:8E:79:18:9F:A0 is Admin!
         const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
-        const isAdmin = isDeviceAdmin || (password === ADMIN_PASSWORD);
 
-        if (!isDeviceAdmin && password !== MASTER_PASSWORD && password !== ADMIN_PASSWORD) {
+        if (password !== MASTER_PASSWORD) {
             return res.status(401).json({ error: 'كلمة السر غير صحيحة! الباسوورد هو SdSdSdSd' });
         }
 
@@ -136,11 +134,11 @@ app.post('/api/auth/login', async (req, res) => {
         // Check if user already exists
         let user = await get(`SELECT * FROM users WHERE device_id = ? OR mac_address = ?`, [effectiveDeviceId, clientMac]);
 
-        const defaultNickname = isAdmin ? 'كبير الفصل (الأدمن)' : `عبقري_${clientIp.split('.').pop()}`;
+        const defaultNickname = isDeviceAdmin ? 'كبير الفصل (الأدمن)' : `عبقري_${clientIp.split('.').pop()}`;
         const chosenNickname = nickname ? nickname.trim() : (user ? user.nickname : defaultNickname);
-        const chosenAvatar = avatar || (user ? user.avatar : (isAdmin ? '👑' : '🚀'));
-        const chosenBio = bio || (user ? user.bio : (isAdmin ? 'أدمن الفصل والمتحكم في الشبكة 👑⚡' : 'طالب جامد في فصل العباقرة ⚡'));
-        const chosenRole = isAdmin ? 'admin' : (user ? user.role : 'student');
+        const chosenAvatar = avatar || (user ? user.avatar : (isDeviceAdmin ? '👑' : '🚀'));
+        const chosenBio = bio || (user ? user.bio : (isDeviceAdmin ? 'أدمن الفصل والمتحكم في الشبكة 👑⚡' : 'طالب جامد في فصل العباقرة ⚡'));
+        const chosenRole = isDeviceAdmin ? 'admin' : 'student';
 
         if (user) {
             // Update existing user
@@ -163,7 +161,7 @@ app.post('/api/auth/login', async (req, res) => {
         res.json({
             success: true,
             user,
-            isAdmin: user.role === 'admin',
+            isAdmin: isDeviceAdmin,
             masterPasswordCorrect: true
         });
     } catch (err) {
@@ -465,13 +463,14 @@ app.get('/api/admin/devices', async (req, res) => {
 
 app.post('/api/admin/action', async (req, res) => {
     try {
-        const { adminKey, action, payload } = req.body;
+        const { action, payload } = req.body;
         const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
         const clientMac = await resolveMacAddress(clientIp);
         const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
 
-        if (!isDeviceAdmin && adminKey !== ADMIN_PASSWORD && adminKey !== MASTER_PASSWORD) {
-            return res.status(403).json({ error: 'غير مصرح لك بعمليات الأدمن!' });
+        // Strict Check: Only the hardware admin can perform any admin action!
+        if (!isDeviceAdmin) {
+            return res.status(403).json({ error: 'ممنوع! العمليات الإدارية محصورة حصرياً بجهاز الأدمن الفيزيائي فقط.' });
         }
 
         switch (action) {

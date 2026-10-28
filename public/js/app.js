@@ -35,7 +35,6 @@ const STATE = {
 };
 
 const MASTER_PASSWORD = 'SdSdSdSd';
-const ADMIN_PASSWORD = 'SdSdSdSdAdmin';
 
 // DOM Ready Init
 document.addEventListener('DOMContentLoaded', async () => {
@@ -147,7 +146,7 @@ async function handleLoginSubmit(e) {
     const nickname = nickInput.value.trim();
     const avatar = avatarInput ? avatarInput.value : '🚀';
 
-    if (password !== MASTER_PASSWORD && password !== ADMIN_PASSWORD) {
+    if (password !== MASTER_PASSWORD) {
         errorEl.textContent = 'كلمة السر غير صحيحة! الباسوورد هو SdSdSdSd';
         errorEl.classList.remove('hidden');
         return;
@@ -1293,28 +1292,14 @@ function exportWhiteboardImage() {
 // 10. Admin Superpowers Dashboard
 // ----------------------------------------------------
 async function openAdminDashboard() {
-    // If this device is the Host Admin (MAC D0:8E:79:18:9F:A0 / localhost), grant direct access!
-    const isHostDevice = STATE.networkInfo && (STATE.networkInfo.isHostAdmin || STATE.networkInfo.isAdmin);
-    if (isHostDevice) {
-        if (STATE.user) {
-            STATE.user.role = 'admin';
-            localStorage.setItem('no2ta_user', JSON.stringify(STATE.user));
-            updateProfileUI();
-        }
-    } else if (!STATE.user || STATE.user.role !== 'admin') {
-        const pass = prompt('🔑 أدخل كلمة سر الأدمن للدخول للوحة التحكم:');
-        if (pass === ADMIN_PASSWORD) {
-            STATE.user.role = 'admin';
-            localStorage.setItem('no2ta_user', JSON.stringify(STATE.user));
-            updateProfileUI();
-        } else {
-            alert('كلمة المرور غير صحيحة!');
-            return;
-        }
+    // Strictly ONLY the hardware admin (MAC D0:8E:79:18:9F:A0) can open this!
+    if (!STATE.networkInfo || !STATE.networkInfo.isHostAdmin) {
+        return; // Silent abort for any other student
     }
 
     try {
         const res = await fetch('/api/admin/devices');
+        if (!res.ok) return;
         const data = await res.json();
         renderAdminDashboard(data);
         showModal('adminModal');
@@ -1367,7 +1352,6 @@ async function adminBroadcastAlert() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            adminKey: ADMIN_PASSWORD,
             action: 'broadcast_alert',
             payload: { message: msg }
         })
@@ -1379,7 +1363,6 @@ async function adminStealthRelease() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            adminKey: ADMIN_PASSWORD,
             action: 'stealth_release',
             payload: {}
         })
@@ -1392,7 +1375,6 @@ async function adminToggleFocusMode() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            adminKey: ADMIN_PASSWORD,
             action: 'toggle_focus_mode',
             payload: {}
         })
@@ -1410,7 +1392,6 @@ async function adminKickUser(userId) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            adminKey: ADMIN_PASSWORD,
             action: 'kick_user',
             payload: { userId }
         })
@@ -1424,7 +1405,6 @@ async function adminDeleteMessage(messageId) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            adminKey: ADMIN_PASSWORD,
             action: 'delete_message',
             payload: { messageId }
         })

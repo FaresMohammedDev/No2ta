@@ -1430,7 +1430,7 @@
 
         function unlockStealth() {
             const pass = prompt('🔐 أدخل كلمة السر لفك وضع التمويه والعودة إلى نؤطة:');
-            if (pass === 'SdSdSdSd' || pass === 'SdSdSdSdAdmin') {
+            if (pass === 'SdSdSdSd') {
                 if (window.parent && window.parent !== window) {
                     window.parent.postMessage({ type: 'NO2TA_STEALTH_RESTORE' }, '*');
                 } else {
