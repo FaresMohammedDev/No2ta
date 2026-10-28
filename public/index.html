@@ -915,6 +915,10 @@
 
             <!-- Playback Controls -->
             <div class="flex items-center gap-1.5 shrink-0">
+                <a id="radioDirectYtLink" href="#" target="_blank" rel="noopener" class="hidden px-2 py-1.5 rounded-xl bg-red-600/30 hover:bg-red-600 text-red-200 hover:text-white text-[11px] font-bold transition-all border border-red-500/40 flex items-center gap-1" title="فتح وسماع الأغنية مباشرة على يوتيوب">
+                    <span>↗</span>
+                    <span>يوتيوب</span>
+                </a>
                 <button id="radioToggleVideoBtn" onclick="toggleRadioVideoDisplay()" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-pink-300 text-[11px] font-bold transition-all border border-pink-500/20" title="عرض/إخفاء فيديو الكليب">
                     📺 كليب
                 </button>
@@ -935,6 +939,15 @@
             <span id="radioCurrentTime" class="text-[9px] font-mono text-slate-400 shrink-0">0:00</span>
             <input type="range" id="radioProgressBar" min="0" max="100" value="0" step="0.5" oninput="handleRadioProgressInput(this.value)" class="flex-1 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-pink-500">
             <span id="radioTotalDuration" class="text-[9px] font-mono text-slate-400 shrink-0">0:00</span>
+        </div>
+
+        <!-- Firewall hint if YouTube blocked on PC -->
+        <div id="radioYtFirewallNotice" class="hidden mt-1 px-1 text-[10px] text-amber-300/90 flex items-center justify-between bg-amber-500/10 rounded-lg py-1 px-2 border border-amber-500/20">
+            <span>⚠️ شبكة المعمل تحجب يوتيوب على هذا الكمبيوتر.</span>
+            <a id="radioNoticeYtBtn" href="#" target="_blank" rel="noopener" class="underline text-cyan-300 font-bold hover:text-white flex items-center gap-0.5">
+                <span>اسمعها هنا مباشرة</span>
+                <span>↗</span>
+            </a>
         </div>
         <audio id="classroomAudioElement" preload="auto" class="hidden"></audio>
     </div>
@@ -1011,6 +1024,6 @@
 
     <!-- Main Application Scripts -->
     <script src="https://www.youtube.com/iframe_api"></script>
-    <script src="/js/app.js"></script>
+    <script src="/js/app.js?v=2.6.0"></script>
 </body>
 </html>

@@ -2601,13 +2601,17 @@ function handleRadioSyncState(state) {
     const defaultCover = document.getElementById('radioDefaultCover');
     const playIcon = document.getElementById('radioPlayIcon');
     const indicator = document.getElementById('radioPlayingIndicator');
+    const videoBtn = document.getElementById('radioToggleVideoBtn');
+    const ytDirectLink = document.getElementById('radioDirectYtLink');
+    const ytNotice = document.getElementById('radioYtFirewallNotice');
+    const ytNoticeBtn = document.getElementById('radioNoticeYtBtn');
 
     if (!state || !state.track) {
         STATE.radio.activeTrack = null;
         STATE.radio.isPlaying = false;
         if (audio) {
             audio.pause();
-            audio.src = '';
+            audio.removeAttribute('src');
         }
         if (window.isYtReady && window.ytPlayer && typeof window.ytPlayer.stopVideo === 'function') {
             try { window.ytPlayer.stopVideo(); } catch (e) {}
@@ -2616,6 +2620,8 @@ function handleRadioSyncState(state) {
         if (videoWrapper) videoWrapper.classList.add('hidden');
         if (bar) bar.classList.add('hidden');
         if (indicator) indicator.classList.add('hidden');
+        if (ytDirectLink) ytDirectLink.classList.add('hidden');
+        if (ytNotice) ytNotice.classList.add('hidden');
         return;
     }
 
@@ -2639,15 +2645,38 @@ function handleRadioSyncState(state) {
 
     if (playIcon) playIcon.textContent = state.isPlaying ? '⏸' : '▶';
 
-    const videoBtn = document.getElementById('radioToggleVideoBtn');
-
     // 1. YouTube Track Playback
     if (state.track.videoId) {
+        const ytWatchUrl = `https://www.youtube.com/watch?v=${state.track.videoId}`;
+        if (ytDirectLink) {
+            ytDirectLink.href = ytWatchUrl;
+            ytDirectLink.classList.remove('hidden');
+        }
+        if (ytNoticeBtn) {
+            ytNoticeBtn.href = ytWatchUrl;
+        }
+
+        // Safely stop and detach HTML5 audio element
+        if (audio) {
+            audio.pause();
+            audio.removeAttribute('src');
+        }
+
         if (videoBtn) videoBtn.classList.remove('hidden');
-        if (audio) { audio.pause(); audio.src = ''; }
-        syncYouTubePlayback(state.track.videoId, state.currentTime || 0, state.isPlaying);
+
+        // Check whether YouTube API loaded or blocked by school firewall
+        if (window.isYtReady && window.ytPlayer) {
+            if (ytNotice) ytNotice.classList.add('hidden');
+            syncYouTubePlayback(state.track.videoId, state.currentTime || 0, state.isPlaying);
+        } else {
+            // YouTube blocked on school PC or loading
+            if (ytNotice) ytNotice.classList.remove('hidden');
+            syncYouTubePlayback(state.track.videoId, state.currentTime || 0, state.isPlaying);
+        }
     } else {
         // 2. Local Audio File or Direct URL Playback
+        if (ytDirectLink) ytDirectLink.classList.add('hidden');
+        if (ytNotice) ytNotice.classList.add('hidden');
         if (videoBtn) videoBtn.classList.add('hidden');
         const videoWrapper = document.getElementById('classroomYtVideoWrapper');
         if (videoWrapper) videoWrapper.classList.add('hidden');
@@ -2660,6 +2689,9 @@ function handleRadioSyncState(state) {
             if (targetSrc && audio.src !== targetSrc && !audio.src.endsWith(targetSrc)) {
                 audio.src = targetSrc;
                 audio.load();
+            } else if (!targetSrc) {
+                audio.pause();
+                audio.removeAttribute('src');
             }
 
             const expectedTime = state.currentTime || 0;
@@ -2667,7 +2699,7 @@ function handleRadioSyncState(state) {
                 audio.currentTime = expectedTime;
             }
 
-            if (state.isPlaying && !STATE.isStealthActive) {
+            if (state.isPlaying && !STATE.isStealthActive && targetSrc) {
                 audio.play().catch(e => console.warn('Radio autoplay error:', e));
             } else {
                 audio.pause();
@@ -2682,9 +2714,11 @@ function getRadioAudioElement() {
         if (STATE.radio.audioEl) {
             STATE.radio.audioEl.addEventListener('timeupdate', updateRadioProgressUI);
             STATE.radio.audioEl.addEventListener('error', () => {
-                if (STATE.radio.activeTrack && STATE.radio.activeTrack.rawAudioUrl && STATE.radio.audioEl.src !== STATE.radio.activeTrack.rawAudioUrl) {
-                    console.warn('Proxy audio stream failed, falling back to direct stream:', STATE.radio.activeTrack.rawAudioUrl);
-                    STATE.radio.audioEl.src = STATE.radio.activeTrack.rawAudioUrl;
+                const track = STATE.radio.activeTrack;
+                // Only retry fallback for non-YouTube tracks that actually have a direct audio URL
+                if (track && !track.videoId && track.rawAudioUrl && !track.rawAudioUrl.includes('youtube.com') && STATE.radio.audioEl.src !== track.rawAudioUrl) {
+                    console.warn('Proxy audio stream failed, falling back to direct stream:', track.rawAudioUrl);
+                    STATE.radio.audioEl.src = track.rawAudioUrl;
                     if (STATE.radio.isPlaying && !STATE.isStealthActive) {
                         STATE.radio.audioEl.play().catch(() => {});
                     }
@@ -2707,16 +2741,24 @@ function updateRadioProgressUI() {
     const totTimeEl = document.getElementById('radioTotalDuration');
 
     // YouTube Progress
-    if (STATE.radio.activeTrack?.videoId && window.isYtReady && window.ytPlayer && window.ytPlayer.getCurrentTime) {
-        try {
-            const cur = window.ytPlayer.getCurrentTime() || 0;
-            const dur = window.ytPlayer.getDuration() || 0;
-            if (dur > 0 && progressBar) {
-                progressBar.value = (cur / dur) * 100;
-            }
-            if (curTimeEl) curTimeEl.textContent = formatAudioSeconds(cur);
-            if (dur > 0 && totTimeEl) totTimeEl.textContent = formatAudioSeconds(dur);
-        } catch (e) {}
+    if (STATE.radio.activeTrack?.videoId) {
+        if (window.isYtReady && window.ytPlayer && window.ytPlayer.getCurrentTime) {
+            try {
+                const cur = window.ytPlayer.getCurrentTime() || 0;
+                const dur = window.ytPlayer.getDuration() || 0;
+                if (dur > 0 && progressBar) {
+                    progressBar.value = (cur / dur) * 100;
+                }
+                if (curTimeEl) curTimeEl.textContent = formatAudioSeconds(cur);
+                if (dur > 0 && totTimeEl) totTimeEl.textContent = formatAudioSeconds(dur);
+            } catch (e) {}
+            return;
+        }
+
+        // When YouTube API is blocked on PC: display duration if known
+        if (STATE.radio.activeTrack.duration && totTimeEl) {
+            totTimeEl.textContent = STATE.radio.activeTrack.duration;
+        }
         return;
     }
 
