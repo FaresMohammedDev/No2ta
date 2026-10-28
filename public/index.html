@@ -80,6 +80,12 @@
                     <span class="hidden md:inline">السبورة</span>
                 </button>
 
+                <!-- Classroom CodePad Button -->
+                <button onclick="openCodepadModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold transition-all shadow-sm" title="كشكول الأكواد والنصوص المشترك">
+                    <span>💻</span>
+                    <span class="hidden md:inline">كشكول الأكواد</span>
+                </button>
+
                 <!-- Admin Dashboard Button -->
                 <button id="adminDashboardBtn" onclick="openAdminDashboard()" class="hidden flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-400 text-xs font-bold transition-all">
                     <span>👑</span>
@@ -229,6 +235,11 @@
                         📎
                     </button>
                     <input type="file" id="chatFileInput" class="hidden" accept="image/*,video/*,audio/*,.pdf,.zip,.rar,.docx">
+
+                    <!-- Code Snippet Button -->
+                    <button type="button" onclick="openCodeSnippetModal()" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 flex items-center justify-center font-mono font-bold text-sm transition-all" title="مشاركة كود برمجى أو نص خام (Code / Plain Text)">
+                        &lt;/&gt;
+                    </button>
 
                     <!-- Text Input Field -->
                     <input type="text" id="messageInput" placeholder="اكتب رسالتك لزمايلك في الفصل... (اضغط Enter للإرسال)" class="flex-1 bg-slate-950 border border-slate-800 focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/60 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none transition-all">
@@ -406,6 +417,118 @@
             <div class="flex-1 bg-[#070a13] rounded-2xl border border-slate-800 overflow-hidden relative">
                 <canvas id="whiteboardCanvas" class="w-full h-full block"></canvas>
             </div>
+        </div>
+    </div>
+
+    <!-- 4b. COLLABORATIVE LIVE CODEPAD MODAL (Plain Text / Code Bin) -->
+    <div id="codepadModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4">
+        <div class="glass-panel-elevated rounded-3xl p-4 sm:p-5 max-w-4xl w-full border border-indigo-500/30 flex flex-col h-[90vh]">
+            <!-- CodePad Header & Actions Toolbar -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10 mb-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">💻</span>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-sm font-black text-white">كشكول الأكواد والنصوص المشترك (Live CodePad)</h3>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+                                ⚡ تحديث حي لجميع الطلاب
+                            </span>
+                        </div>
+                        <p id="codepadStats" class="text-[10px] text-slate-400 font-mono mt-0.5">0 سطر • 0 حرف</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center flex-wrap gap-2">
+                    <!-- Copy All Button -->
+                    <button id="copyAllCodepadBtn" onclick="copyAllCodePadText()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-black transition-all shadow-md shadow-cyan-500/20">
+                        <span>📋</span>
+                        <span>نسخ كل الكود</span>
+                    </button>
+
+                    <!-- Send to Chat Button -->
+                    <button onclick="shareCodePadToChat()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md shadow-indigo-600/20" title="إرسال محتوى الكشكول لغرفة الشات الحالية">
+                        <span>🚀</span>
+                        <span>إرسال للشات</span>
+                    </button>
+
+                    <!-- Clear Scratchpad Button -->
+                    <button onclick="clearCodePadText()" class="px-2.5 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/30 text-red-400 hover:text-red-300 text-xs font-bold transition-all border border-red-500/30" title="تفريغ الكشكول">
+                        <span>🗑️ مسح</span>
+                    </button>
+
+                    <!-- Close -->
+                    <button onclick="hideModal('codepadModal')" class="text-slate-400 hover:text-white px-2 py-1 text-sm font-bold">✕</button>
+                </div>
+            </div>
+
+            <!-- CodePad Editor Body -->
+            <div class="flex-1 bg-[#060a14] rounded-2xl border border-slate-800 p-2 flex flex-col overflow-hidden relative shadow-inner">
+                <textarea id="sharedCodePadTextarea" spellcheck="false" dir="ltr" placeholder="// ضع أي كود أو مسألة برمجية أو نص هنا...&#10;// سيظهر فوراً لجميع زمايلك في الفصل المتصلين بالسيرفر!&#10;// يمكنك الضغط على زر 'نسخ كل الكود' لأخذه بضغطة واحدة." class="flex-1 w-full h-full bg-transparent text-cyan-300 font-mono text-xs sm:text-sm p-3 outline-none resize-none leading-relaxed select-all placeholder-slate-600 focus:ring-0"></textarea>
+            </div>
+
+            <!-- CodePad Footer Tips -->
+            <div class="pt-2 px-1 flex flex-wrap items-center justify-between text-[11px] text-slate-400 gap-2">
+                <div class="flex items-center gap-2">
+                    <span>💡 <b class="text-slate-300">نصيحة:</b> اضغط زر <b class="text-cyan-400">Tab</b> لعمل مسافات برمجية، واستخدم <b class="text-cyan-400">نسخ كل الكود</b> لنقله للمحرر عندك فوراً.</span>
+                </div>
+                <span id="codepadSyncIndicator" class="text-[10px] text-emerald-400 flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>متصل ومتزامن ⚡</span>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4c. IN-CHAT CODE SNIPPET SHARING MODAL -->
+    <div id="codeSnippetModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+        <div class="glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-xl w-full border border-cyan-500/30 flex flex-col relative">
+            <button onclick="hideModal('codeSnippetModal')" class="absolute top-4 left-4 text-slate-400 hover:text-white">✕</button>
+            
+            <div class="flex items-center gap-2 mb-3">
+                <span class="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-mono font-black text-sm">&lt;/&gt;</span>
+                <div>
+                    <h3 class="text-sm font-black text-white">مشاركة كود برمجى أو نص خام (Code Snippet)</h3>
+                    <p class="text-[11px] text-slate-400">سيتم إرساله للشات مع زر نسخ سريع مخصص لكل الطلاب</p>
+                </div>
+            </div>
+
+            <form id="codeSnippetForm" class="space-y-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 mb-1">عنوان أو اسم الملف (اختياري)</label>
+                        <input type="text" id="snippetTitleInput" placeholder="مثال: main.cpp أو query.sql" class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs text-white outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 mb-1">اللغة البرمجية</label>
+                        <select id="snippetLanguageSelect" class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs text-white outline-none">
+                            <option value="C++">C++</option>
+                            <option value="Python">Python</option>
+                            <option value="JavaScript">JavaScript / Node.js</option>
+                            <option value="Java">Java</option>
+                            <option value="SQL">SQL Database</option>
+                            <option value="HTML/CSS">HTML / CSS</option>
+                            <option value="C#">C# / .NET</option>
+                            <option value="Bash">Terminal / Bash</option>
+                            <option value="Plain Text" selected>نص عادي (Plain Text)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">الكود أو النص المراد مشاركته:</label>
+                    <textarea id="snippetCodeInput" rows="8" spellcheck="false" dir="ltr" placeholder="// الصق الكود أو النص البرمجي هنا..." class="w-full bg-[#060a14] border border-slate-800 focus:border-cyan-500 rounded-xl p-3 text-xs font-mono text-cyan-300 outline-none resize-none leading-relaxed select-all"></textarea>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-1">
+                    <button type="button" onclick="hideModal('codeSnippetModal')" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all">
+                        إلغاء
+                    </button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs transition-all shadow-md shadow-cyan-500/20 flex items-center gap-1.5">
+                        <span>إرسال الكود للشات</span>
+                        <span>🚀</span>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 

@@ -141,6 +141,7 @@ const initDB = async () => {
     await run(`INSERT OR IGNORE INTO system_settings (key, value) VALUES ('focus_mode', '0');`);
     await run(`INSERT OR IGNORE INTO system_settings (key, value) VALUES ('stealth_active', '0');`);
     await run(`INSERT OR IGNORE INTO system_settings (key, value) VALUES ('whiteboard_locked', '0');`);
+    await run(`INSERT OR IGNORE INTO system_settings (key, value) VALUES ('shared_codepad', '// كشكول الأكواد والنصوص المشترك للفصل 💻⚡\n// الصق أي كود أو مسألة برمجية هنا ليراها الجميع فوراً!');`);
 
     console.log('✅ SQLite Database & Tables Initialized Successfully');
 };

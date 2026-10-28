@@ -82,6 +82,7 @@ const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } }); // 
 const onlineUsers = new Map(); // socketId -> { userId, ip, mac, nickname, role, ping }
 const userSockets = new Map(); // userId -> Set of socketIds
 let whiteboardHistory = []; // Last 1000 draw actions for live sync
+let sharedCodePadText = '// كشكول الأكواد والنصوص المشترك للفصل 💻⚡\n// الصق أي كود أو مسألة برمجية هنا ليراها الجميع فوراً!';
 let isChatFocusLocked = false;
 let isStealthEngaged = false;
 
@@ -443,6 +444,28 @@ app.post('/api/airdrop/download/:id', async (req, res) => {
     }
 });
 
+// 9b. Shared Classroom CodePad / Plain Text Bin
+app.get('/api/codepad', async (req, res) => {
+    try {
+        const row = await get(`SELECT value FROM system_settings WHERE key = 'shared_codepad'`);
+        res.json({ text: row && row.value !== null ? row.value : sharedCodePadText });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/codepad', async (req, res) => {
+    try {
+        const { text } = req.body;
+        sharedCodePadText = text !== undefined ? text : '';
+        await run(`INSERT OR REPLACE INTO system_settings (key, value) VALUES ('shared_codepad', ?)`, [sharedCodePadText]);
+        io.emit('codepad_sync', { text: sharedCodePadText });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // 10. Admin API
 app.get('/api/admin/devices', async (req, res) => {
     try {
@@ -567,6 +590,8 @@ io.on('connection', async (socket) => {
 
         // Send current whiteboard history
         socket.emit('whiteboard_init', whiteboardHistory);
+        // Send current shared codepad
+        socket.emit('codepad_sync', { text: sharedCodePadText });
         // Send current focus mode state
         socket.emit('chat_focus_mode_changed', { isLocked: isChatFocusLocked });
         // Send stealth state if already engaged
@@ -685,6 +710,17 @@ io.on('connection', async (socket) => {
         socket.emit('whiteboard_init', whiteboardHistory);
     });
 
+    // 4b. Collaborative Live CodePad / Plain Text Bin
+    socket.on('codepad_update', async (data) => {
+        sharedCodePadText = (data && data.text !== undefined) ? data.text : '';
+        socket.broadcast.emit('codepad_sync', { text: sharedCodePadText, senderName: data.senderName });
+        await run(`INSERT OR REPLACE INTO system_settings (key, value) VALUES ('shared_codepad', ?)`, [sharedCodePadText]);
+    });
+
+    socket.on('codepad_request_sync', () => {
+        socket.emit('codepad_sync', { text: sharedCodePadText });
+    });
+
     // 5. GLOBAL PANIC BUTTON ("زر البشمهندسة" 🚨)
     // Accessible by ANY student! Instantly broadcasts to everyone in <15ms
     socket.on('TRIGGER_GLOBAL_PANIC', async () => {
@@ -755,6 +791,13 @@ setInterval(async () => {
 async function startServer() {
     await initDB();
     startBeacon(PORT);
+
+    try {
+        const codepadRow = await get(`SELECT value FROM system_settings WHERE key = 'shared_codepad'`);
+        if (codepadRow && codepadRow.value !== null && codepadRow.value !== undefined) {
+            sharedCodePadText = codepadRow.value;
+        }
+    } catch (e) {}
 
     server.listen(PORT, '0.0.0.0', async () => {
         const lanIps = getServerLanIPs();

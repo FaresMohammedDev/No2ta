@@ -31,6 +31,10 @@ const STATE = {
         color: '#06b6d4',
         brushSize: 3,
         mode: 'brush' // 'brush' | 'eraser'
+    },
+    codepad: {
+        text: '',
+        debounceTimer: null
     }
 };
 
@@ -234,6 +238,16 @@ function initSocket() {
         STATE.onlineUserIds = new Set(data.onlineUserIds);
         renderUsersList();
         updateOnlineCount();
+    });
+
+    STATE.socket.on('codepad_sync', (data) => {
+        if (!data) return;
+        STATE.codepad.text = data.text !== undefined ? data.text : '';
+        const textarea = document.getElementById('sharedCodePadTextarea');
+        if (textarea && document.activeElement !== textarea) {
+            textarea.value = STATE.codepad.text;
+            updateCodePadStats();
+        }
     });
 
     STATE.socket.on('new_message', (data) => {
@@ -644,6 +658,26 @@ function formatMessageHTML(m) {
 
     const reactionsHTML = renderReactionsPills(m.id, m.reactions || []);
 
+    let codeSnippetHTML = '';
+    if (m.media_type === 'code') {
+        const langOrTitle = escapeHtml(m.media_name || 'Code Snippet');
+        codeSnippetHTML = `
+            <div class="mt-1.5 rounded-xl overflow-hidden border border-cyan-500/30 bg-[#070b16] max-w-full shadow-lg">
+                <div class="flex items-center justify-between px-3 py-1.5 bg-slate-900/90 border-b border-white/10 text-xs gap-3">
+                    <div class="flex items-center gap-1.5 font-mono text-cyan-400 font-bold truncate">
+                        <span>&lt;/&gt;</span>
+                        <span class="truncate">${langOrTitle}</span>
+                    </div>
+                    <button onclick="copySnippetCode('${m.id}', this)" class="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500 text-cyan-300 hover:text-slate-950 font-bold text-[11px] transition-all" title="نسخ الكود للحافظة">
+                        <span>📋</span>
+                        <span>نسخ الكود</span>
+                    </button>
+                </div>
+                <pre id="code-content-${m.id}" class="p-3 text-xs font-mono text-cyan-200 overflow-x-auto whitespace-pre leading-relaxed select-all text-left" dir="ltr"><code>${escapeHtml(m.content || '')}</code></pre>
+            </div>
+        `;
+    }
+
     return `
         <div id="msg-${m.id}" class="flex gap-2.5 my-3 ${isMe ? 'flex-row-reverse' : 'flex-row'} group">
             <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sm shrink-0">
@@ -658,7 +692,7 @@ function formatMessageHTML(m) {
                 </div>
                 
                 <div class="relative px-3.5 py-2.5 text-sm ${isMe ? 'chat-bubble-outgoing' : 'chat-bubble-incoming'}">
-                    ${m.content ? `<p class="whitespace-pre-wrap leading-relaxed">${escapeHtml(m.content)}</p>` : ''}
+                    ${m.media_type === 'code' ? codeSnippetHTML : (m.content ? `<p class="whitespace-pre-wrap leading-relaxed">${escapeHtml(m.content)}</p>` : '')}
                     ${mediaHTML}
                 </div>
 
@@ -1289,6 +1323,211 @@ function exportWhiteboardImage() {
 }
 
 // ----------------------------------------------------
+// 9b. Shared Live CodePad / Plain Text Bin & Code Sharing 💻
+// ----------------------------------------------------
+async function openCodepadModal() {
+    showModal('codepadModal');
+    const textarea = document.getElementById('sharedCodePadTextarea');
+    if (textarea) {
+        if (!textarea.value && STATE.codepad.text) {
+            textarea.value = STATE.codepad.text;
+        } else if (!textarea.value) {
+            try {
+                const res = await fetch('/api/codepad');
+                const data = await res.json();
+                if (data.text !== undefined) {
+                    STATE.codepad.text = data.text;
+                    textarea.value = data.text;
+                }
+            } catch (e) {}
+        }
+        updateCodePadStats();
+        setTimeout(() => textarea.focus(), 150);
+    }
+    if (STATE.socket) {
+        STATE.socket.emit('codepad_request_sync');
+    }
+}
+
+function updateCodePadStats() {
+    const textarea = document.getElementById('sharedCodePadTextarea');
+    const statsEl = document.getElementById('codepadStats');
+    if (!textarea || !statsEl) return;
+    const val = textarea.value;
+    const lines = val ? val.split('\n').length : 0;
+    const chars = val.length;
+    statsEl.textContent = `${lines} سطر • ${chars} حرف`;
+}
+
+function handleCodePadInput() {
+    updateCodePadStats();
+    const textarea = document.getElementById('sharedCodePadTextarea');
+    if (!textarea) return;
+
+    STATE.codepad.text = textarea.value;
+
+    const ind = document.getElementById('codepadSyncIndicator');
+    if (ind) {
+        ind.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span><span>جاري المزامنة...</span>';
+    }
+
+    clearTimeout(STATE.codepad.debounceTimer);
+    STATE.codepad.debounceTimer = setTimeout(() => {
+        if (STATE.socket) {
+            STATE.socket.emit('codepad_update', {
+                text: STATE.codepad.text,
+                senderName: STATE.user ? STATE.user.nickname : 'زميل'
+            });
+        }
+        if (ind) {
+            ind.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>متصل ومتزامن ⚡</span>';
+        }
+    }, 350);
+}
+
+function copyAllCodePadText() {
+    const textarea = document.getElementById('sharedCodePadTextarea');
+    const btn = document.getElementById('copyAllCodepadBtn');
+    if (!textarea || !textarea.value.trim()) {
+        showNotification('الكشكول فاضي! الصق فيه كود الأول.');
+        return;
+    }
+    copyTextToClipboard(textarea.value, btn);
+}
+
+function clearCodePadText() {
+    if (!confirm('هل أنت متأكد من مسح محتوى كشكول الأكواد المشترك بالكامل؟')) return;
+    const textarea = document.getElementById('sharedCodePadTextarea');
+    if (textarea) {
+        textarea.value = '';
+        STATE.codepad.text = '';
+        updateCodePadStats();
+        if (STATE.socket) {
+            STATE.socket.emit('codepad_update', { text: '', senderName: STATE.user ? STATE.user.nickname : 'زميل' });
+        }
+        showNotification('تم تفريغ كشكول الأكواد المشترك 🗑️');
+    }
+}
+
+function shareCodePadToChat() {
+    const textarea = document.getElementById('sharedCodePadTextarea');
+    if (!textarea || !textarea.value.trim()) {
+        alert('الكشكول فاضي! اكتب كود أو نص الأول لمشاركته في الشات.');
+        return;
+    }
+    const code = textarea.value.trim();
+    sendChatMessagePayload({
+        content: code,
+        mediaType: 'code',
+        mediaName: 'كشكول الأكواد (CodePad)'
+    });
+    hideModal('codepadModal');
+    showNotification('تمت مشاركة محتوى الكشكول في الشات بنجاح! 🚀');
+}
+
+function openCodeSnippetModal() {
+    showModal('codeSnippetModal');
+    const codeInput = document.getElementById('snippetCodeInput');
+    if (codeInput) {
+        setTimeout(() => codeInput.focus(), 150);
+    }
+}
+
+function handleCodeSnippetSubmit(e) {
+    if (e) e.preventDefault();
+    const codeInput = document.getElementById('snippetCodeInput');
+    const titleInput = document.getElementById('snippetTitleInput');
+    const langSelect = document.getElementById('snippetLanguageSelect');
+
+    const code = codeInput ? codeInput.value.trim() : '';
+    if (!code) {
+        alert('الرجاء كتابة أو لصق الكود أولاً!');
+        return;
+    }
+
+    const title = titleInput ? titleInput.value.trim() : '';
+    const lang = langSelect ? langSelect.value : 'Plain Text';
+    const mediaName = title ? `${title} (${lang})` : lang;
+
+    sendChatMessagePayload({
+        content: code,
+        mediaType: 'code',
+        mediaName: mediaName
+    });
+
+    if (codeInput) codeInput.value = '';
+    if (titleInput) titleInput.value = '';
+    hideModal('codeSnippetModal');
+    showNotification('تمت مشاركة الكود في الشات بنجاح! 🚀');
+}
+
+function copySnippetCode(messageId, btnElement) {
+    const codeEl = document.getElementById(`code-content-${messageId}`);
+    if (codeEl) {
+        const text = codeEl.innerText || codeEl.textContent;
+        copyTextToClipboard(text, btnElement);
+        return;
+    }
+    const msg = STATE.messages.find(m => m.id === messageId);
+    if (msg && msg.content) {
+        copyTextToClipboard(msg.content, btnElement);
+    }
+}
+
+async function copyTextToClipboard(text, btnElement) {
+    let success = false;
+    if (navigator.clipboard && window.isSecureContext) {
+        try {
+            await navigator.clipboard.writeText(text);
+            success = true;
+        } catch (e) {
+            success = false;
+        }
+    }
+    if (!success) {
+        try {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.top = '0';
+            textarea.style.left = '-9999px';
+            textarea.setAttribute('readonly', '');
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            success = document.execCommand('copy');
+            document.body.removeChild(textarea);
+        } catch (err) {
+            success = false;
+        }
+    }
+
+    if (btnElement) {
+        const origHTML = btnElement.innerHTML;
+        btnElement.innerHTML = '<span>✅ تم النسخ!</span>';
+        btnElement.classList.add('bg-emerald-500', 'text-slate-950');
+        setTimeout(() => {
+            btnElement.innerHTML = origHTML;
+            btnElement.classList.remove('bg-emerald-500', 'text-slate-950');
+        }, 2000);
+    }
+    showNotification('تم نسخ الكود للحافظة بنجاح! 📋');
+    return success;
+}
+
+function handleTextareaTabKey(e) {
+    if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = this.selectionStart;
+        const end = this.selectionEnd;
+        const value = this.value;
+        this.value = value.substring(0, start) + '    ' + value.substring(end);
+        this.selectionStart = this.selectionEnd = start + 4;
+        this.dispatchEvent(new Event('input'));
+    }
+}
+
+// ----------------------------------------------------
 // 10. Admin Superpowers Dashboard
 // ----------------------------------------------------
 async function openAdminDashboard() {
@@ -1645,6 +1884,23 @@ function setupEventListeners() {
             releaseStealthMode();
         }
     });
+
+    // CodePad / Plain Text Bin Listeners
+    const codepadArea = document.getElementById('sharedCodePadTextarea');
+    if (codepadArea) {
+        codepadArea.addEventListener('input', handleCodePadInput);
+        codepadArea.addEventListener('keydown', handleTextareaTabKey);
+    }
+
+    const snippetArea = document.getElementById('snippetCodeInput');
+    if (snippetArea) {
+        snippetArea.addEventListener('keydown', handleTextareaTabKey);
+    }
+
+    const snippetForm = document.getElementById('codeSnippetForm');
+    if (snippetForm) {
+        snippetForm.addEventListener('submit', handleCodeSnippetSubmit);
+    }
 }
 
 function logoutCurrentUser() {
