@@ -1419,17 +1419,12 @@
     </script>
 
     <!-- No2ta Stealth Mode Bridge -->
-    <script src="/socket.io/socket.io.js"></script>
     <script>
         window.addEventListener('keydown', function(e) {
-            // F3 closes stealth on THIS device only!
+            // F3 closes stealth on THIS device only (requires password!)
             if (e.key === 'F3') {
                 e.preventDefault();
-                if (window.parent && window.parent !== window) {
-                    window.parent.postMessage({ type: 'NO2TA_LOCAL_STEALTH_CLOSE' }, '*');
-                } else {
-                    window.location.href = '/';
-                }
+                unlockStealthLocal();
                 return;
             }
 
@@ -1444,34 +1439,22 @@
 
             if (e.ctrlKey && e.shiftKey && (e.key === 'S' || e.key === 's')) {
                 e.preventDefault();
-                unlockStealth();
+                unlockStealthLocal();
             }
         });
 
-        function unlockStealth() {
-            const pass = prompt('🔐 أدخل كلمة السر لفك وضع التمويه والعودة إلى نؤطة:');
-            if (pass === 'SdSdSdSd') {
+        function unlockStealthLocal() {
+            const pass = prompt('🔐 أدخل كلمة السر لإغلاق شاشة التمويه على جهازك فقط والعودة إلى نؤطة:');
+            if (pass === null) return; // User pressed Cancel - stay on physics exam!
+            if (pass && pass.trim() === 'SdSdSdSd') {
                 if (window.parent && window.parent !== window) {
-                    window.parent.postMessage({ type: 'NO2TA_STEALTH_RESTORE' }, '*');
+                    window.parent.postMessage({ type: 'NO2TA_LOCAL_STEALTH_CLOSE' }, '*');
                 } else {
                     window.location.href = '/';
                 }
-            } else if (pass !== null) {
-                alert('كلمة المرور غير صحيحة!');
+            } else {
+                alert('❌ كلمة المرور غير صحيحة! لن يتم إغلاق شاشة التمويه.');
             }
-        }
-
-        if (typeof io !== 'undefined') {
-            try {
-                const socket = io();
-                socket.on('GLOBAL_STEALTH_RELEASED', function() {
-                    if (window.parent && window.parent !== window) {
-                        window.parent.postMessage({ type: 'NO2TA_STEALTH_RESTORE' }, '*');
-                    } else {
-                        window.location.href = '/';
-                    }
-                });
-            } catch(e) {}
         }
     </script>
 </body>

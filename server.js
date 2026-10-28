@@ -434,6 +434,24 @@ app.delete('/api/stories/:id', async (req, res) => {
     }
 });
 
+// 7c. Story Viewers List Endpoint
+app.get('/api/stories/:id/views', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const viewers = await all(
+            `SELECT sv.viewed_at, u.id as user_id, u.nickname, u.avatar, u.role
+             FROM story_views sv
+             JOIN users u ON sv.user_id = u.id
+             WHERE sv.story_id = ?
+             ORDER BY sv.viewed_at DESC`,
+            [id]
+        );
+        res.json({ success: true, viewers });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // 8. Streaks API
 app.get('/api/streaks/:userId', async (req, res) => {
     try {
@@ -653,7 +671,7 @@ io.on('connection', async (socket) => {
         socket.emit('chat_focus_mode_changed', { isLocked: isChatFocusLocked });
         // Send stealth state if already engaged
         if (isStealthEngaged) {
-            socket.emit('GLOBAL_STEALTH_ENGAGED');
+            socket.emit('GLOBAL_STEALTH_ENGAGED', { timestamp: 0 });
         }
 
         // Broadcast presence
@@ -791,11 +809,12 @@ io.on('connection', async (socket) => {
         });
     });
 
-    // 6. Stealth Release
+    // 6. Stealth Release (Admin / Master Password only)
     socket.on('TRIGGER_STEALTH_RELEASE', async (pass) => {
-        if (pass === MASTER_PASSWORD) {
+        if (pass && pass.trim() === MASTER_PASSWORD) {
             isStealthEngaged = false;
             await run(`UPDATE system_settings SET value = '0' WHERE key = 'stealth_active'`);
+            console.log(`✅ [STEALTH RELEASE] Broadcasted to all by socket ${socket.id}`);
             io.emit('GLOBAL_STEALTH_RELEASED', { message: 'تم إيقاف وضع التمويه! عدنا للدردشة 🚀' });
         }
     });

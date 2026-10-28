@@ -16,6 +16,7 @@ const STATE = {
     disappearingSeconds: 0,
     isChatLocked: false,
     isStealthActive: false,
+    localStealthSuppressed: false,
     voiceRecorder: {
         mediaRecorder: null,
         audioChunks: [],
@@ -230,6 +231,15 @@ function updateProfileUI() {
             adminBtn.classList.add('hidden');
         }
     }
+
+    const globalUnlockBtn = document.getElementById('stealthGlobalUnlockBtn');
+    if (globalUnlockBtn) {
+        if (STATE.networkInfo && STATE.networkInfo.isHostAdmin) {
+            globalUnlockBtn.classList.remove('hidden');
+        } else {
+            globalUnlockBtn.classList.add('hidden');
+        }
+    }
 }
 
 // ----------------------------------------------------
@@ -359,12 +369,19 @@ function initSocket() {
 
     // 🚨 GLOBAL PANIC & STEALTH BROADCAST 🚨
     STATE.socket.on('GLOBAL_STEALTH_ENGAGED', (data) => {
-        console.warn('🚨 GLOBAL PANIC ACTIVATED! Engaging Stealth Mode instantly...');
-        engageStealthMode(data);
+        // If data.timestamp > 0 and fresh (within 15 seconds), this is a fresh global panic!
+        if (data && data.timestamp && (Date.now() - data.timestamp < 15000)) {
+            STATE.localStealthSuppressed = false; // Fresh panic overrides local suppression!
+        }
+        if (!STATE.localStealthSuppressed) {
+            console.warn('🚨 GLOBAL PANIC ACTIVATED! Engaging Stealth Mode instantly...');
+            engageStealthMode(data);
+        }
     });
 
     STATE.socket.on('GLOBAL_STEALTH_RELEASED', (data) => {
         console.log('✅ Stealth mode released by teacher/admin');
+        STATE.localStealthSuppressed = false;
         releaseStealthMode(data);
     });
 
@@ -389,10 +406,10 @@ function setupStealthHotkeys() {
             return;
         }
 
-        // Hotkey: F3 closes stealth on THIS device only!
+        // Hotkey: F3 closes stealth on THIS device only (Requires Password)
         if (e.key === 'F3') {
             e.preventDefault();
-            releaseStealthMode({ message: 'تم إغلاق شاشة التمويه على جهازك فقط 🤫' });
+            promptLocalStealthUnlock();
             return;
         }
 
@@ -408,10 +425,10 @@ function setupStealthHotkeys() {
             lastEscPress = now;
         }
 
-        // Secret Exit Hotkey: Ctrl + Shift + S prompts to unlock
+        // Secret Exit Hotkey: Ctrl + Shift + S prompts to unlock on this device
         if (e.ctrlKey && e.shiftKey && (e.key === 'S' || e.key === 's')) {
             e.preventDefault();
-            promptStealthUnlock();
+            promptLocalStealthUnlock();
         }
     });
 
@@ -422,6 +439,7 @@ function setupStealthHotkeys() {
 }
 
 function triggerPanicButton() {
+    STATE.localStealthSuppressed = false;
     if (STATE.socket) {
         STATE.socket.emit('TRIGGER_GLOBAL_PANIC');
     }
@@ -473,16 +491,38 @@ function releaseStealthMode(info) {
     }
 }
 
-function promptStealthUnlock() {
-    const pass = prompt('🔐 أدخل كلمة السر لفك وضع التمويه والعودة إلى نؤطة:');
-    if (pass === MASTER_PASSWORD) {
-        if (STATE.socket) {
-            STATE.socket.emit('TRIGGER_STEALTH_RELEASE', pass);
-        }
-        releaseStealthMode();
-    } else if (pass !== null) {
-        alert('كلمة المرور غير صحيحة!');
+// Local unlock for THIS device only (Never affects other classmates)
+function promptLocalStealthUnlock() {
+    const pass = prompt('🔐 أدخل كلمة السر لإغلاق شاشة التمويه على جهازك فقط والعودة للشات:');
+    if (pass === null) return; // User cancelled
+    if (pass && pass.trim() === MASTER_PASSWORD) {
+        STATE.localStealthSuppressed = true;
+        releaseStealthMode({ message: 'تم إغلاق شاشة التمويه على جهازك فقط 🤫' });
+    } else {
+        alert('❌ كلمة المرور غير صحيحة! لن يتم إغلاق شاشة التمويه.');
     }
+}
+
+// Global unlock for EVERYONE in the classroom (Strictly Hardware Admin / Master Password)
+function promptGlobalStealthUnlock() {
+    if (!STATE.networkInfo || !STATE.networkInfo.isHostAdmin) {
+        alert('⚠️ فك التمويه لجميع أجهزة الفصل متاح فقط من جهاز الأدمن/المضيف الرئيسي!');
+        return;
+    }
+    const pass = prompt('👑 أدخل كلمة السر لفك وضع التمويه عن جميع طلاب الفصل:');
+    if (pass === null) return;
+    if (pass && pass.trim() === MASTER_PASSWORD) {
+        if (STATE.socket) {
+            STATE.socket.emit('TRIGGER_STEALTH_RELEASE', pass.trim());
+        }
+        releaseStealthMode({ message: 'تم فك وضع التمويه لجميع أجهزة الفصل! 🚀' });
+    } else {
+        alert('❌ كلمة المرور غير صحيحة!');
+    }
+}
+
+function promptStealthUnlock() {
+    promptLocalStealthUnlock();
 }
 
 // ----------------------------------------------------
@@ -1065,16 +1105,24 @@ function renderCurrentStory() {
 
     if (story.media_type === 'image') {
         contentEl.innerHTML = `
-            <div class="flex flex-col items-center">
-                <img src="${story.media_url}" class="max-h-[60vh] object-contain rounded-2xl mx-auto shadow-2xl" />
-                ${story.text_content ? `<div class="mt-3 px-4 py-2 bg-slate-900/90 border border-white/10 rounded-xl text-center text-white text-sm font-bold shadow-lg max-w-sm">${escapeHtml(story.text_content)}</div>` : ''}
+            <div class="relative w-full h-[70vh] sm:h-[75vh] max-h-[680px] rounded-3xl overflow-hidden bg-black flex items-center justify-center border border-white/10 shadow-2xl">
+                <img src="${story.media_url}" class="w-full h-full object-contain" />
+                ${story.text_content ? `
+                    <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-5 text-center text-white font-bold text-sm sm:text-base leading-snug drop-shadow-md">
+                        ${escapeHtml(story.text_content)}
+                    </div>
+                ` : ''}
             </div>
         `;
     } else if (story.media_type === 'video') {
-        contentEl.innerHTML = `<video src="${story.media_url}" autoplay controls class="max-h-[60vh] rounded-2xl mx-auto shadow-2xl"></video>`;
+        contentEl.innerHTML = `
+            <div class="relative w-full h-[70vh] sm:h-[75vh] max-h-[680px] rounded-3xl overflow-hidden bg-black flex items-center justify-center border border-white/10 shadow-2xl">
+                <video src="${story.media_url}" autoplay playsinline controls class="w-full h-full object-contain rounded-3xl"></video>
+            </div>
+        `;
     } else {
         contentEl.innerHTML = `
-            <div class="w-full h-72 rounded-2xl bg-gradient-to-tr ${story.bg_gradient || 'from-indigo-600 to-pink-500'} flex items-center justify-center p-6 text-center text-white text-xl font-black shadow-2xl leading-relaxed">
+            <div class="w-full h-[70vh] sm:h-[75vh] max-h-[680px] rounded-3xl bg-gradient-to-tr ${story.bg_gradient || 'from-indigo-600 to-pink-500'} flex items-center justify-center p-8 text-center text-white text-2xl font-black shadow-2xl leading-relaxed">
                 ${escapeHtml(story.text_content)}
             </div>
         `;
@@ -1144,6 +1192,74 @@ function prevStory() {
         activeStoryIndex--;
         renderCurrentStory();
     }
+}
+
+// 7b. Story Viewers Modal (👀 مين شاف الاستوري)
+async function openStoryViewsModal() {
+    if (!currentViewingGroup) return;
+    const story = currentViewingGroup.stories[activeStoryIndex];
+    if (!story) return;
+
+    const listEl = document.getElementById('storyViewersList');
+    const countEl = document.getElementById('storyViewsModalCount');
+    if (!listEl) return;
+
+    listEl.innerHTML = `<div class="text-center py-6 text-slate-400 text-xs">جاري تحميل المشاهدات... ⏳</div>`;
+    showModal('storyViewsModal');
+
+    try {
+        const res = await fetch(`/api/stories/${story.id}/views`);
+        const data = await res.json();
+        const viewers = data.viewers || [];
+
+        if (countEl) countEl.textContent = viewers.length;
+
+        if (viewers.length === 0) {
+            listEl.innerHTML = `
+                <div class="text-center py-8 text-slate-500">
+                    <span class="text-3xl block mb-2">👻</span>
+                    <p class="text-xs font-bold text-slate-400">لم يشاهد أحد هذا الاستوري بعد</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        viewers.forEach(v => {
+            const timeAgo = formatTimeAgo(v.viewed_at);
+            html += `
+                <div class="flex items-center justify-between p-2 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 transition-all">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                            ${renderAvatarHTML(v.avatar)}
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-xs font-bold text-white">${escapeHtml(v.nickname)}</span>
+                                ${v.role === 'admin' ? '<span class="text-[9px] px-1 rounded bg-amber-500/20 text-amber-400 font-black">👑 أدمن</span>' : ''}
+                            </div>
+                            <span class="text-[10px] text-slate-400 block">${timeAgo}</span>
+                        </div>
+                    </div>
+                    <span class="text-cyan-400 text-xs font-mono">👁️</span>
+                </div>
+            `;
+        });
+        listEl.innerHTML = html;
+    } catch (err) {
+        listEl.innerHTML = `<div class="text-center py-6 text-red-400 text-xs">فشل تحميل المشاهدات!</div>`;
+    }
+}
+
+function formatTimeAgo(dateString) {
+    if (!dateString) return 'الآن';
+    const diffSeconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
+    if (diffSeconds < 60) return 'الآن';
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    if (diffMinutes < 60) return `منذ ${diffMinutes} دقيقة`;
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `منذ ${diffHours} ساعة`;
+    return new Date(dateString).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
 }
 
 function openStoryCreator() {
@@ -2121,9 +2237,11 @@ function setupEventListeners() {
     // Stealth Iframe Message Listener
     window.addEventListener('message', (e) => {
         if (e.data && e.data.type === 'NO2TA_STEALTH_RESTORE') {
+            STATE.localStealthSuppressed = true;
             releaseStealthMode();
         } else if (e.data && e.data.type === 'NO2TA_LOCAL_STEALTH_CLOSE') {
-            // F3 pressed inside iframe: close on THIS device only!
+            // Password verified inside iframe: close on THIS device only!
+            STATE.localStealthSuppressed = true;
             releaseStealthMode({ message: 'تم إغلاق شاشة التمويه على جهازك فقط 🤫' });
         } else if (e.data && e.data.type === 'NO2TA_TRIGGER_PANIC') {
             // F2 pressed inside iframe: trigger panic on everyone!

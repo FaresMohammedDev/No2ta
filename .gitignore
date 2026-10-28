@@ -16,6 +16,8 @@ uploads/stories/*
 !uploads/stories/.gitkeep
 uploads/airdrop/*
 !uploads/airdrop/.gitkeep
+uploads/avatars/*
+!uploads/avatars/.gitkeep
 
 # OS generated files
 .DS_Store
