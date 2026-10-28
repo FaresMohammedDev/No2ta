@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# SQLite Database & Runtime logs
+data/*.db
+data/*.db-journal
+*.log
+
+# Uploads content (preserve folder structure via .gitkeep)
+uploads/media/*
+!uploads/media/.gitkeep
+uploads/audio/*
+!uploads/audio/.gitkeep
+uploads/stories/*
+!uploads/stories/.gitkeep
+uploads/airdrop/*
+!uploads/airdrop/.gitkeep
+
+# OS generated files
+.DS_Store
+Thumbs.db

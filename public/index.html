@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نؤطة (No2ta) 💬⚡ - شبكة الفصل الاجتماعية</title>
+    <link id="appFavicon" rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#111827',
+                            950: '#070a13',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- Socket.IO Client -->
+    <script src="/socket.io/socket.io.js"></script>
+    <!-- Audio Synthesizer -->
+    <script src="/js/audio_synth.js"></script>
+</head>
+<body class="bg-[#070a13] text-slate-100 min-h-screen flex flex-col antialiased selection:bg-cyan-500 selection:text-black">
+
+    <!-- 🌟 TOP GLOBAL HEADER -->
+    <header class="sticky top-0 z-40 bg-[#0c1222]/90 backdrop-blur-xl border-b border-white/10 px-4 py-2.5">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
+            
+            <!-- Logo & Brand -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-xl font-black shadow-lg shadow-cyan-500/20 text-white">
+                    نـ⚡
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-lg font-black tracking-tight text-white">نؤطة <span class="text-cyan-400 text-xs font-mono en-text">No2ta</span></h1>
+                        <span id="weekendFreezeBadge" class="hidden px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                            ❄️🔥 الويك إند مجمّد
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-slate-400">شبكة الفصل الاجتماعية والسرية</p>
+                </div>
+            </div>
+
+            <!-- Header Quick Actions -->
+            <div class="flex items-center gap-2">
+                <!-- Presence Pill -->
+                <button onclick="showModal('networkModal')" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs text-slate-300 transition-all">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 live-glow"></span>
+                    <span id="onlineCountBadge" class="font-bold">1 متصل</span>
+                    <span class="text-slate-500 text-[10px]">📱 QR</span>
+                </button>
+
+                <!-- AirDrop Button -->
+                <button onclick="showModal('airdropModal')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-xs font-bold transition-all shadow-sm">
+                    <span>⚡</span>
+                    <span class="hidden md:inline">AirDrop</span>
+                </button>
+
+                <!-- Live Whiteboard Button -->
+                <button onclick="showModal('whiteboardModal')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-bold transition-all shadow-sm">
+                    <span>🎨</span>
+                    <span class="hidden md:inline">السبورة</span>
+                </button>
+
+                <!-- Admin Dashboard Button -->
+                <button id="adminDashboardBtn" onclick="openAdminDashboard()" class="hidden flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-400 text-xs font-bold transition-all">
+                    <span>👑</span>
+                    <span class="hidden md:inline">الأدمن</span>
+                </button>
+
+                <!-- User Profile Badge -->
+                <div onclick="showModal('profileModal')" class="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer hover:border-slate-700 transition-all">
+                    <span id="myAvatar" class="text-lg">🚀</span>
+                    <div class="hidden lg:block text-right">
+                        <span id="myNickname" class="text-xs font-bold text-white block leading-tight">أنا</span>
+                        <span id="myRoleBadge" class="text-[9px] text-cyan-400">طالب</span>
+                    </div>
+                </div>
+
+                <!-- 🚨 THE LEGENDARY PANIC BUTTON ("زر البشمهندسة") 🚨 -->
+                <button id="panicTriggerBtn" title="زر البشمهندسة: إخفاء فوري متزامن لكتاب الفيزيكس (اضغط F2 أو Esc مرتين)" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs transition-all shadow-lg shadow-red-600/30 animate-pulse">
+                    <span class="text-sm">🚨</span>
+                    <span>البشمهندسة!</span>
+                    <span class="text-[9px] bg-red-800/80 px-1 py-0.5 rounded font-mono hidden sm:inline">F2</span>
+                </button>
+
+            </div>
+        </div>
+    </header>
+
+    <!-- 📸 INSTAGRAM STORIES RIBBON -->
+    <section class="bg-[#090e1b] border-b border-white/5 py-2.5 px-4 overflow-x-auto">
+        <div class="max-w-7xl mx-auto flex items-center gap-4" id="storiesList">
+            <!-- Dynamic Stories Appended Here -->
+        </div>
+    </section>
+
+    <!-- 💬 MAIN APPLICATION VIEW -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-2 sm:p-4 grid grid-cols-1 md:grid-cols-12 gap-3 overflow-hidden">
+        
+        <!-- SIDEBAR: CLASSMATES & CHATS (4 cols) -->
+        <aside class="md:col-span-4 lg:col-span-3 glass-panel rounded-2xl flex flex-col h-[calc(100vh-165px)] overflow-hidden">
+            <!-- Navigation Tabs -->
+            <div class="p-2.5 border-b border-white/10 bg-slate-900/50">
+                <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/5">
+                    <button id="tabGeneralBtn" onclick="selectGeneralChat()" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-cyan-500 text-slate-950 transition-all">
+                        💬 شات الفصل
+                    </button>
+                    <button id="tabDirectBtn" onclick="selectGeneralChat()" class="flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition-all">
+                        👥 الزملاء
+                    </button>
+                </div>
+            </div>
+
+            <!-- Classmates List Header -->
+            <div class="px-3 py-2 flex items-center justify-between text-xs text-slate-400 font-bold border-b border-white/5">
+                <span>زملاء الفصل والـ Streaks</span>
+                <span class="text-[10px] text-cyan-400 font-normal">تحديث حي ⚡</span>
+            </div>
+
+            <!-- Classmates Scrollable Container -->
+            <div id="usersListContainer" class="flex-1 overflow-y-auto p-2 space-y-1">
+                <!-- Users Appended Dynamically -->
+            </div>
+        </aside>
+
+        <!-- CENTRAL CHAT WINDOW (8 cols) -->
+        <section class="md:col-span-8 lg:col-span-9 glass-panel rounded-2xl flex flex-col h-[calc(100vh-165px)] overflow-hidden relative">
+            
+            <!-- Chat Header -->
+            <div class="p-3 border-b border-white/10 bg-slate-900/70 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div id="currentChatAvatar" class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xl">
+                        🌐
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 id="currentChatTitle" class="text-sm font-bold text-white">💬 شات الفصل العام (General)</h2>
+                            <span id="directStreakBadge" class="hidden px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                                🔥 استريك
+                            </span>
+                        </div>
+                        <p id="currentChatSubtitle" class="text-[11px] text-slate-400">متاح لجميع الزملاء في الفصل</p>
+                    </div>
+                </div>
+
+                <!-- Chat Controls -->
+                <div class="flex items-center gap-2">
+                    <!-- Disappearing Message Selector -->
+                    <div class="relative group">
+                        <button id="disappearingToggleBtn" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition-all flex items-center gap-1">
+                            <span>⏳</span>
+                            <span>مؤقت</span>
+                        </button>
+                        <div class="absolute left-0 top-full mt-1 hidden group-hover:flex flex-col bg-slate-900 border border-slate-700 rounded-xl p-1 shadow-2xl z-20 min-w-[110px]">
+                            <button onclick="setDisappearingTimer(0)" class="text-right px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800 rounded">بدون مؤقت</button>
+                            <button onclick="setDisappearingTimer(10)" class="text-right px-2.5 py-1 text-xs text-red-400 hover:bg-slate-800 rounded">🔥 10 ثوانٍ</button>
+                            <button onclick="setDisappearingTimer(30)" class="text-right px-2.5 py-1 text-xs text-red-400 hover:bg-slate-800 rounded">🔥 30 ثانية</button>
+                            <button onclick="setDisappearingTimer(60)" class="text-right px-2.5 py-1 text-xs text-red-400 hover:bg-slate-800 rounded">🔥 1 دقيقة</button>
+                            <button onclick="setDisappearingTimer(300)" class="text-right px-2.5 py-1 text-xs text-red-400 hover:bg-slate-800 rounded">🔥 5 دقائق</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Focus Mode Warning Banner (if chat locked) -->
+            <div id="chatFocusBanner" class="hidden bg-amber-500/20 border-b border-amber-500/30 px-4 py-1.5 text-xs text-amber-300 font-bold flex items-center justify-between">
+                <span>🤫 وضع التركيز الدراسي مفعل بواسطة الأدمن: الشات مقفول مؤقتاً للشرح!</span>
+                <span class="text-amber-400 text-sm">🔒</span>
+            </div>
+
+            <!-- Messages Stream -->
+            <div id="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-1">
+                <!-- Messages Appended Dynamically -->
+            </div>
+
+            <!-- Typing Indicator Pill -->
+            <div id="chatTypingIndicator" class="hidden px-4 py-1 text-xs text-cyan-400 font-medium italic">
+                فلان يكتب الآن... ✍️
+            </div>
+
+            <!-- Voice Recording Banner -->
+            <div id="voiceRecordBanner" class="hidden bg-red-500/15 border-t border-red-500/30 px-4 py-2 flex items-center justify-between text-xs text-red-400 font-bold animate-pulse">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                    <span>جاري تسجيل رسالة صوتية...</span>
+                    <span id="voiceTimerText" class="en-text font-mono text-white">00:00</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="voiceCancelBtn" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs">إلغاء 🗑️</button>
+                    <button onclick="toggleVoiceRecording()" class="px-2.5 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white text-xs font-bold">إرسال 🚀</button>
+                </div>
+            </div>
+
+            <!-- Chat Bottom Input Bar -->
+            <div class="p-3 border-t border-white/10 bg-slate-900/60">
+                <form id="chatForm" class="flex items-center gap-2">
+                    <!-- File Attachment Button -->
+                    <button type="button" onclick="document.getElementById('chatFileInput').click()" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-all" title="إرفاق صورة أو فيديو أو ملف">
+                        📎
+                    </button>
+                    <input type="file" id="chatFileInput" class="hidden" accept="image/*,video/*,audio/*,.pdf,.zip,.rar,.docx">
+
+                    <!-- Text Input Field -->
+                    <input type="text" id="messageInput" placeholder="اكتب رسالتك لزمايلك في الفصل... (اضغط Enter للإرسال)" class="flex-1 bg-slate-950 border border-slate-800 focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/60 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none transition-all">
+
+                    <!-- Voice Recorder Button -->
+                    <button type="button" id="voiceRecordBtn" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-all" title="تسجيل صوتي (WhatsApp Voice Note)">
+                        🎙️
+                    </button>
+
+                    <!-- Send Button -->
+                    <button type="submit" id="sendMsgBtn" class="px-4 h-10 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm flex items-center gap-1.5 transition-all shadow-md shadow-cyan-500/20">
+                        <span>إرسال</span>
+                        <span>🚀</span>
+                    </button>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <!-- ======================================================== -->
+    <!-- 🚨 THE FULLSCREEN STEALTH OVERLAY (كتاب وكويز الفيزيكس) 🚨 -->
+    <!-- ======================================================== -->
+    <div id="stealthPhysicsOverlay" class="hidden fixed inset-0 z-50 bg-[#030712] flex flex-col">
+        <!-- Discreet Teacher Safety Top Bar -->
+        <div class="bg-gray-900 border-b border-gray-800 px-4 py-2 flex items-center justify-between text-xs text-gray-400">
+            <div class="flex items-center gap-2">
+                <span class="text-cyan-400 font-bold">📘</span>
+                <span class="font-extrabold text-white">المركز القومي للامتحانات والتقويم التربوي - نموذج إجابة ومراجعة الفيزياء (الوحدة الأولى)</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-gray-500 hidden sm:inline">Physics Model Revision • High School Senior</span>
+                <!-- Secret unlock button -->
+                <button onclick="promptStealthUnlock()" class="px-2 py-0.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white transition-all text-[11px]" title="فك وضع التمويه">
+                    🔒 إغلاق
+                </button>
+            </div>
+        </div>
+        <!-- Iframe with authentic Solved Physics Revision -->
+        <iframe id="stealthIframe" src="/stealth/physics.html" class="flex-1 w-full h-full border-none bg-gray-950"></iframe>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- 📦 MODALS (AirDrop, Whiteboard, Stories, Admin, Auth) -->
+    <!-- ======================================================== -->
+
+    <!-- 1. AUTH / LOGIN MODAL -->
+    <div id="authModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-panel-elevated rounded-3xl p-6 sm:p-8 max-w-md w-full border border-white/10 relative">
+            <div class="text-center mb-6">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-3xl font-black mx-auto mb-3 shadow-lg shadow-cyan-500/30">
+                    نـ⚡
+                </div>
+                <h3 class="text-xl font-black text-white">دخول شبكة فصل "نؤطة"</h3>
+                <p class="text-xs text-slate-400 mt-1">تطبيق التواصل السري والمحلي لشبكة الفصل</p>
+            </div>
+
+            <form id="authForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">كلمة مرور الفصل السرية (Master Password)</label>
+                    <input type="password" id="authPassword" placeholder="اكتب SdSdSdSd" value="SdSdSdSd" class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">اسم الشهرة أو اللقب (Nickname)</label>
+                    <input type="text" id="authNickname" placeholder="مثال: الباشمهندس أحمد، دحيح الفيزيا..." class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-2">اختر صورتك الرمزية (Avatar)</label>
+                    <div class="flex items-center justify-between gap-2 p-2 bg-slate-950 rounded-xl border border-slate-800">
+                        <label class="cursor-pointer"><input type="radio" name="authAvatar" value="🚀" checked class="hidden peer"><span class="w-9 h-9 rounded-lg flex items-center justify-center text-lg peer-checked:bg-cyan-500 peer-checked:text-black">🚀</span></label>
+                        <label class="cursor-pointer"><input type="radio" name="authAvatar" value="⚡" class="hidden peer"><span class="w-9 h-9 rounded-lg flex items-center justify-center text-lg peer-checked:bg-cyan-500 peer-checked:text-black">⚡</span></label>
+                        <label class="cursor-pointer"><input type="radio" name="authAvatar" value="🧠" class="hidden peer"><span class="w-9 h-9 rounded-lg flex items-center justify-center text-lg peer-checked:bg-cyan-500 peer-checked:text-black">🧠</span></label>
+                        <label class="cursor-pointer"><input type="radio" name="authAvatar" value="👑" class="hidden peer"><span class="w-9 h-9 rounded-lg flex items-center justify-center text-lg peer-checked:bg-cyan-500 peer-checked:text-black">👑</span></label>
+                        <label class="cursor-pointer"><input type="radio" name="authAvatar" value="🔥" class="hidden peer"><span class="w-9 h-9 rounded-lg flex items-center justify-center text-lg peer-checked:bg-cyan-500 peer-checked:text-black">🔥</span></label>
+                        <label class="cursor-pointer"><input type="radio" name="authAvatar" value="🕶️" class="hidden peer"><span class="w-9 h-9 rounded-lg flex items-center justify-center text-lg peer-checked:bg-cyan-500 peer-checked:text-black">🕶️</span></label>
+                    </div>
+                </div>
+
+                <div id="authError" class="hidden text-xs text-red-400 font-bold bg-red-500/10 p-2.5 rounded-xl border border-red-500/20 text-center"></div>
+
+                <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-sm transition-all shadow-lg shadow-cyan-500/30">
+                    دخول المنصة 🚀
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. NETWORK & QR CODE MODAL -->
+    <div id="networkModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-panel-elevated rounded-3xl p-6 max-w-sm w-full text-center relative border border-white/10">
+            <button onclick="hideModal('networkModal')" class="absolute top-4 left-4 text-slate-400 hover:text-white">✕</button>
+            <h3 class="text-base font-black text-white mb-1">دخول الزملاء عبر الـ Wi-Fi 📱</h3>
+            <p class="text-xs text-slate-400 mb-4">امسح الكود بكاميرا الموبايل للدخول المباشر للشات</p>
+
+            <div class="p-3 bg-white rounded-2xl inline-block mb-3 shadow-xl">
+                <img id="networkQrImg" class="w-48 h-48 mx-auto" alt="QR Code">
+            </div>
+
+            <p id="networkHostUrl" class="font-mono text-cyan-400 text-sm font-bold bg-slate-950 py-1.5 px-3 rounded-xl border border-slate-800 break-all select-all mb-3"></p>
+
+            <div class="text-[11px] text-slate-400 space-y-1 text-right bg-slate-900/50 p-2.5 rounded-xl border border-white/5">
+                <div class="flex justify-between"><span>الـ IP المكتشف لجهازك:</span> <span id="clientDetectedIp" class="text-white font-mono">-</span></div>
+                <div class="flex justify-between"><span>الـ MAC Address لجهازك:</span> <span id="clientDetectedMac" class="text-white font-mono">-</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. AIRDROP MODAL -->
+    <div id="airdropModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-panel-elevated rounded-3xl p-6 max-w-xl w-full border border-white/10 flex flex-col max-h-[85vh]">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">⚡</span>
+                    <h3 class="text-base font-black text-white">Classroom AirDrop (مشاركة الملفات السريعة)</h3>
+                </div>
+                <button onclick="hideModal('airdropModal')" class="text-slate-400 hover:text-white">✕</button>
+            </div>
+
+            <!-- Drag and drop zone -->
+            <div id="airdropDropZone" class="border-2 border-dashed border-slate-700 hover:border-cyan-500 rounded-2xl p-6 text-center cursor-pointer transition-all mb-4 bg-slate-950/40">
+                <span class="text-3xl block mb-2">📁</span>
+                <p class="text-xs font-bold text-white mb-1">اضغط هنا أو اسحب أي ملف لمشاركته فوراً مع الفصل</p>
+                <p class="text-[10px] text-slate-400">بدون استهلاك باقة الإنترنت • مشاركة فائقة السرعة على شبكة الفصل</p>
+                <input type="file" id="airdropFileInput" class="hidden">
+            </div>
+
+            <div id="airdropUploadProgress" class="hidden text-xs text-cyan-400 font-bold text-center py-1">
+                جاري الرفع بسرعة الشبكة المحلية... ⏳
+            </div>
+
+            <!-- Files List -->
+            <h4 class="text-xs font-bold text-slate-300 mb-2">الملفات المتاحة للتحميل في الفصل:</h4>
+            <div id="airdropFilesList" class="flex-1 overflow-y-auto space-y-2 max-h-60 pr-1">
+                <!-- Dynamically loaded -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. LIVE WHITEBOARD MODAL -->
+    <div id="whiteboardModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4">
+        <div class="glass-panel-elevated rounded-3xl p-4 max-w-4xl w-full border border-white/10 flex flex-col h-[90vh]">
+            <!-- Whiteboard Toolbar -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10 mb-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">🎨</span>
+                    <h3 class="text-sm font-black text-white">السبورة التفاعلية الحية المشتركة</h3>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <!-- Color Palette -->
+                    <div class="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                        <button onclick="setWhiteboardColor('#06b6d4')" class="w-6 h-6 rounded-full bg-cyan-400"></button>
+                        <button onclick="setWhiteboardColor('#8b5cf6')" class="w-6 h-6 rounded-full bg-purple-500"></button>
+                        <button onclick="setWhiteboardColor('#22c55e')" class="w-6 h-6 rounded-full bg-emerald-500"></button>
+                        <button onclick="setWhiteboardColor('#eab308')" class="w-6 h-6 rounded-full bg-yellow-500"></button>
+                        <button onclick="setWhiteboardColor('#ffffff')" class="w-6 h-6 rounded-full bg-white"></button>
+                        <button onclick="setWhiteboardEraser()" class="px-2 py-0.5 text-xs text-slate-300 font-bold hover:text-white" title="ممحاة">🧹</button>
+                    </div>
+
+                    <!-- Clear Board -->
+                    <button onclick="emitClearWhiteboard()" class="px-2.5 py-1 rounded-lg bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white text-xs font-bold transition-all">
+                        مسح 🗑️
+                    </button>
+                    <!-- Export Image -->
+                    <button onclick="exportWhiteboardImage()" class="px-2.5 py-1 rounded-lg bg-cyan-500 text-slate-950 text-xs font-bold transition-all">
+                        تصدير 📸
+                    </button>
+                    <!-- Close -->
+                    <button onclick="hideModal('whiteboardModal')" class="text-slate-400 hover:text-white px-2">✕</button>
+                </div>
+            </div>
+
+            <!-- Interactive HTML5 Canvas -->
+            <div class="flex-1 bg-[#070a13] rounded-2xl border border-slate-800 overflow-hidden relative">
+                <canvas id="whiteboardCanvas" class="w-full h-full block"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. STORY CREATOR MODAL -->
+    <div id="storyCreatorModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-panel-elevated rounded-3xl p-6 max-w-md w-full border border-white/10 relative">
+            <button onclick="hideModal('storyCreatorModal')" class="absolute top-4 left-4 text-slate-400 hover:text-white">✕</button>
+            <h3 class="text-base font-black text-white mb-3">نشر استوري جديد 📸</h3>
+
+            <form id="storyCreateForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">نص الاستوري (اختياري لو هترفع صورة)</label>
+                    <textarea id="storyTextInput" rows="3" placeholder="اكتب ميم أو سؤال أو ملاحظة هنا..." class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl p-3 text-sm text-white outline-none"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">لون الخلفية (للاستوري النصي)</label>
+                    <div class="flex items-center gap-3">
+                        <label class="cursor-pointer"><input type="radio" name="storyGradient" value="from-purple-600 to-pink-500" checked class="hidden peer"><span class="w-8 h-8 rounded-full block bg-gradient-to-tr from-purple-600 to-pink-500 ring-2 ring-transparent peer-checked:ring-cyan-400"></span></label>
+                        <label class="cursor-pointer"><input type="radio" name="storyGradient" value="from-blue-600 to-cyan-500" class="hidden peer"><span class="w-8 h-8 rounded-full block bg-gradient-to-tr from-blue-600 to-cyan-500 ring-2 ring-transparent peer-checked:ring-cyan-400"></span></label>
+                        <label class="cursor-pointer"><input type="radio" name="storyGradient" value="from-emerald-600 to-teal-500" class="hidden peer"><span class="w-8 h-8 rounded-full block bg-gradient-to-tr from-emerald-600 to-teal-500 ring-2 ring-transparent peer-checked:ring-cyan-400"></span></label>
+                        <label class="cursor-pointer"><input type="radio" name="storyGradient" value="from-orange-600 to-amber-500" class="hidden peer"><span class="w-8 h-8 rounded-full block bg-gradient-to-tr from-orange-600 to-amber-500 ring-2 ring-transparent peer-checked:ring-cyan-400"></span></label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">أو ارفع صورة / فيديو للاستوري</label>
+                    <input type="file" id="storyFileInput" accept="image/*,video/*" class="w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-slate-800 file:text-cyan-400 hover:file:bg-slate-700">
+                </div>
+
+                <button type="submit" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold text-sm transition-all shadow-lg">
+                    نشر في الاستوري الآن 🔥
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 6. STORY VIEWER MODAL -->
+    <div id="storyViewerModal" class="hidden fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4">
+        <div class="max-w-md w-full relative flex flex-col items-center">
+            <!-- Story Header -->
+            <div class="w-full flex items-center justify-between px-2 mb-3">
+                <div class="flex items-center gap-2.5">
+                    <div id="storyViewerAvatar" class="w-9 h-9 rounded-full bg-slate-800 border border-white/20 flex items-center justify-center text-lg"></div>
+                    <div>
+                        <h4 id="storyViewerName" class="text-sm font-bold text-white"></h4>
+                        <span id="storyViewersBadge" class="text-[10px] text-slate-400"></span>
+                    </div>
+                </div>
+                <button onclick="hideModal('storyViewerModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center">✕</button>
+            </div>
+
+            <!-- Story Body -->
+            <div id="storyViewerBody" class="w-full relative mb-4">
+                <!-- Content dynamically rendered -->
+            </div>
+
+            <!-- Navigation Controls -->
+            <div class="w-full flex items-center justify-between px-2">
+                <button onclick="prevStory()" class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold">السابق ◀</button>
+                <button onclick="nextStory()" class="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold">التالي ▶</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. ADMIN DASHBOARD MODAL -->
+    <div id="adminModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-panel-elevated rounded-3xl p-6 max-w-3xl w-full border border-white/10 max-h-[85vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">👑</span>
+                    <h3 class="text-base font-black text-amber-400">لوحة تحكم وفيتشرات الأدمن الخارقة</h3>
+                </div>
+                <button onclick="hideModal('adminModal')" class="text-slate-400 hover:text-white">✕</button>
+            </div>
+
+            <!-- Admin Action Buttons Row -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
+                <button onclick="adminBroadcastAlert()" class="p-3 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-bold text-xs hover:bg-cyan-500/25 transition-all text-center">
+                    📢 إذاعة عامة لجميع الشاشات
+                </button>
+                <button id="adminToggleFocusBtn" onclick="adminToggleFocusMode()" class="p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 font-bold text-xs hover:bg-amber-500/25 transition-all text-center">
+                    🔒 تفعيل وضع التركيز (قفل الشات)
+                </button>
+                <button onclick="adminStealthRelease()" class="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-bold text-xs hover:bg-emerald-500/25 transition-all text-center">
+                    🛡️ زر "البشمهندسة مشيت" (فك الإخفاء)
+                </button>
+            </div>
+
+            <!-- Devices Table -->
+            <h4 class="text-xs font-bold text-slate-300 mb-2">الأجهزة المتصلة حالياً في الفصل (Classroom Hardware Radar):</h4>
+            <div class="flex-1 overflow-y-auto border border-slate-800 rounded-xl">
+                <table class="w-full text-right border-collapse">
+                    <thead>
+                        <tr class="bg-slate-950 text-slate-400 text-[11px] border-b border-slate-800">
+                            <th class="py-2 px-3">الطالب</th>
+                            <th class="py-2 px-3">الـ IP</th>
+                            <th class="py-2 px-3">الـ MAC Address</th>
+                            <th class="py-2 px-3">الرتبة</th>
+                            <th class="py-2 px-3">إجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminDevicesTable">
+                        <!-- Devices dynamically loaded -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 8. GLOBAL ANNOUNCEMENT MODAL -->
+    <div id="announcementModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-panel-elevated rounded-3xl p-6 sm:p-8 max-w-md w-full border border-amber-500/40 text-center relative shadow-2xl shadow-amber-500/20">
+            <span class="text-4xl block mb-2">📢</span>
+            <h3 id="announcementTitle" class="text-lg font-black text-amber-400 mb-2">إذاعة الفصل العامة</h3>
+            <p id="announcementText" class="text-sm text-white font-semibold leading-relaxed mb-4 bg-slate-950/70 p-4 rounded-2xl border border-white/5"></p>
+            <p id="announcementTime" class="text-[10px] text-slate-500 mb-4"></p>
+            <button onclick="hideModal('announcementModal')" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-all">
+                علم، مفهوم 🫡
+            </button>
+        </div>
+    </div>
+
+    <!-- 10. PROFILE EDIT MODAL -->
+    <div id="profileModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-panel-elevated rounded-3xl p-6 max-w-md w-full border border-white/10 relative">
+            <button onclick="hideModal('profileModal')" class="absolute top-4 left-4 text-slate-400 hover:text-white">✕</button>
+            <h3 class="text-base font-black text-white mb-3">تعديل ملفي الشخصي 👤</h3>
+
+            <form id="profileEditForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">الاسم المستعار (Nickname)</label>
+                    <input type="text" id="editNickname" class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">الحالة الشخصية (Bio)</label>
+                    <input type="text" id="editBio" placeholder="طالب جامد في فصل العباقرة ⚡" class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-2">الصورة الرمزية (Avatar)</label>
+                    <div class="flex items-center justify-between gap-2 p-2 bg-slate-950 rounded-xl border border-slate-800">
+                        <label class="cursor-pointer"><input type="radio" name="editAvatar" value="🚀" class="hidden peer"><span class="w-9 h-9 rounded-lg flex items-center justify-center text-lg peer-checked:bg-cyan-500 peer-checked:text-black">🚀</span></label>
+                        <label class="cursor-pointer"><input type="radio" name="editAvatar" value="⚡" class="hidden peer"><span class="w-9 h-9 rounded-lg flex items-center justify-center text-lg peer-checked:bg-cyan-500 peer-checked:text-black">⚡</span></label>
+                        <label class="cursor-pointer"><input type="radio" name="editAvatar" value="🧠" class="hidden peer"><span class="w-9 h-9 rounded-lg flex items-center justify-center text-lg peer-checked:bg-cyan-500 peer-checked:text-black">🧠</span></label>
+                        <label class="cursor-pointer"><input type="radio" name="editAvatar" value="👑" class="hidden peer"><span class="w-9 h-9 rounded-lg flex items-center justify-center text-lg peer-checked:bg-cyan-500 peer-checked:text-black">👑</span></label>
+                        <label class="cursor-pointer"><input type="radio" name="editAvatar" value="🔥" class="hidden peer"><span class="w-9 h-9 rounded-lg flex items-center justify-center text-lg peer-checked:bg-cyan-500 peer-checked:text-black">🔥</span></label>
+                        <label class="cursor-pointer"><input type="radio" name="editAvatar" value="🕶️" class="hidden peer"><span class="w-9 h-9 rounded-lg flex items-center justify-center text-lg peer-checked:bg-cyan-500 peer-checked:text-black">🕶️</span></label>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex gap-2">
+                    <button type="button" onclick="logoutCurrentUser()" class="flex-1 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 font-bold text-xs transition-all">
+                        تسجيل الخروج 🚪
+                    </button>
+                    <button type="submit" class="flex-1 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-all">
+                        حفظ التعديلات 💾
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 9. FLOATING NOTIFICATION PILL -->
+    <div id="globalNotificationPill" class="hidden fixed bottom-5 left-5 z-50 glass-panel-elevated rounded-2xl px-4 py-2.5 border border-cyan-500/40 text-xs font-bold text-white shadow-2xl flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+        <span id="globalNotificationMsg">إشعار جديد</span>
+    </div>
+
+    <!-- Main Application Scripts -->
+    <script src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة الاختبار والتقييم التفاعلي — مراجعة الوحدة الأولى فيزياء</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #030712; }
+        .en-font { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .katex { direction: ltr !important; }
+        .quiz-card { transition: all 0.25s ease-in-out; }
+        .quiz-card:hover { border-color: rgba(6, 182, 212, 0.35); }
+        .pulse-subtle { animation: pulseSlow 3s infinite; }
+        @keyframes pulseSlow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.75; }
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-slate-100 min-h-screen selection:bg-cyan-500 selection:text-black pb-24">
+
+    <!-- Sticky Live Score & Control Header -->
+    <header class="sticky top-0 z-50 bg-gray-900/95 backdrop-blur-md border-b border-gray-800 px-4 md:px-6 py-3">
+        <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-black">
+                    ⚡
+                </div>
+                <div>
+                    <h1 class="text-sm font-extrabold text-white leading-tight">اختبار مراجعة الوحدة الأولى التفاعلي</h1>
+                    <span class="text-[11px] text-gray-400 en-font">Physics Unit 1 • Magnetic Effect</span>
+                </div>
+            </div>
+
+            <!-- Live Score Badges -->
+            <div class="flex items-center gap-2 en-font text-xs">
+                <div class="px-3 py-1.5 rounded-xl bg-gray-950 border border-gray-800 flex items-center gap-1.5">
+                    <span class="text-gray-400">Score:</span>
+                    <span id="score-display" class="font-black text-cyan-400">0</span>
+                    <span class="text-gray-600">/</span>
+                    <span id="total-questions-display" class="text-gray-400">66</span>
+                </div>
+                <div class="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold flex items-center gap-1">
+                    <span>✓</span>
+                    <span id="correct-count">0</span>
+                </div>
+                <div class="px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 font-bold flex items-center gap-1">
+                    <span>✗</span>
+                    <span id="wrong-count">0</span>
+                </div>
+                <div class="px-3 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-black" id="percentage-badge">
+                    0%
+                </div>
+                <button onclick="resetQuiz()" title="إعادة الاختبار" class="px-2.5 py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition text-xs font-bold flex items-center gap-1">
+                    🔄 <span class="hidden sm:inline">إعادة</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="max-w-6xl mx-auto mt-2.5 w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
+            <div id="quiz-progress-bar" class="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full w-0 transition-all duration-300"></div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 md:px-6 py-6 space-y-8">
+
+        <!-- Welcome Banner & Quick Jump Nav -->
+        <div class="bg-gray-900 border border-gray-800 rounded-3xl p-6 relative overflow-hidden shadow-xl">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-5">
+                <div class="space-y-2">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-xs font-bold border border-cyan-500/20">
+                        <span>🎯</span> وضع الاختبار والتقييم الفوري
+                    </div>
+                    <h2 class="text-xl md:text-2xl font-black text-white">
+                        تم إخفاء الإجابات! جاوب بنفسك وشوف النتيجة فوراً
+                    </h2>
+                    <p class="text-gray-300 text-xs md:text-sm leading-relaxed max-w-3xl">
+                        كل سؤال تضغط على إجابته أو تكتبها هيتم تقييمك فوراً (صح ✅ أو خطأ ❌) مع بيان السبب، وجمع درجاتك في عدّاد النقاط بالأعلى!
+                    </p>
+                </div>
+
+                <div class="flex flex-wrap gap-2 items-center">
+                    <a href="#section-tf" class="px-3 py-1.5 rounded-xl bg-gray-800 hover:bg-cyan-500/20 hover:text-cyan-300 border border-gray-700 text-xs font-bold transition">Q1 صح/غلط</a>
+                    <a href="#section-mcq" class="px-3 py-1.5 rounded-xl bg-gray-800 hover:bg-cyan-500/20 hover:text-cyan-300 border border-gray-700 text-xs font-bold transition">Q2 اختيارات</a>
+                    <a href="#section-corr" class="px-3 py-1.5 rounded-xl bg-gray-800 hover:bg-cyan-500/20 hover:text-cyan-300 border border-gray-700 text-xs font-bold transition">Q3 التصويب</a>
+                    <a href="#section-term" class="px-3 py-1.5 rounded-xl bg-gray-800 hover:bg-cyan-500/20 hover:text-cyan-300 border border-gray-700 text-xs font-bold transition">Q4 مصطلحات</a>
+                    <a href="#section-reason" class="px-3 py-1.5 rounded-xl bg-gray-800 hover:bg-cyan-500/20 hover:text-cyan-300 border border-gray-700 text-xs font-bold transition">Q5 تعليلات</a>
+                    <a href="#section-comp" class="px-3 py-1.5 rounded-xl bg-gray-800 hover:bg-cyan-500/20 hover:text-cyan-300 border border-gray-700 text-xs font-bold transition">Q6 مقارنات</a>
+                    <a href="#section-prob" class="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/30 text-xs font-bold transition">Q7 المسائل الـ 8</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             SECTION 1: TRUE / FALSE (17 QUESTIONS)
+             ========================================== -->
+        <section id="section-tf" class="bg-gray-900 border border-gray-800 rounded-3xl p-6 md:p-7 space-y-5">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-xs font-black">Q1</span>
+                    Question 1: Put True (✓) or False (✗), and correct the wrong statements (17 Questions)
+                </h2>
+                <span id="tf-badge" class="text-xs px-2.5 py-1 rounded-lg bg-gray-800 text-gray-300 font-mono">0 / 17 المجاب</span>
+            </div>
+
+            <div id="tf-container" class="space-y-3 text-xs md:text-sm">
+                <!-- Dynamically populated via JS -->
+            </div>
+        </section>
+
+
+        <!-- ==========================================
+             SECTION 2: MULTIPLE CHOICE (20 MCQS)
+             ========================================== -->
+        <section id="section-mcq" class="bg-gray-900 border border-gray-800 rounded-3xl p-6 md:p-7 space-y-5">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-xs font-black">Q2</span>
+                    Question 2: Choose the correct answer (20 MCQs)
+                </h2>
+                <span id="mcq-badge" class="text-xs px-2.5 py-1 rounded-lg bg-gray-800 text-gray-300 font-mono">0 / 20 المجاب</span>
+            </div>
+
+            <div id="mcq-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs md:text-sm">
+                <!-- Dynamically populated via JS -->
+            </div>
+        </section>
+
+
+        <!-- ==========================================
+             SECTION 3: CORRECTIONS (12 QUESTIONS)
+             ========================================== -->
+        <section id="section-corr" class="bg-gray-900 border border-gray-800 rounded-3xl p-6 md:p-7 space-y-5">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-xs font-black">Q3</span>
+                    Question 3: Correct the words in bold (12 Questions)
+                </h2>
+                <span id="corr-badge" class="text-xs px-2.5 py-1 rounded-lg bg-gray-800 text-gray-300 font-mono">0 / 12 المجاب</span>
+            </div>
+
+            <p class="text-xs text-gray-400">
+                اكتب الكلمة الصحيحة البديلة عن الكلمة المكتوبة باللون البرتقالي ثم اضغط "تحقق":
+            </p>
+
+            <div id="corr-container" class="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs">
+                <!-- Dynamically populated via JS -->
+            </div>
+        </section>
+
+
+        <!-- ==========================================
+             SECTION 4: SCIENTIFIC TERMS (10 TERMS)
+             ========================================== -->
+        <section id="section-term" class="bg-gray-900 border border-gray-800 rounded-3xl p-6 md:p-7 space-y-5">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-xs font-black">Q4</span>
+                    Question 4: Write the scientific term (10 Terms)
+                </h2>
+                <span id="term-badge" class="text-xs px-2.5 py-1 rounded-lg bg-gray-800 text-gray-300 font-mono">0 / 10 المجاب</span>
+            </div>
+
+            <div id="term-container" class="space-y-3 text-xs md:text-sm">
+                <!-- Dynamically populated via JS -->
+            </div>
+        </section>
+
+
+        <!-- ==========================================
+             SECTION 5: GIVE REASONS (6 QUESTIONS)
+             ========================================== -->
+        <section id="section-reason" class="bg-gray-900 border border-gray-800 rounded-3xl p-6 md:p-7 space-y-5">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-xs font-black">Q5</span>
+                    Question 5: Give Reasons (6 Explanations)
+                </h2>
+                <span id="reason-badge" class="text-xs px-2.5 py-1 rounded-lg bg-gray-800 text-gray-300 font-mono">0 / 6 المجاب</span>
+            </div>
+
+            <p class="text-xs text-gray-400">
+                اكتب تفسيرك العلمي في المربع ثم اضغط "تحقق وقارن مع نموذج الإجابة" لتقييم إجابتك:
+            </p>
+
+            <div id="reason-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs md:text-sm">
+                <!-- Dynamically populated via JS -->
+            </div>
+        </section>
+
+
+        <!-- ==========================================
+             SECTION 6: COMPARISONS (3 COMPARISONS)
+             ========================================== -->
+        <section id="section-comp" class="bg-gray-900 border border-gray-800 rounded-3xl p-6 md:p-7 space-y-5">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-xs font-black">Q6</span>
+                    Question 6: Compare & Test Key Formulas
+                </h2>
+                <span class="text-xs px-2.5 py-1 rounded-lg bg-gray-800 text-gray-300 font-mono">3 Comparisons</span>
+            </div>
+
+            <div class="space-y-4 text-xs">
+                <!-- Comp 1 Quiz -->
+                <div class="p-4 rounded-2xl bg-gray-950 border border-gray-800 space-y-3">
+                    <h3 class="font-bold text-cyan-400 text-sm">1. Compare: Magnetic Flux (\(\Phi_m\)) vs Magnetic Flux Density (\(B\))</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        <div class="p-3 bg-gray-900 border border-gray-800 rounded-xl space-y-2">
+                            <span class="font-bold text-white">Magnetic Flux (\(\Phi_m\)):</span>
+                            <div class="text-gray-300 text-xs">Total number of magnetic field lines passing through an area.</div>
+                            <div class="text-cyan-400 font-mono text-[11px]">• Unit: Weber (Wb) • Quantity: Scalar</div>
+                        </div>
+                        <div class="p-3 bg-gray-900 border border-gray-800 rounded-xl space-y-2">
+                            <span class="font-bold text-white">Magnetic Flux Density (\(B\)):</span>
+                            <div class="text-gray-300 text-xs">Number of flux lines passing normally through a unit area.</div>
+                            <div class="text-cyan-400 font-mono text-[11px]">• Unit: Tesla (T) or Wb/m² • Quantity: Vector</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comp 2 Quiz -->
+                <div class="p-4 rounded-2xl bg-gray-950 border border-gray-800 space-y-3">
+                    <h3 class="font-bold text-cyan-400 text-sm">2. Laws of Magnetic Field at a Glance</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                        <div class="p-3 bg-gray-900 border border-gray-800 rounded-xl space-y-1">
+                            <strong class="text-white block">Straight Wire</strong>
+                            <span class="text-emerald-400 font-mono">\(B = \frac{\mu I}{2\pi d}\)</span>
+                            <p class="text-gray-400 text-[11px]">Field: Concentric circles around wire.</p>
+                        </div>
+                        <div class="p-3 bg-gray-900 border border-gray-800 rounded-xl space-y-1">
+                            <strong class="text-white block">Circular Coil</strong>
+                            <span class="text-emerald-400 font-mono">\(B = \frac{\mu N I}{2 r}\)</span>
+                            <p class="text-gray-400 text-[11px]">Field: Short bar magnet / uniform at center.</p>
+                        </div>
+                        <div class="p-3 bg-gray-900 border border-gray-800 rounded-xl space-y-1">
+                            <strong class="text-white block">Solenoid</strong>
+                            <span class="text-emerald-400 font-mono">\(B = \mu n I = \frac{\mu N I}{L}\)</span>
+                            <p class="text-gray-400 text-[11px]">Field: Parallel uniform lines along internal axis.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comp 3 Quiz -->
+                <div class="p-4 rounded-2xl bg-gray-950 border border-gray-800 space-y-3">
+                    <h3 class="font-bold text-cyan-400 text-sm">3. Magnetic Force on Current-Carrying Wire (\(F = BIL\sin\theta\))</h3>
+                    <div class="flex flex-wrap gap-4 pt-1 font-mono text-[12px]">
+                        <span class="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            ✓ Perpendicular (\(\theta = 90^\circ\)): \(F_{\text{max}} = BIL\)
+                        </span>
+                        <span class="px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                            ✗ Parallel (\(\theta = 0^\circ\)): \(F = 0\)
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ==========================================
+             SECTION 7: NUMERICAL PROBLEMS (8 PROBLEMS)
+             ========================================== -->
+        <section id="section-prob" class="bg-gray-900 border border-emerald-500/30 rounded-3xl p-6 md:p-7 space-y-5">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-black">Q7</span>
+                    Question 7: Numerical Problems (8 Problems — Solve & Auto Check)
+                </h2>
+                <span id="prob-badge" class="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">0 / 8 المحلول</span>
+            </div>
+
+            <p class="text-xs text-gray-400">
+                أدخل ناتجك الحسابي في الخانة واضغط "تحقق من الناتج"، ويمكنك فتح خطوات الحل التفصيلية في أي وقت:
+            </p>
+
+            <div id="prob-container" class="space-y-4 text-xs md:text-sm">
+                <!-- Dynamically populated via JS -->
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="border-t border-gray-800 py-6 text-center text-xs text-gray-500 en-font">
+        Physics Unit 1 Interactive Exam Engine • Real-time Grading
+    </footer>
+
+    <!-- ========================================================
+         QUIZ DATA & EVALUATION ENGINE SCRIPT
+         ======================================================== -->
+    <script>
+        // Global State
+        const state = {
+            totalQuestions: 66,
+            score: 0,
+            answered: 0,
+            correct: 0,
+            wrong: 0,
+            userAnswers: {}
+        };
+
+        // Audio Feedback via Web Audio API
+        const audioCtx = (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') ? new (window.AudioContext || window.webkitAudioContext)() : null;
+        function playBeep(success) {
+            if (!audioCtx) return;
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                if (success) {
+                    osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+                    osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1); // A5
+                    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.3);
+                } else {
+                    osc.frequency.setValueAtTime(260, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(196, audioCtx.currentTime + 0.12);
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.35);
+                }
+            } catch(e) {}
+        }
+
+        // ================= DATA =================
+
+        // 1. TRUE / FALSE DATA
+        const tfData = [
+            {
+                id: "tf1",
+                text: "1. The magnetic effect of electric current was discovered by Oersted in 1820.",
+                correct: true,
+                explanation: "Hans Christian Oersted discovered in 1820 that an electric current deflects a compass needle."
+            },
+            {
+                id: "tf2",
+                text: "2. When the current in a wire is switched off, the compass needle stays deflected.",
+                correct: false,
+                explanation: "False! The needle returns to its original position (pointing along Earth's magnetic north-south direction)."
+            },
+            {
+                id: "tf3",
+                text: "3. Magnetism arises from the orbital motion and the spin of electrons in atoms.",
+                correct: true,
+                explanation: "Correct! The moving and spinning electrons constitute tiny microscopic current loops giving magnetic moments."
+            },
+            {
+                id: "tf4",
+                text: "4. Magnetic field lines cross each other near the poles of a magnet.",
+                correct: false,
+                explanation: "False! Magnetic field lines NEVER cross or intersect each other anywhere."
+            },
+            {
+                id: "tf5",
+                text: "5. Outside a magnet, the magnetic field lines go from the south pole to the north pole.",
+                correct: false,
+                explanation: "False! Outside the magnet they go from North to South (and inside from South to North)."
+            },
+            {
+                id: "tf6",
+                text: "6. The magnetic flux through a surface parallel to the field equals zero.",
+                correct: true,
+                explanation: "Correct! When parallel, the normal makes 90° with the field, so \\(\\Phi = BA\\cos(90^\\circ) = 0\\)."
+            },
+            {
+                id: "tf7",
+                text: "7. The magnetic field lines around a straight wire carrying current are concentric circles whose centers lie on the wire.",
+                correct: true,
+                explanation: "Correct! Demonstrated by sprinkling iron filings on a cardboard perpendicular to the current-carrying wire."
+            },
+            {
+                id: "tf8",
+                text: "8. The magnetic flux density near a straight wire is directly proportional to the distance from the wire.",
+                correct: false,
+                explanation: "False! It is inversely proportional to distance (\\(B \\propto \\frac{1}{d}\\), Ampere's law: \\(B = \\frac{\\mu I}{2\\pi d}\\))."
+            },
+            {
+                id: "tf9",
+                text: "9. Reversing the direction of the current in a straight wire reverses the direction of its magnetic field.",
+                correct: true,
+                explanation: "Correct! According to Ampere's right-hand rule, field direction directly follows current direction."
+            },
+            {
+                id: "tf10",
+                text: "10. The magnetic flux density at the center of a circular coil is directly proportional to the radius of the coil.",
+                correct: false,
+                explanation: "False! It is inversely proportional to radius (\\(B = \\frac{\\mu N I}{2r}\\), so \\(B \\propto \\frac{1}{r}\\))."
+            },
+            {
+                id: "tf11",
+                text: "11. According to Ampere's right hand rule, if the thumb points in the direction of the current, the curled fingers give the direction of the magnetic field around the wire.",
+                correct: true,
+                explanation: "Correct! That is the standard definition and application of Ampere's right-hand rule."
+            },
+            {
+                id: "tf12",
+                text: "12. The side of a coil at which the current is clockwise is a north pole.",
+                correct: false,
+                explanation: "False! Clockwise current corresponds to a South pole (S), while counterclockwise corresponds to North (N)."
+            },
+            {
+                id: "tf13",
+                text: "13. The magnetic field at the center of a circular coil is uniform.",
+                correct: true,
+                explanation: "Correct! Near the center, field lines are parallel straight lines perpendicular to the coil plane."
+            },
+            {
+                id: "tf14",
+                text: "14. Inserting a soft iron bar inside a solenoid decreases the magnetic flux density inside it.",
+                correct: false,
+                explanation: "False! It greatly INCREASES the flux density because \\(\\mu_{\\text{iron}} \\gg \\mu_{\\text{air}}\\)."
+            },
+            {
+                id: "tf15",
+                text: "15. The magnetic force on a wire placed parallel to the magnetic field is maximum.",
+                correct: false,
+                explanation: "False! When parallel (\\(\\theta = 0^\\circ\\)), \\(F = BIL\\sin(0^\\circ) = 0\\). It is maximum when perpendicular (90°)."
+            },
+            {
+                id: "tf16",
+                text: "16. The magnetic force on a current-carrying wire is perpendicular to both the wire and the magnetic field.",
+                correct: true,
+                explanation: "Correct! Determined by Fleming's left-hand rule (vector cross product: \\(\\vec{F} = I\\vec{L} \\times \\vec{B}\\))."
+            },
+            {
+                id: "tf17",
+                text: "17. At a neutral point, the total magnetic flux density equals zero.",
+                correct: true,
+                explanation: "Correct! Two equal and opposite magnetic fields cancel each other out completely at a neutral point."
+            }
+        ];
+
+        // 2. MCQ DATA
+        const mcqData = [
+            {
+                id: "mcq1",
+                q: "1. Discovered the magnetic effect of electric current in 1820:",
+                choices: [
+                    { id: "a", text: "Faraday" },
+                    { id: "b", text: "Oersted" },
+                    { id: "c", text: "Ampere" },
+                    { id: "d", text: "Tesla" }
+                ],
+                correct: "b",
+                exp: "Hans Christian Oersted discovered that electric current deflects a magnetic needle in 1820."
+            },
+            {
+                id: "mcq2",
+                q: "2. Magnetism arises fundamentally from:",
+                choices: [
+                    { id: "a", text: "the motion and spin of electrons in atoms" },
+                    { id: "b", text: "static positive charges in the nucleus" },
+                    { id: "c", text: "thermal vibration of ions" },
+                    { id: "d", text: "gravitational interaction between atoms" }
+                ],
+                correct: "a",
+                exp: "Electrons orbiting the nucleus and spinning on their axes act as tiny microscopic currents producing magnetic moments."
+            },
+            {
+                id: "mcq3",
+                q: "3. Outside a bar magnet, magnetic field lines go from:",
+                choices: [
+                    { id: "a", text: "south to north" },
+                    { id: "b", text: "north to south" },
+                    { id: "c", text: "center to the edges" },
+                    { id: "d", text: "positive to negative" }
+                ],
+                correct: "b",
+                exp: "Outside: North to South. Inside: South to North (forming continuous closed loops)."
+            },
+            {
+                id: "mcq4",
+                q: "4. The measuring unit of magnetic flux (\\(\\Phi_m\\)) is:",
+                choices: [
+                    { id: "a", text: "Tesla (T)" },
+                    { id: "b", text: "Newton (N)" },
+                    { id: "c", text: "Weber (Wb)" },
+                    { id: "d", text: "Ampere (A)" }
+                ],
+                correct: "c",
+                exp: "Magnetic flux (\\(\\Phi_m\\)) is measured in Weber (Wb = T·m²)."
+            },
+            {
+                id: "mcq5",
+                q: "5. The Tesla (T) is equivalent to:",
+                choices: [
+                    { id: "a", text: "\\(\\text{Wb}\\cdot\\text{m}^2\\)" },
+                    { id: "b", text: "\\(\\text{Wb}/\\text{m}^2\\)" },
+                    { id: "c", text: "\\(\\text{N}\\cdot\\text{m}/\\text{A}\\)" },
+                    { id: "d", text: "\\(\\text{Wb}/\\text{A}\\)" }
+                ],
+                correct: "b",
+                exp: "Since \\(B = \\Phi / A\\), 1 Tesla = 1 Weber per square meter (Wb/m²)."
+            },
+            {
+                id: "mcq6",
+                q: "6. In \\(\\Phi = BA\\cos\\theta\\), \\(\\theta\\) is the angle between:",
+                choices: [
+                    { id: "a", text: "the plane of the coil and the field" },
+                    { id: "b", text: "the normal to the surface and the field" },
+                    { id: "c", text: "the wire and current direction" },
+                    { id: "d", text: "the two magnetic poles" }
+                ],
+                correct: "b",
+                exp: "By vector definition, \\(\\theta\\) is between the surface normal (area vector) and the magnetic field \\(\\vec{B}\\)."
+            },
+            {
+                id: "mcq7",
+                q: "7. If perpendicular distance from a straight wire carrying current is doubled, \\(B\\) becomes:",
+                choices: [
+                    { id: "a", text: "double" },
+                    { id: "b", text: "half" },
+                    { id: "c", text: "four times" },
+                    { id: "d", text: "one fourth" }
+                ],
+                correct: "b",
+                exp: "\\(B = \\frac{\\mu I}{2\\pi d}\\), so \\(B \\propto \\frac{1}{d}\\). If \\(d\\) is doubled, \\(B\\) is halved."
+            },
+            {
+                id: "mcq8",
+                q: "8. The measuring unit of magnetic permeability (\\(\\mu\\)) is:",
+                choices: [
+                    { id: "a", text: "\\(\\text{Wb}/(\\text{m}\\cdot\\text{A})\\)" },
+                    { id: "b", text: "\\(\\text{T}\\cdot\\text{m}^2\\)" },
+                    { id: "c", text: "\\(\\text{N}/(\\text{A}\\cdot\\text{m})\\)" },
+                    { id: "d", text: "\\(\\text{Wb}\\cdot\\text{A}/\\text{m}\\)" }
+                ],
+                correct: "a",
+                exp: "From \\(B = \\frac{\\mu I}{2\\pi d} \\implies \\mu = \\frac{2\\pi d B}{I} = \\frac{\\text{m}\\cdot\\text{T}}{\\text{A}} = \\frac{\\text{Wb}}{\\text{m}\\cdot\\text{A}}\\)."
+            },
+            {
+                id: "mcq9",
+                q: "9. The magnetic permeability of air (\\(\\mu_0\\)) is:",
+                choices: [
+                    { id: "a", text: "\\(4\\pi \\times 10^{-7}\\text{ Wb}/(\\text{m}\\cdot\\text{A})\\)" },
+                    { id: "b", text: "\\(2\\pi \\times 10^{-7}\\text{ Wb}/(\\text{m}\\cdot\\text{A})\\)" },
+                    { id: "c", text: "\\(4\\pi \\times 10^{-5}\\text{ Wb}/(\\text{m}\\cdot\\text{A})\\)" },
+                    { id: "d", text: "\\(8.85 \\times 10^{-12}\\text{ Wb}/(\\text{m}\\cdot\\text{A})\\)" }
+                ],
+                correct: "a",
+                exp: "\\(\\mu_0 = 4\\pi \\times 10^{-7}\\text{ T}\\cdot\\text{m}/\\text{A} = 4\\pi \\times 10^{-7}\\text{ Wb}/(\\text{m}\\cdot\\text{A})\\)."
+            },
+            {
+                id: "mcq10",
+                q: "10. The direction of the magnetic field around a straight current-carrying wire is given by:",
+                choices: [
+                    { id: "a", text: "Fleming's left-hand rule" },
+                    { id: "b", text: "Ampere's right-hand rule" },
+                    { id: "c", text: "Lenz's rule" },
+                    { id: "d", text: "Faraday's law" }
+                ],
+                correct: "b",
+                exp: "Thumb along current; curled fingers give direction of concentric magnetic circles."
+            },
+            {
+                id: "mcq11",
+                q: "11. Increasing the radius of a circular coil makes the magnetic field at its center:",
+                choices: [
+                    { id: "a", text: "increase" },
+                    { id: "b", text: "decrease" },
+                    { id: "c", text: "remain unchanged" },
+                    { id: "d", text: "oscillate" }
+                ],
+                correct: "b",
+                exp: "Since \\(B = \\frac{\\mu N I}{2r}\\), \\(B\\) is inversely proportional to radius \\(r\\)."
+            },
+            {
+                id: "mcq12",
+                q: "12. The right-hand corkscrew rule is used to determine the field of:",
+                choices: [
+                    { id: "a", text: "a straight wire only" },
+                    { id: "b", text: "a circular coil" },
+                    { id: "c", text: "a point charge" },
+                    { id: "d", text: "an electric dipole" }
+                ],
+                correct: "b",
+                exp: "Rotating the screw in current direction gives advance of screw as field at the center of the coil."
+            },
+            {
+                id: "mcq13",
+                q: "13. A wire of length \\(l\\) is bent into a circular coil of \\(N\\) turns and radius \\(r\\):",
+                choices: [
+                    { id: "a", text: "\\(l = \\pi r N\\)" },
+                    { id: "b", text: "\\(l = 2\\pi r N\\)" },
+                    { id: "c", text: "\\(l = 4\\pi r^2 N\\)" },
+                    { id: "d", text: "\\(l = 2r / N\\)" }
+                ],
+                correct: "b",
+                exp: "Each turn has circumference \\(2\\pi r\\), so \\(N\\) turns take total length \\(l = 2\\pi r N\\)."
+            },
+            {
+                id: "mcq14",
+                q: "14. In \\(B = \\mu n I\\) for a solenoid, the letter \\(n\\) represents:",
+                choices: [
+                    { id: "a", text: "total number of turns" },
+                    { id: "b", text: "number of turns per unit length (\\(N/L\\))" },
+                    { id: "c", text: "radius of one turn" },
+                    { id: "d", text: "length of the coil" }
+                ],
+                correct: "b",
+                exp: "\\(n = \\frac{N}{L}\\) is the turn density (turns per meter)."
+            },
+            {
+                id: "mcq15",
+                q: "15. In a solenoid, when curled fingers follow the current, the right thumb points to:",
+                choices: [
+                    { id: "a", text: "the south pole" },
+                    { id: "b", text: "the north pole" },
+                    { id: "c", text: "the force direction" },
+                    { id: "d", text: "the wire entry" }
+                ],
+                correct: "b",
+                exp: "Right-hand grip rule for solenoid: thumb points along the internal field toward the North pole."
+            },
+            {
+                id: "mcq16",
+                q: "16. Magnetic force on a straight wire is maximum when the angle with the field is:",
+                choices: [
+                    { id: "a", text: "0°" },
+                    { id: "b", text: "45°" },
+                    { id: "c", text: "90°" },
+                    { id: "d", text: "180°" }
+                ],
+                correct: "c",
+                exp: "\\(F = BIL\\sin\\theta\\). Maximum value occurs when \\(\\sin\\theta = 1 \\implies \\theta = 90^\\circ\\)."
+            },
+            {
+                id: "mcq17",
+                q: "17. In Fleming's left hand rule, the thumb points to:",
+                choices: [
+                    { id: "a", text: "magnetic field" },
+                    { id: "b", text: "electric current" },
+                    { id: "c", text: "magnetic force (motion)" },
+                    { id: "d", text: "potential difference" }
+                ],
+                correct: "c",
+                exp: "ThuMb = Motion/Force, Forefinger = Field, seCond finger = Current."
+            },
+            {
+                id: "mcq18",
+                q: "18. In Fleming's left hand rule, the middle finger indicates:",
+                choices: [
+                    { id: "a", text: "magnetic field" },
+                    { id: "b", text: "magnetic force" },
+                    { id: "c", text: "electric current" },
+                    { id: "d", text: "resistance" }
+                ],
+                correct: "c",
+                exp: "Middle finger (second finger) represents current (I)."
+            },
+            {
+                id: "mcq19",
+                q: "19. A neutral point is a point at which:",
+                choices: [
+                    { id: "a", text: "the magnetic field is maximum" },
+                    { id: "b", text: "the total magnetic flux density equals zero" },
+                    { id: "c", text: "current intensity is zero" },
+                    { id: "d", text: "magnetic force is doubled" }
+                ],
+                correct: "b",
+                exp: "At a neutral point, \\(\\vec{B}_1 = -\\vec{B}_2\\), so net \\(B_{\\text{total}} = 0\\)."
+            },
+            {
+                id: "mcq20",
+                q: "20. One Tesla exerts 1 N force on 1 m wire carrying:",
+                choices: [
+                    { id: "a", text: "1 A placed perpendicular to the field" },
+                    { id: "b", text: "1 A placed parallel to the field" },
+                    { id: "c", text: "10 A placed at 30°" },
+                    { id: "d", text: "0.5 A placed at 45°" }
+                ],
+                correct: "a",
+                exp: "\\(B = \\frac{F}{I L \\sin\\theta} = \\frac{1\\text{ N}}{(1\\text{ A})(1\\text{ m})\\sin(90^\\circ)} = 1\\text{ T}\\)."
+            }
+        ];
+
+        // 3. CORRECTIONS DATA
+        const corrData = [
+            {
+                id: "corr1",
+                text: "discovered magnetic effect in 1820.",
+                wrongWord: "Faraday",
+                correctAnswers: ["oersted", "hans christian oersted", "أورستد", "اورستد"],
+                displayAnswer: "Oersted"
+            },
+            {
+                id: "corr2",
+                text: "Magnetic field lines ____ each other near the poles.",
+                wrongWord: "cross",
+                correctAnswers: ["never cross", "do not intersect", "never intersect", "لا تتقاطع", "لا تتقاطع ابدا"],
+                displayAnswer: "never cross / do not intersect"
+            },
+            {
+                id: "corr3",
+                text: "Inside a magnet, magnetic field lines go from ____.",
+                wrongWord: "north to south",
+                correctAnswers: ["south to north", "الجنوب إلى الشمال", "من الجنوب الى الشمال"],
+                displayAnswer: "south to north"
+            },
+            {
+                id: "corr4",
+                text: "The measuring unit of magnetic flux is ____.",
+                wrongWord: "tesla",
+                correctAnswers: ["weber", "wb", "ويبر"],
+                displayAnswer: "weber (Wb)"
+            },
+            {
+                id: "corr5",
+                text: "Flux density is ____ proportional to distance from wire.",
+                wrongWord: "directly",
+                correctAnswers: ["inversely", "عكسيا", "عكسياً"],
+                displayAnswer: "inversely"
+            },
+            {
+                id: "corr6",
+                text: "A medium has the ability to ____ magnetic flux lines.",
+                wrongWord: "stop",
+                correctAnswers: ["pass", "transmit", "penetrate", "نفاذ", "تمرير"],
+                displayAnswer: "pass / transmit / penetrate"
+            },
+            {
+                id: "corr7",
+                text: "rule gives magnetic field direction around a straight wire.",
+                wrongWord: "Fleming's left hand",
+                correctAnswers: ["ampere's right hand", "ampere's right hand rule", "right hand rule", "قاعدة امبير لليد اليمنى", "قاعدة اليد اليمنى لامبير"],
+                displayAnswer: "Ampere's right-hand rule"
+            },
+            {
+                id: "corr8",
+                text: "A coil face with clockwise current acts as a ____ pole.",
+                wrongWord: "north",
+                correctAnswers: ["south", "south pole", "جنوبي", "قطب جنوبي"],
+                displayAnswer: "south pole"
+            },
+            {
+                id: "corr9",
+                text: "Flux density in a circular coil is ____ proportional to radius.",
+                wrongWord: "directly",
+                correctAnswers: ["inversely", "عكسيا", "عكسياً"],
+                displayAnswer: "inversely"
+            },
+            {
+                id: "corr10",
+                text: "Inserting a ____ core increases field inside a solenoid.",
+                wrongWord: "wooden",
+                correctAnswers: ["soft iron", "iron", "حديد مطاوع", "حديد"],
+                displayAnswer: "soft iron"
+            },
+            {
+                id: "corr11",
+                text: "Magnetic force is maximum when wire is ____ to field.",
+                wrongWord: "parallel",
+                correctAnswers: ["perpendicular", "عمودي", "عمودياً"],
+                displayAnswer: "perpendicular"
+            },
+            {
+                id: "corr12",
+                text: "At a neutral point, the two opposite fields have ____ direction.",
+                wrongWord: "the same",
+                correctAnswers: ["opposite", "opposite direction", "متعاكس", "متضاد", "في اتجاهين متضادين"],
+                displayAnswer: "opposite direction"
+            }
+        ];
+
+        // 4. SCIENTIFIC TERMS DATA
+        const termData = [
+            {
+                id: "term1",
+                desc: "1. The region surrounding a magnet or a current-carrying wire where its magnetic effects are exerted:",
+                accepted: ["magnetic field", "field", "المجال المغناطيسي", "مجال مغناطيسي"],
+                model: "Magnetic Field (المجال المغناطيسي)"
+            },
+            {
+                id: "term2",
+                desc: "2. The total number of magnetic flux lines passing through a given surface:",
+                accepted: ["magnetic flux", "flux", "الفيض المغناطيسي", "فيض مغناطيسي"],
+                model: "Magnetic Flux (Φm) (الفيض المغناطيسي)"
+            },
+            {
+                id: "term3",
+                desc: "3. The number of magnetic flux lines passing normally through a unit area around a given point:",
+                accepted: ["magnetic flux density", "flux density", "كثافة الفيض المغناطيسي", "كثافة الفيض"],
+                model: "Magnetic Flux Density (B) (كثافة الفيض المغناطيسي)"
+            },
+            {
+                id: "term4",
+                desc: "4. The ability of a medium to let magnetic flux lines penetrate and pass through it:",
+                accepted: ["magnetic permeability", "permeability", "معامل النفاذية المغناطيسية", "النفاذية المغناطيسية"],
+                model: "Magnetic Permeability (μ) (معامل النفاذية المغناطيسية)"
+            },
+            {
+                id: "term5",
+                desc: "5. The magnetic flux density that exerts a force of 1 N on a wire of length 1 m carrying 1 A placed perpendicular to the field:",
+                accepted: ["tesla", "t", "تسلا", "التسلا"],
+                model: "Tesla (T) (التسلا)"
+            },
+            {
+                id: "term6",
+                desc: "6. A point in space at which the total magnetic flux density completely vanishes (equals zero):",
+                accepted: ["neutral point", "نقطة التعادل", "نقطه التعادل"],
+                model: "Neutral Point (نقطة التعادل)"
+            },
+            {
+                id: "term7",
+                desc: "7. A long helical coil of wire that generates a magnetic field very similar to that of a bar magnet:",
+                accepted: ["solenoid", "solenoid coil", "الملف اللولبي", "الملف الحلزوني", "ملف حلزوني", "ملف لولبي"],
+                model: "Solenoid (الملف اللولبي / الحلزوني)"
+            },
+            {
+                id: "term8",
+                desc: "8. A rule: thumb points along the current, and curled fingers indicate the magnetic field around the straight wire:",
+                accepted: ["ampere's right hand rule", "ampere's right-hand rule", "right hand rule", "قاعدة امبير لليد اليمنى", "قاعدة اليد اليمنى لامبير"],
+                model: "Ampere's Right-Hand Rule (قاعدة أمبير لليد اليمنى)"
+            },
+            {
+                id: "term9",
+                desc: "9. A rule used to determine the direction of magnetic force on a straight current-carrying wire in a magnetic field:",
+                accepted: ["fleming's left hand rule", "fleming's left-hand rule", "left hand rule", "قاعدة فلمنج لليد اليسرى", "قاعدة اليد اليسرى لفلمنج"],
+                model: "Fleming's Left-Hand Rule (قاعدة فلمنج لليد اليسرى)"
+            },
+            {
+                id: "term10",
+                desc: "10. A rule: rotation indicates the direction of current, and linear advancement indicates the direction of magnetic field at coil center:",
+                accepted: ["right hand screw rule", "corkscrew rule", "right screw rule", "قاعدة البريمة اليمنى", "البريمة اليمنى"],
+                model: "Right-Hand Screw Rule (قاعدة البريمة اليمنى)"
+            }
+        ];
+
+        // 5. GIVE REASONS DATA
+        const reasonData = [
+            {
+                id: "gr1",
+                q: "1. A magnetic compass needle placed near a current-carrying wire is deflected.",
+                keywords: ["magnetic field", "current", "torque", "مجال", "تيار", "عزم"],
+                modelAnswer: "Because the electric current generates a magnetic field around the wire, which interacts with the compass needle's magnetic field and exerts a magnetic torque causing it to deflect."
+            },
+            {
+                id: "gr2",
+                q: "2. The magnetic field near a straight wire is much stronger than far from it.",
+                keywords: ["inversely", "distance", "proportional", "عكسيا", "المسافة", "1/d"],
+                modelAnswer: "Because magnetic flux density is inversely proportional to perpendicular distance from the wire (\\(B \\propto \\frac{1}{d}\\)), so decreasing distance increases flux density."
+            },
+            {
+                id: "gr3",
+                q: "3. The magnetic field at the center of a circular coil is uniform.",
+                keywords: ["parallel", "perpendicular", "plane", "straight", "متوازية", "عمودية", "منتظم"],
+                modelAnswer: "Because at the coil center, magnetic field lines are straight parallel lines perpendicular to the plane of the coil, having constant magnitude and direction."
+            },
+            {
+                id: "gr4",
+                q: "4. The flux density in a solenoid increases significantly when a soft iron core is inserted.",
+                keywords: ["permeability", "iron", "greater", "air", "نفاذية", "الحديد", "تجميع"],
+                modelAnswer: "Because magnetic permeability of soft iron is much greater than that of air (\\(\\mu_{\\text{iron}} \\gg \\mu_{\\text{air}}\\)), which gathers and concentrates magnetic flux lines."
+            },
+            {
+                id: "gr5",
+                q: "5. A current-carrying wire placed parallel to a magnetic field does not experience any force.",
+                keywords: ["parallel", "0", "sin", "zero", "موازي", "صفر", "زاوية"],
+                modelAnswer: "Because the angle between the wire and the field is \\(\\theta = 0^\\circ\\), so \\(\\sin(0^\\circ) = 0\\), and magnetic force \\(F = BIL\\sin(0^\\circ) = 0\\)."
+            },
+            {
+                id: "gr6",
+                q: "6. The magnetic field along the axis inside a solenoid is uniform.",
+                keywords: ["parallel", "equidistant", "axis", "straight", "متوازية", "المحور"],
+                modelAnswer: "Because along the central axis inside the solenoid, magnetic field lines are equidistant parallel straight lines parallel to the axis."
+            }
+        ];
+
+        // 6. NUMERICAL PROBLEMS DATA
+        const probData = [
+            {
+                id: "prob1",
+                title: "Problem 1 — Magnetic Flux through Area",
+                params: "A = 0.05 m², B = 0.4 T",
+                prompt: "Calculate flux \\(\\Phi_m\\) for: (a) \\(\\theta = 0^\\circ\\) with normal, and (b) \\(\\theta = 60^\\circ\\) with normal.",
+                inputs: [
+                    { id: "p1_a", label: "(a) When θ = 0° (in Weber):", expected: 0.02, tolerance: 0.002, unit: "Wb" },
+                    { id: "p1_b", label: "(b) When θ = 60° (in Weber):", expected: 0.01, tolerance: 0.001, unit: "Wb" }
+                ],
+                steps: "\\(\\Phi_m = B A \\cos\\theta\\)<br>(a) \\(\\Phi_m = 0.4 \\times 0.05 \\times \\cos(0^\\circ) = 0.02\\text{ Wb}\\)<br>(b) \\(\\Phi_m = 0.4 \\times 0.05 \\times \\cos(60^\\circ) = 0.4 \\times 0.05 \\times 0.5 = 0.01\\text{ Wb}\\)"
+            },
+            {
+                id: "prob2",
+                title: "Problem 2 — Straight Conductor (Ampere's Law)",
+                params: "I = 5 A, d = 0.1 m, μ = 4π × 10⁻⁷ Wb/(m·A)",
+                prompt: "Calculate (1) \\(B\\) at 0.1 m, and (2) distance \\(d\\) where \\(B = 2 \\times 10^{-6}\\text{ T}\\).",
+                inputs: [
+                    { id: "p2_a", label: "(1) B at 0.1 m (in Tesla):", expected: 0.00001, tolerance: 0.000002, unit: "T (1e-5)" },
+                    { id: "p2_b", label: "(2) Distance d (in meters):", expected: 0.5, tolerance: 0.02, unit: "m" }
+                ],
+                steps: "Part 1: \\(B = \\frac{\\mu I}{2\\pi d} = \\frac{(4\\pi \\times 10^{-7}) \\times 5}{2\\pi \\times 0.1} = 10^{-5}\\text{ T}\\)<br>Part 2: \\(d = \\frac{\\mu I}{2\\pi B} = \\frac{(4\\pi \\times 10^{-7}) \\times 5}{2\\pi \\times (2 \\times 10^{-6})} = 0.5\\text{ m}\\)"
+            },
+            {
+                id: "prob3",
+                title: "Problem 3 — Circular Coil",
+                params: "N = 50 turns, r = 0.05 m, I = 2 A",
+                prompt: "Calculate magnetic flux density \\(B\\) at the center of the coil.",
+                inputs: [
+                    { id: "p3_a", label: "Flux density B (in Tesla):", expected: 0.001256, tolerance: 0.0001, unit: "T (4π × 10⁻⁴)" }
+                ],
+                steps: "\\(B = \\frac{\\mu N I}{2 r} = \\frac{(4\\pi \\times 10^{-7}) \\times 50 \\times 2}{2 \\times 0.05} = 4\\pi \\times 10^{-4}\\text{ T} \\approx 1.256 \\times 10^{-3}\\text{ T}\\)"
+            },
+            {
+                id: "prob4",
+                title: "Problem 4 — Wire Length & Circular Coil",
+                params: "l = 6.28 m, r = 0.1 m, I = 3 A, π = 3.14",
+                prompt: "Calculate: (1) number of turns \\(N\\), and (2) flux density \\(B\\) at coil center.",
+                inputs: [
+                    { id: "p4_a", label: "(1) Number of turns N:", expected: 10, tolerance: 0.5, unit: "turns" },
+                    { id: "p4_b", label: "(2) Flux density B (in Tesla):", expected: 0.0001884, tolerance: 0.00002, unit: "T (6π × 10⁻⁵)" }
+                ],
+                steps: "Part 1: \\(N = \\frac{l}{2\\pi r} = \\frac{6.28}{2 \\times 3.14 \\times 0.1} = 10\\text{ turns}\\)<br>Part 2: \\(B = \\frac{\\mu N I}{2r} = \\frac{(4\\pi \\times 10^{-7}) \\times 10 \\times 3}{2 \\times 0.1} = 6\\pi \\times 10^{-5}\\text{ T} \\approx 1.884 \\times 10^{-4}\\text{ T}\\)"
+            },
+            {
+                id: "prob5",
+                title: "Problem 5 — Solenoid",
+                params: "L = 0.5 m, N = 1000 turns, I = 2 A",
+                prompt: "Calculate: (1) turns per meter \\(n\\), and (2) flux density \\(B\\) along solenoid axis.",
+                inputs: [
+                    { id: "p5_a", label: "(1) Turns per meter n:", expected: 2000, tolerance: 10, unit: "turns/m" },
+                    { id: "p5_b", label: "(2) Flux density B (in Tesla):", expected: 0.005024, tolerance: 0.0003, unit: "T (1.6π × 10⁻³)" }
+                ],
+                steps: "Part 1: \\(n = \\frac{N}{L} = \\frac{1000}{0.5} = 2000\\text{ turns/m}\\)<br>Part 2: \\(B = \\mu n I = (4\\pi \\times 10^{-7}) \\times 2000 \\times 2 = 1.6\\pi \\times 10^{-3}\\text{ T} \\approx 5.024 \\times 10^{-3}\\text{ T}\\)"
+            },
+            {
+                id: "prob6",
+                title: "Problem 6 — Neutral Point between Two Parallel Wires",
+                params: "d = 0.3 m, I₁ = 3 A, I₂ = 6 A (currents in same direction)",
+                prompt: "Find the position of the neutral point from wire 1 (3 A).",
+                inputs: [
+                    { id: "p6_a", label: "Distance x from wire 1 (in meters):", expected: 0.1, tolerance: 0.01, unit: "m" }
+                ],
+                steps: "Same direction: Neutral point lies between wires closer to weaker current (3 A).<br>\\(\\frac{I_1}{x} = \\frac{I_2}{d - x} \\implies \\frac{3}{x} = \\frac{6}{0.3 - x}\\)<br>\\(3(0.3 - x) = 6x \\implies 0.9 - 3x = 6x \\implies 9x = 0.9 \\implies x = 0.1\\text{ m}\\) (10 cm from wire 1)."
+            },
+            {
+                id: "prob7",
+                title: "Problem 7 — Magnetic Force on a Wire",
+                params: "L = 0.2 m, I = 5 A, B = 0.6 T",
+                prompt: "Calculate force \\(F\\) when angle \\(\\theta\\) is: (a) 90°, (b) 30°, (c) 0°.",
+                inputs: [
+                    { id: "p7_a", label: "(a) When θ = 90° (in Newton):", expected: 0.6, tolerance: 0.02, unit: "N" },
+                    { id: "p7_b", label: "(b) When θ = 30° (in Newton):", expected: 0.3, tolerance: 0.02, unit: "N" },
+                    { id: "p7_c", label: "(c) When θ = 0° (in Newton):", expected: 0, tolerance: 0.01, unit: "N" }
+                ],
+                steps: "Base factor: \\(BIL = 0.6 \\times 5 \\times 0.2 = 0.6\\text{ N}\\)<br>(a) \\(F = 0.6 \\times \\sin(90^\\circ) = 0.6\\text{ N}\\)<br>(b) \\(F = 0.6 \\times \\sin(30^\\circ) = 0.3\\text{ N}\\)<br>(c) \\(F = 0.6 \\times \\sin(0^\\circ) = 0\\text{ N}\\)"
+            },
+            {
+                id: "prob8",
+                title: "Problem 8 — Calculating Flux Density from Force",
+                params: "L = 0.5 m, I = 4 A, F = 1 N, θ = 90°",
+                prompt: "Calculate the magnetic flux density \\(B\\).",
+                inputs: [
+                    { id: "p8_a", label: "Flux density B (in Tesla):", expected: 0.5, tolerance: 0.02, unit: "T" }
+                ],
+                steps: "\\(F = B I L \\sin(90^\\circ) = B I L\\)<br>\\(B = \\frac{F}{I L} = \\frac{1}{4 \\times 0.5} = \\frac{1}{2} = 0.5\\text{ Tesla}\\)"
+            }
+        ];
+
+        // ================= RENDERING FUNCTIONS =================
+
+        // Render T/F Questions
+        function renderTF() {
+            const container = document.getElementById("tf-container");
+            container.innerHTML = tfData.map((item, index) => `
+                <div class="quiz-card p-4 rounded-2xl bg-gray-950 border border-gray-800 space-y-3" id="card-${item.id}">
+                    <div class="flex items-start justify-between gap-3">
+                        <span class="font-bold text-gray-200">${item.text}</span>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <button id="btn-${item.id}-true" onclick="checkTF('${item.id}', true)" class="px-3 py-1.5 rounded-xl bg-gray-900 hover:bg-emerald-500/20 text-gray-300 hover:text-emerald-400 border border-gray-700 font-bold transition flex items-center gap-1">
+                                ✓ True
+                            </button>
+                            <button id="btn-${item.id}-false" onclick="checkTF('${item.id}', false)" class="px-3 py-1.5 rounded-xl bg-gray-900 hover:bg-rose-500/20 text-gray-300 hover:text-rose-400 border border-gray-700 font-bold transition flex items-center gap-1">
+                                ✗ False
+                            </button>
+                        </div>
+                    </div>
+                    <div id="feedback-${item.id}" class="hidden p-3 rounded-xl text-xs space-y-1"></div>
+                </div>
+            `).join("");
+        }
+
+        // Render MCQ Questions
+        function renderMCQ() {
+            const container = document.getElementById("mcq-container");
+            container.innerHTML = mcqData.map(item => `
+                <div class="quiz-card p-4 rounded-2xl bg-gray-950 border border-gray-800 space-y-3" id="card-${item.id}">
+                    <div class="font-bold text-gray-200 text-sm">${item.q}</div>
+                    <div class="grid grid-cols-1 gap-2 pt-1">
+                        ${item.choices.map(c => `
+                            <button id="btn-${item.id}-${c.id}" onclick="checkMCQ('${item.id}', '${c.id}')" class="text-right px-3.5 py-2.5 rounded-xl bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-300 hover:text-cyan-300 font-medium transition flex items-center justify-between group">
+                                <span><strong class="text-cyan-400 mr-1.5">(${c.id})</strong> ${c.text}</span>
+                                <span class="opacity-0 group-hover:opacity-100 text-cyan-400 text-xs">اختر ←</span>
+                            </button>
+                        `).join("")}
+                    </div>
+                    <div id="feedback-${item.id}" class="hidden p-3 rounded-xl text-xs space-y-1"></div>
+                </div>
+            `).join("");
+        }
+
+        // Render Corrections
+        function renderCorr() {
+            const container = document.getElementById("corr-container");
+            container.innerHTML = corrData.map((item, i) => `
+                <div class="quiz-card p-3.5 rounded-2xl bg-gray-950 border border-gray-800 space-y-2.5" id="card-${item.id}">
+                    <div class="text-gray-300">
+                        <span class="text-gray-500 font-mono">${i + 1}.</span>
+                        <span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-bold font-mono">[${item.wrongWord}]</span>
+                        <span>${item.text}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input id="input-${item.id}" type="text" placeholder="اكتب التصويب الصحيح..." onkeydown="if(event.key==='Enter') checkCorr('${item.id}')" class="flex-1 px-3 py-1.5 rounded-xl bg-gray-900 border border-gray-700 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-cyan-400">
+                        <button onclick="checkCorr('${item.id}')" class="px-3 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 font-bold transition shrink-0">
+                            تحقق 🔍
+                        </button>
+                    </div>
+                    <div id="feedback-${item.id}" class="hidden p-2.5 rounded-xl text-[11px] space-y-1"></div>
+                </div>
+            `).join("");
+        }
+
+        // Render Scientific Terms
+        function renderTerms() {
+            const container = document.getElementById("term-container");
+            container.innerHTML = termData.map(item => `
+                <div class="quiz-card p-4 rounded-2xl bg-gray-950 border border-gray-800 space-y-2.5" id="card-${item.id}">
+                    <div class="text-gray-200 font-medium">${item.desc}</div>
+                    <div class="flex items-center gap-2">
+                        <input id="input-${item.id}" type="text" placeholder="اكتب المصطلح العلمي بالإنجليزية أو العربية..." onkeydown="if(event.key==='Enter') checkTerm('${item.id}')" class="flex-1 px-3 py-2 rounded-xl bg-gray-900 border border-gray-700 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-cyan-400">
+                        <button onclick="checkTerm('${item.id}')" class="px-4 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 font-bold transition shrink-0">
+                            تحقق 🔍
+                        </button>
+                    </div>
+                    <div id="feedback-${item.id}" class="hidden p-3 rounded-xl text-xs space-y-1"></div>
+                </div>
+            `).join("");
+        }
+
+        // Render Give Reasons
+        function renderReasons() {
+            const container = document.getElementById("reason-container");
+            container.innerHTML = reasonData.map(item => `
+                <div class="quiz-card p-4 rounded-2xl bg-gray-950 border border-gray-800 space-y-3" id="card-${item.id}">
+                    <div class="font-bold text-white text-sm">${item.q}</div>
+                    <textarea id="input-${item.id}" rows="2" placeholder="اكتب تعليلك العلمي هنا..." class="w-full px-3 py-2 rounded-xl bg-gray-900 border border-gray-700 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-cyan-400"></textarea>
+                    <div class="flex items-center justify-between gap-2">
+                        <button onclick="checkReason('${item.id}')" class="px-3.5 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 font-bold transition text-xs">
+                            تحقق وقارن مع نموذج الإجابة 📋
+                        </button>
+                    </div>
+                    <div id="feedback-${item.id}" class="hidden p-3 rounded-xl text-xs space-y-2 bg-gray-900 border border-gray-800"></div>
+                </div>
+            `).join("");
+        }
+
+        // Render Numerical Problems
+        function renderProblems() {
+            const container = document.getElementById("prob-container");
+            container.innerHTML = probData.map((item, index) => `
+                <div class="quiz-card p-5 rounded-2xl bg-gray-950 border border-gray-800 space-y-4" id="card-${item.id}">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-800/80 pb-2.5">
+                        <span class="font-bold text-cyan-400 text-sm md:text-base">${item.title}</span>
+                        <span class="px-2.5 py-1 rounded bg-gray-900 text-gray-400 font-mono text-xs border border-gray-800">${item.params}</span>
+                    </div>
+                    <p class="text-gray-300 font-medium">${item.prompt}</p>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        ${item.inputs.map(inp => `
+                            <div class="space-y-1">
+                                <label class="text-[11px] text-gray-400 block">${inp.label}</label>
+                                <div class="flex items-center gap-2">
+                                    <input id="input-${inp.id}" type="number" step="any" placeholder="الناتج..." class="w-full px-3 py-1.5 rounded-xl bg-gray-900 border border-gray-700 text-white placeholder-gray-500 text-xs font-mono focus:outline-none focus:border-cyan-400">
+                                    <span class="text-xs text-gray-400 font-mono shrink-0">${inp.unit}</span>
+                                </div>
+                            </div>
+                        `).join("")}
+                    </div>
+
+                    <div class="flex items-center gap-2 pt-2">
+                        <button onclick="checkProblem('${item.id}')" class="px-4 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 font-bold transition text-xs flex items-center gap-1.5">
+                            ⚡ تحقق من الناتج
+                        </button>
+                        <button onclick="toggleProblemSteps('${item.id}')" class="px-3.5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold transition text-xs">
+                            📐 عرض خطوات الحل
+                        </button>
+                    </div>
+
+                    <div id="feedback-${item.id}" class="hidden p-3 rounded-xl text-xs space-y-1"></div>
+                    <div id="steps-${item.id}" class="hidden p-3.5 rounded-xl bg-gray-900 border border-cyan-500/20 text-cyan-300 font-mono text-xs leading-relaxed">
+                        ${item.steps}
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        // ================= EVALUATION LOGIC =================
+
+        function updateStats() {
+            document.getElementById("score-display").innerText = state.score;
+            document.getElementById("correct-count").innerText = state.correct;
+            document.getElementById("wrong-count").innerText = state.wrong;
+            const pct = Math.round((state.score / state.totalQuestions) * 100);
+            document.getElementById("percentage-badge").innerText = `${pct}%`;
+            document.getElementById("quiz-progress-bar").style.width = `${Math.min(100, Math.round((state.answered / state.totalQuestions) * 100))}%`;
+        }
+
+        // Check True/False
+        function checkTF(id, userChoice) {
+            if (state.userAnswers[id]) return; // already answered
+            const item = tfData.find(x => x.id === id);
+            const isCorrect = (userChoice === item.correct);
+            state.userAnswers[id] = { userChoice, isCorrect };
+            state.answered++;
+
+            const btnTrue = document.getElementById(`btn-${id}-true`);
+            const btnFalse = document.getElementById(`btn-${id}-false`);
+            const fb = document.getElementById(`feedback-${id}`);
+
+            btnTrue.disabled = true;
+            btnFalse.disabled = true;
+
+            if (isCorrect) {
+                state.score++;
+                state.correct++;
+                playBeep(true);
+                if (userChoice) {
+                    btnTrue.className = "px-3 py-1.5 rounded-xl bg-emerald-500 text-black font-extrabold";
+                } else {
+                    btnFalse.className = "px-3 py-1.5 rounded-xl bg-emerald-500 text-black font-extrabold";
+                }
+                fb.className = "p-3 rounded-xl text-xs space-y-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300";
+                fb.innerHTML = `<strong>✓ صح! أحسنت:</strong> ${item.explanation}`;
+            } else {
+                state.wrong++;
+                playBeep(false);
+                if (userChoice) {
+                    btnTrue.className = "px-3 py-1.5 rounded-xl bg-rose-500 text-white font-extrabold";
+                } else {
+                    btnFalse.className = "px-3 py-1.5 rounded-xl bg-rose-500 text-white font-extrabold";
+                }
+                fb.className = "p-3 rounded-xl text-xs space-y-1 bg-rose-500/10 border border-rose-500/30 text-rose-300";
+                fb.innerHTML = `<strong>✗ خطأ!</strong> ${item.explanation}`;
+            }
+            fb.classList.remove("hidden");
+            if (window.renderMathInElement) renderMathInElement(fb);
+            updateStats();
+        }
+
+        // Check MCQ
+        function checkMCQ(id, chosenOpt) {
+            if (state.userAnswers[id]) return;
+            const item = mcqData.find(x => x.id === id);
+            const isCorrect = (chosenOpt === item.correct);
+            state.userAnswers[id] = { chosenOpt, isCorrect };
+            state.answered++;
+
+            item.choices.forEach(c => {
+                const b = document.getElementById(`btn-${id}-${c.id}`);
+                b.disabled = true;
+                if (c.id === item.correct) {
+                    b.className = "text-right px-3.5 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500 text-emerald-300 font-bold flex items-center justify-between";
+                } else if (c.id === chosenOpt && !isCorrect) {
+                    b.className = "text-right px-3.5 py-2.5 rounded-xl bg-rose-500/20 border border-rose-500 text-rose-300 font-bold flex items-center justify-between";
+                }
+            });
+
+            const fb = document.getElementById(`feedback-${id}`);
+            if (isCorrect) {
+                state.score++;
+                state.correct++;
+                playBeep(true);
+                fb.className = "p-3 rounded-xl text-xs space-y-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300";
+                fb.innerHTML = `<strong>✓ إجابة صحيحة (${chosenOpt})!</strong> ${item.exp}`;
+            } else {
+                state.wrong++;
+                playBeep(false);
+                fb.className = "p-3 rounded-xl text-xs space-y-1 bg-rose-500/10 border border-rose-500/30 text-rose-300";
+                fb.innerHTML = `<strong>✗ خطأ! الإجابة الصحيحة هي (${item.correct}):</strong> ${item.exp}`;
+            }
+            fb.classList.remove("hidden");
+            if (window.renderMathInElement) renderMathInElement(fb);
+            updateStats();
+        }
+
+        // Clean text helper for matching
+        function cleanText(str) {
+            return (str || "").toLowerCase()
+                .replace(/[\u064B-\u065F]/g, "") // remove arabic diacritics
+                .replace(/[أإآ]/g, "ا")
+                .replace(/[ة]/g, "ه")
+                .replace(/[ى]/g, "ي")
+                .replace(/['".,\-_\/\\()]/g, "")
+                .trim();
+        }
+
+        // Check Correction
+        function checkCorr(id) {
+            if (state.userAnswers[id]) return;
+            const item = corrData.find(x => x.id === id);
+            const input = document.getElementById(`input-${id}`);
+            const val = cleanText(input.value);
+
+            if (!val) {
+                alert("برجاء كتابة التصويب أولاً!");
+                return;
+            }
+
+            const isCorrect = item.correctAnswers.some(ans => {
+                const cAns = cleanText(ans);
+                return val === cAns || val.includes(cAns) || cAns.includes(val);
+            });
+
+            state.userAnswers[id] = { val, isCorrect };
+            state.answered++;
+            input.disabled = true;
+
+            const fb = document.getElementById(`feedback-${id}`);
+            if (isCorrect) {
+                state.score++;
+                state.correct++;
+                playBeep(true);
+                fb.className = "p-2.5 rounded-xl text-[11px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-300";
+                fb.innerHTML = `<strong>✓ صح ممتاز!</strong> الإجابة: <span class="font-bold underline">${item.displayAnswer}</span>`;
+            } else {
+                state.wrong++;
+                playBeep(false);
+                fb.className = "p-2.5 rounded-xl text-[11px] bg-rose-500/10 border border-rose-500/30 text-rose-300";
+                fb.innerHTML = `<strong>✗ غير دقيق!</strong> التصويب المعتمد: <span class="font-bold underline">${item.displayAnswer}</span>`;
+            }
+            fb.classList.remove("hidden");
+            updateStats();
+        }
+
+        // Check Scientific Term
+        function checkTerm(id) {
+            if (state.userAnswers[id]) return;
+            const item = termData.find(x => x.id === id);
+            const input = document.getElementById(`input-${id}`);
+            const val = cleanText(input.value);
+
+            if (!val) {
+                alert("برجاء كتابة المصطلح أولاً!");
+                return;
+            }
+
+            const isCorrect = item.accepted.some(ans => {
+                const cAns = cleanText(ans);
+                return val === cAns || val.includes(cAns) || cAns.includes(val);
+            });
+
+            state.userAnswers[id] = { val, isCorrect };
+            state.answered++;
+            input.disabled = true;
+
+            const fb = document.getElementById(`feedback-${id}`);
+            if (isCorrect) {
+                state.score++;
+                state.correct++;
+                playBeep(true);
+                fb.className = "p-3 rounded-xl text-xs bg-emerald-500/10 border border-emerald-500/30 text-emerald-300";
+                fb.innerHTML = `<strong>✓ إجابة صحيحة!</strong> المصطلح: <span class="font-bold text-white">${item.model}</span>`;
+            } else {
+                state.wrong++;
+                playBeep(false);
+                fb.className = "p-3 rounded-xl text-xs bg-rose-500/10 border border-rose-500/30 text-rose-300";
+                fb.innerHTML = `<strong>✗ مصطلح غير مطابق!</strong> المصطلح النموذجي: <span class="font-bold text-white">${item.model}</span>`;
+            }
+            fb.classList.remove("hidden");
+            updateStats();
+        }
+
+        // Check Give Reason
+        function checkReason(id) {
+            if (state.userAnswers[id]) return;
+            const item = reasonData.find(x => x.id === id);
+            const input = document.getElementById(`input-${id}`);
+            const val = cleanText(input.value);
+
+            if (!val) {
+                alert("برجاء كتابة تفسيرك أولاً!");
+                return;
+            }
+
+            const matchedKeywords = item.keywords.filter(kw => val.includes(cleanText(kw)));
+            const isGood = matchedKeywords.length >= 1;
+
+            state.userAnswers[id] = { val };
+            state.answered++;
+
+            const fb = document.getElementById(`feedback-${id}`);
+            fb.innerHTML = `
+                <div class="space-y-2">
+                    <div class="font-bold text-emerald-400">📖 نموذج الإجابة المعتمد:</div>
+                    <div class="text-gray-200">${item.modelAnswer}</div>
+                    <div class="border-t border-gray-800 pt-2 flex items-center justify-between">
+                        <span class="text-gray-400">هل إجابتك مطابقة للمعنى؟</span>
+                        <div class="flex gap-2">
+                            <button onclick="confirmReasonScore('${id}', true)" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold hover:bg-emerald-500/30">✓ نعم، أضف درجة</button>
+                            <button onclick="confirmReasonScore('${id}', false)" class="px-2.5 py-1 rounded-lg bg-gray-800 text-gray-400 font-bold hover:bg-gray-700">✗ سأراجعها لاحقاً</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            fb.classList.remove("hidden");
+            if (window.renderMathInElement) renderMathInElement(fb);
+            updateStats();
+        }
+
+        function confirmReasonScore(id, success) {
+            if (state.userAnswers[id]?.graded) return;
+            state.userAnswers[id].graded = true;
+            if (success) {
+                state.score++;
+                state.correct++;
+                playBeep(true);
+            } else {
+                state.wrong++;
+                playBeep(false);
+            }
+            updateStats();
+        }
+
+        // Check Numerical Problem
+        function checkProblem(id) {
+            if (state.userAnswers[id]) return;
+            const item = probData.find(x => x.id === id);
+            let allCorrect = true;
+            let inputsFilled = true;
+
+            item.inputs.forEach(inp => {
+                const val = parseFloat(document.getElementById(`input-${inp.id}`).value);
+                if (isNaN(val)) inputsFilled = false;
+                const diff = Math.abs(val - inp.expected);
+                if (diff > inp.tolerance) allCorrect = false;
+            });
+
+            if (!inputsFilled) {
+                alert("برجاء إدخال النواتج الرقمية في جميع الحقول أولاً!");
+                return;
+            }
+
+            state.userAnswers[id] = { allCorrect };
+            state.answered++;
+
+            const fb = document.getElementById(`feedback-${id}`);
+            if (allCorrect) {
+                state.score++;
+                state.correct++;
+                playBeep(true);
+                fb.className = "p-3 rounded-xl text-xs bg-emerald-500/10 border border-emerald-500/30 text-emerald-300";
+                fb.innerHTML = `<strong>✓ رائع جداً! النواتج الحسابية صحيحة 100%!</strong>`;
+            } else {
+                state.wrong++;
+                playBeep(false);
+                fb.className = "p-3 rounded-xl text-xs bg-rose-500/10 border border-rose-500/30 text-rose-300";
+                fb.innerHTML = `<strong>✗ بعض النواتج غير دقيقة!</strong> اضغط "عرض خطوات الحل" لمراجعة التعويض الرياضي بالتفصيل.`;
+            }
+            fb.classList.remove("hidden");
+            updateStats();
+        }
+
+        function toggleProblemSteps(id) {
+            const steps = document.getElementById(`steps-${id}`);
+            steps.classList.toggle("hidden");
+            if (!steps.classList.contains("hidden") && window.renderMathInElement) {
+                renderMathInElement(steps);
+            }
+        }
+
+        // Reset Quiz
+        function resetQuiz() {
+            if (!confirm("هل تريد إعادة ضبط الاختبار والبدء من جديد؟")) return;
+            state.score = 0;
+            state.answered = 0;
+            state.correct = 0;
+            state.wrong = 0;
+            state.userAnswers = {};
+            renderAll();
+            updateStats();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Render All Modules
+        function renderAll() {
+            renderTF();
+            renderMCQ();
+            renderCorr();
+            renderTerms();
+            renderReasons();
+            renderProblems();
+
+            if (window.renderMathInElement) {
+                renderMathInElement(document.body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            renderAll();
+            updateStats();
+        });
+    </script>
+
+    <!-- No2ta Stealth Mode Bridge -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        window.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.shiftKey && (e.key === 'S' || e.key === 's')) {
+                e.preventDefault();
+                unlockStealth();
+            }
+        });
+
+        function unlockStealth() {
+            const pass = prompt('🔐 أدخل كلمة السر لفك وضع التمويه والعودة إلى نؤطة:');
+            if (pass === 'SdSdSdSd' || pass === 'SdSdSdSdAdmin') {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'NO2TA_STEALTH_RESTORE' }, '*');
+                } else {
+                    window.location.href = '/';
+                }
+            } else if (pass !== null) {
+                alert('كلمة المرور غير صحيحة!');
+            }
+        }
+
+        if (typeof io !== 'undefined') {
+            try {
+                const socket = io();
+                socket.on('GLOBAL_STEALTH_RELEASED', function() {
+                    if (window.parent && window.parent !== window) {
+                        window.parent.postMessage({ type: 'NO2TA_STEALTH_RESTORE' }, '*');
+                    } else {
+                        window.location.href = '/';
+                    }
+                });
+            } catch(e) {}
+        }
+    </script>
+</body>
+</html>

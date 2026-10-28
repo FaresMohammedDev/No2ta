@@ -1,0 +1,138 @@
+/* No2ta Custom Glassmorphic Styles */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+    --bg-primary: #070a13;
+    --bg-secondary: #0c1222;
+    --bg-card: rgba(15, 23, 42, 0.75);
+    --border-color: rgba(255, 255, 255, 0.08);
+    --accent-cyan: #06b6d4;
+    --accent-purple: #8b5cf6;
+    --accent-pink: #ec4899;
+}
+
+body {
+    font-family: 'Cairo', sans-serif;
+    background-color: var(--bg-primary);
+    color: #f8fafc;
+    overflow-x: hidden;
+}
+
+.en-text {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* Glassmorphism */
+.glass-panel {
+    background: rgba(13, 20, 36, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-elevated {
+    background: rgba(18, 28, 51, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+}
+
+.glass-button {
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.glass-button:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+/* Story Gradient Ring Animation */
+@keyframes spin-gradient {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.story-ring-unseen {
+    position: relative;
+    padding: 3px;
+    border-radius: 9999px;
+    background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+    box-shadow: 0 0 15px rgba(220, 39, 67, 0.4);
+}
+
+.story-ring-seen {
+    position: relative;
+    padding: 2px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Pulse / Live dot */
+.live-glow {
+    box-shadow: 0 0 10px #22c55e;
+}
+
+/* Disappearing message burn effect */
+@keyframes burn-fade {
+    0% { filter: drop-shadow(0 0 4px #f97316); opacity: 1; }
+    50% { filter: drop-shadow(0 0 8px #ef4444); opacity: 0.8; }
+    100% { filter: drop-shadow(0 0 12px #b91c1c); opacity: 0.3; }
+}
+
+.burn-pulse {
+    animation: burn-fade 1.5s infinite alternate ease-in-out;
+}
+
+/* Chat Bubbles */
+.chat-bubble-outgoing {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: #ffffff;
+    border-radius: 18px 18px 4px 18px;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+
+.chat-bubble-incoming {
+    background: rgba(30, 41, 59, 0.85);
+    color: #f1f5f9;
+    border-radius: 18px 18px 18px 4px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Audio Player Waveform Visualizer Simulation */
+.voice-bar {
+    width: 3px;
+    background-color: currentColor;
+    border-radius: 9999px;
+    transition: height 0.15s ease;
+}
+
+/* Whiteboard Canvas */
+#whiteboardCanvas {
+    touch-action: none;
+    cursor: crosshair;
+}
+
+/* Panic Screen Iframe / Overlay */
+#panicOverlay {
+    transition: opacity 0.1s ease-in-out;
+}
