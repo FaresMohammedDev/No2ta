@@ -431,7 +431,7 @@ function releaseStealthMode(info) {
 
 function promptStealthUnlock() {
     const pass = prompt('🔐 أدخل كلمة السر لفك وضع التمويه والعودة إلى نؤطة:');
-    if (pass === MASTER_PASSWORD || pass === ADMIN_PASSWORD) {
+    if (pass === MASTER_PASSWORD) {
         if (STATE.socket) {
             STATE.socket.emit('TRIGGER_STEALTH_RELEASE', pass);
         }

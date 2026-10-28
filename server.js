@@ -700,7 +700,7 @@ io.on('connection', async (socket) => {
 
     // 6. Stealth Release
     socket.on('TRIGGER_STEALTH_RELEASE', async (pass) => {
-        if (pass === MASTER_PASSWORD || pass === ADMIN_PASSWORD) {
+        if (pass === MASTER_PASSWORD) {
             isStealthEngaged = false;
             await run(`UPDATE system_settings SET value = '0' WHERE key = 'stealth_active'`);
             io.emit('GLOBAL_STEALTH_RELEASED', { message: 'تم إيقاف وضع التمويه! عدنا للدردشة 🚀' });
@@ -766,7 +766,7 @@ async function startServer() {
             console.log(`🌐 رابط شبكة الفصل (${ip.interface}): http://${ip.address}:${PORT}`);
         });
         console.log(`🔑 كلمة المرور الرئيسية: ${MASTER_PASSWORD}`);
-        console.log(`👑 كلمة مرور الأدمن: ${ADMIN_PASSWORD}`);
+        console.log(`👑 الأدمن الحصري: محدد بالماك الفيزيائي للجهاز المضيف (Host) فقط ⚡`);
         console.log(`🚨 زر البشمهندسة مفعل ومتاح لجميع الطلاب عبر السيرفر اللحظي`);
         console.log('=============================================================\n');
 
