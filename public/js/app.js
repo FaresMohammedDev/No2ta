@@ -7,7 +7,9 @@ const STATE = {
     socket: null,
     users: [],
     onlineUserIds: new Set(),
-    activeChat: { type: 'general', recipient: null },
+    activeChat: { type: 'general', recipient: null, group: null },
+    groups: [],
+    activeSidebarTab: 'general',
     messages: [],
     stories: [],
     streaks: [],
@@ -221,6 +223,7 @@ function finishLoginSuccess() {
     updateProfileUI();
     initSocket();
     loadUsers();
+    loadGroups();
     loadStories();
     loadMessages();
     loadAirDropFiles();
@@ -293,7 +296,9 @@ function initSocket() {
         const { message, streakInfo } = data;
         const isCurrentChat = (message.chat_type === 'general' && STATE.activeChat.type === 'general') ||
             (message.chat_type === 'direct' && STATE.activeChat.type === 'direct' &&
-             (message.sender_id === STATE.activeChat.recipient?.id || message.recipient_id === STATE.activeChat.recipient?.id));
+             (message.sender_id === STATE.activeChat.recipient?.id || message.recipient_id === STATE.activeChat.recipient?.id)) ||
+            (message.chat_type === 'group' && STATE.activeChat.type === 'group' &&
+             message.recipient_id === STATE.activeChat.group?.id);
 
         if (isCurrentChat) {
             STATE.messages.push(message);
@@ -309,6 +314,26 @@ function initSocket() {
 
         if (streakInfo && (message.sender_id === STATE.user.id || message.recipient_id === STATE.user.id)) {
             loadUsers(); // Refresh streak badges
+        }
+    });
+
+    // 👥 Classroom Groups Socket Events
+    STATE.socket.on('group_created', (data) => {
+        loadGroups();
+        if (data && data.group) {
+            const isMember = (data.group.creator_id === STATE.user?.id) ||
+                             (data.group.members && data.group.members.some(m => m.id === STATE.user?.id));
+            if (isMember && data.group.creator_id !== STATE.user?.id) {
+                showNotification(`👥 تمت إضافتك إلى جروب جديد: "${data.group.name}"! 🎉`);
+            }
+        }
+    });
+
+    STATE.socket.on('group_deleted', (data) => {
+        loadGroups();
+        if (STATE.activeChat.type === 'group' && STATE.activeChat.group?.id === data.groupId) {
+            showNotification(`⚠️ تم حذف الجروب "${data.groupName || ''}". العودة لشات الفصل.`);
+            selectGeneralChat();
         }
     });
 
@@ -700,17 +725,72 @@ function updateOnlineCount() {
     }
 }
 
+// ----------------------------------------------------
+// 4b. Sidebar Tabs & Chats Switcher (General / Groups / Direct)
+// ----------------------------------------------------
+function switchSidebarTab(tabName) {
+    STATE.activeSidebarTab = tabName;
+    updateSidebarTabsUI(tabName);
+
+    const usersContainer = document.getElementById('usersListContainer');
+    const groupsContainer = document.getElementById('groupsListContainer');
+    const sectionTitle = document.getElementById('sidebarSectionTitle');
+    const sectionAction = document.getElementById('sidebarSectionAction');
+
+    if (tabName === 'groups') {
+        if (usersContainer) usersContainer.classList.add('hidden');
+        if (groupsContainer) groupsContainer.classList.remove('hidden');
+        if (sectionTitle) sectionTitle.textContent = 'جروبات الفصل 👥';
+        if (sectionAction) {
+            sectionAction.innerHTML = `
+                <button onclick="openCreateGroupModal()" class="px-2.5 py-1 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white text-[11px] font-bold shadow-md transition-all flex items-center gap-1">
+                    <span>➕</span>
+                    <span>إنشاء جروب</span>
+                </button>
+            `;
+        }
+        renderGroupsList();
+    } else {
+        if (groupsContainer) groupsContainer.classList.add('hidden');
+        if (usersContainer) usersContainer.classList.remove('hidden');
+        if (sectionTitle) sectionTitle.textContent = 'زملاء الفصل والـ Streaks';
+        if (sectionAction) {
+            sectionAction.innerHTML = '<span class="text-[10px] text-cyan-400 font-normal">تحديث حي ⚡</span>';
+        }
+        renderUsersList();
+    }
+}
+
+function updateSidebarTabsUI(activeTab) {
+    const tabGen = document.getElementById('tabGeneralBtn');
+    const tabGroups = document.getElementById('tabGroupsBtn');
+    const tabDirect = document.getElementById('tabDirectBtn');
+
+    const activeClass = 'flex-1 py-1.5 text-[11px] font-bold rounded-lg bg-cyan-500 text-slate-950 transition-all';
+    const activeGroupClass = 'flex-1 py-1.5 text-[11px] font-bold rounded-lg bg-purple-500 text-white transition-all flex items-center justify-center gap-1';
+    const inactiveClass = 'flex-1 py-1.5 text-[11px] font-semibold rounded-lg text-slate-400 hover:text-white transition-all flex items-center justify-center gap-1';
+
+    if (tabGen) tabGen.className = activeTab === 'general' ? activeClass : inactiveClass;
+    if (tabGroups) tabGroups.className = activeTab === 'groups' ? activeGroupClass : inactiveClass;
+    if (tabDirect) tabDirect.className = activeTab === 'direct' ? activeClass : inactiveClass;
+}
+
 function selectGeneralChat() {
-    STATE.activeChat = { type: 'general', recipient: null };
+    STATE.activeChat = { type: 'general', recipient: null, group: null };
     document.getElementById('currentChatTitle').textContent = '💬 شات الفصل العام (General)';
     document.getElementById('currentChatSubtitle').textContent = 'متاح لجميع الزملاء في الفصل';
     document.getElementById('currentChatAvatar').innerHTML = '🌐';
-    document.getElementById('directStreakBadge').classList.add('hidden');
+    
+    const directBadge = document.getElementById('directStreakBadge');
+    if (directBadge) directBadge.classList.add('hidden');
 
-    document.getElementById('tabGeneralBtn').className = 'flex-1 py-1.5 text-xs font-bold rounded-lg bg-cyan-500 text-slate-950 transition-all';
-    document.getElementById('tabDirectBtn').className = 'flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition-all';
+    const groupControls = document.getElementById('groupHeaderControls');
+    if (groupControls) {
+        groupControls.classList.add('hidden');
+        groupControls.classList.remove('flex');
+    }
 
-    renderUsersList();
+    switchSidebarTab('general');
     loadMessages();
 }
 
@@ -718,7 +798,7 @@ function selectDirectChat(userId) {
     const target = STATE.users.find(u => u.id === userId);
     if (!target) return;
 
-    STATE.activeChat = { type: 'direct', recipient: target };
+    STATE.activeChat = { type: 'direct', recipient: target, group: null };
     document.getElementById('currentChatTitle').textContent = target.nickname;
     document.getElementById('currentChatSubtitle').textContent = STATE.onlineUserIds.has(target.id) ? 'متصل الآن 🟢' : 'غير متصل حالياً';
     document.getElementById('currentChatAvatar').innerHTML = renderAvatarHTML(target.avatar);
@@ -734,11 +814,360 @@ function selectDirectChat(userId) {
         }
     }
 
-    document.getElementById('tabGeneralBtn').className = 'flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition-all';
-    document.getElementById('tabDirectBtn').className = 'flex-1 py-1.5 text-xs font-bold rounded-lg bg-cyan-500 text-slate-950 transition-all';
+    const groupControls = document.getElementById('groupHeaderControls');
+    if (groupControls) {
+        groupControls.classList.add('hidden');
+        groupControls.classList.remove('flex');
+    }
 
-    renderUsersList();
+    switchSidebarTab('direct');
     loadMessages();
+}
+
+function selectGroupChat(groupId) {
+    const target = STATE.groups.find(g => g.id === groupId);
+    if (!target) return;
+
+    STATE.activeChat = { type: 'group', recipient: null, group: target };
+    document.getElementById('currentChatTitle').textContent = target.name;
+    const memberCount = target.members_count || (target.members ? target.members.length : 0);
+    document.getElementById('currentChatSubtitle').textContent = `${memberCount} أعضاء • أنشأه: ${target.creator_name || 'زميلك'}`;
+    document.getElementById('currentChatAvatar').innerHTML = `<span class="text-2xl">${target.icon || '👥'}</span>`;
+
+    const directBadge = document.getElementById('directStreakBadge');
+    if (directBadge) directBadge.classList.add('hidden');
+
+    // Show Group Header Controls
+    const groupControls = document.getElementById('groupHeaderControls');
+    const membersCountEl = document.getElementById('groupHeaderMembersCount');
+    const deleteBtn = document.getElementById('groupHeaderDeleteBtn');
+
+    if (groupControls) {
+        groupControls.classList.remove('hidden');
+        groupControls.classList.add('flex');
+    }
+    if (membersCountEl) {
+        membersCountEl.textContent = `${memberCount}`;
+    }
+    if (deleteBtn) {
+        const canDelete = (STATE.user && (target.creator_id === STATE.user.id || STATE.user.role === 'admin'));
+        if (canDelete) {
+            deleteBtn.classList.remove('hidden');
+        } else {
+            deleteBtn.classList.add('hidden');
+        }
+    }
+
+    switchSidebarTab('groups');
+    loadMessages();
+}
+
+// ----------------------------------------------------
+// 4c. Classroom Groups Management & APIs
+// ----------------------------------------------------
+async function loadGroups() {
+    if (!STATE.user) return;
+    try {
+        const res = await fetch(`/api/groups?userId=${encodeURIComponent(STATE.user.id)}`);
+        const data = await res.json();
+        STATE.groups = data.groups || [];
+        
+        const countBadge = document.getElementById('groupsCountBadge');
+        if (countBadge) {
+            countBadge.textContent = STATE.groups.length;
+            if (STATE.groups.length > 0) {
+                countBadge.classList.remove('hidden');
+            } else {
+                countBadge.classList.add('hidden');
+            }
+        }
+
+        renderGroupsList();
+    } catch (err) {
+        console.error('Failed to load groups:', err);
+    }
+}
+
+function renderGroupsList() {
+    const container = document.getElementById('groupsListContainer');
+    if (!container) return;
+
+    if (STATE.groups.length === 0) {
+        container.innerHTML = `
+            <div class="p-4 text-center">
+                <div class="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-2xl flex items-center justify-center mx-auto mb-2 text-purple-400">
+                    👥
+                </div>
+                <h4 class="text-xs font-bold text-white mb-1">لا توجد جروبات بعد</h4>
+                <p class="text-[10px] text-slate-400 mb-3">أنشئ أول جروب في الفصل واجمع أصحابك وشلتك!</p>
+                <button onclick="openCreateGroupModal()" class="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white text-xs font-black shadow-lg shadow-purple-500/20 transition-all flex items-center justify-center gap-1.5">
+                    <span>✨</span>
+                    <span>إنشاء أول جروب الآن</span>
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    let html = `
+        <button onclick="openCreateGroupModal()" class="w-full p-2 rounded-xl bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-purple-500/20 hover:from-purple-500/30 hover:to-pink-500/30 border border-purple-500/30 text-purple-200 text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm mb-1.5">
+            <span>✨</span>
+            <span>إنشاء جروب جديد (Create Group)</span>
+            <span>➕</span>
+        </button>
+    `;
+
+    STATE.groups.forEach(g => {
+        const isSelected = STATE.activeChat.type === 'group' && STATE.activeChat.group?.id === g.id;
+        const memberCount = g.members_count || (g.members ? g.members.length : 0);
+        const isCreator = STATE.user && g.creator_id === STATE.user.id;
+
+        html += `
+            <div onclick="selectGroupChat('${g.id}')" class="flex items-center justify-between p-2.5 rounded-2xl cursor-pointer transition-all ${isSelected ? 'bg-purple-500/20 border border-purple-500/40 shadow-md' : 'hover:bg-slate-800/60 border border-transparent'}">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-10 h-10 rounded-2xl bg-purple-900/40 border border-purple-500/30 flex items-center justify-center text-xl shrink-0 shadow">
+                        ${g.icon || '👥'}
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-1.5">
+                            <h4 class="text-xs font-bold text-white truncate">${escapeHtml(g.name)}</h4>
+                            ${isCreator ? '<span class="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 font-bold">مؤسس 👑</span>' : ''}
+                        </div>
+                        <p class="text-[10px] text-slate-400 truncate">${g.description ? escapeHtml(g.description) : `${memberCount} أعضاء في الجروب`}</p>
+                    </div>
+                </div>
+                <div class="shrink-0 flex items-center gap-1">
+                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono font-bold">${memberCount} 👤</span>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function openCreateGroupModal() {
+    if (!STATE.user) {
+        showNotification('يجب تسجيل الدخول أولاً!');
+        return;
+    }
+    const nameInput = document.getElementById('createGroupNameInput');
+    const descInput = document.getElementById('createGroupDescInput');
+    const iconInput = document.getElementById('createGroupIconInput');
+
+    if (nameInput) nameInput.value = '';
+    if (descInput) descInput.value = '';
+    if (iconInput) iconInput.value = '👥';
+
+    const searchInput = document.getElementById('groupMemberSearchInput');
+    if (searchInput) searchInput.value = '';
+
+    renderGroupMembersCheckboxes();
+    showModal('createGroupModal');
+    if (nameInput) setTimeout(() => nameInput.focus(), 150);
+}
+
+function setGroupIcon(icon) {
+    const input = document.getElementById('createGroupIconInput');
+    if (input) input.value = icon;
+}
+
+function renderGroupMembersCheckboxes(filterText = '') {
+    const container = document.getElementById('groupMembersSelectionContainer');
+    if (!container) return;
+
+    // Filter out current user from selection list
+    let availableUsers = STATE.users.filter(u => u.id !== STATE.user.id);
+    if (filterText.trim()) {
+        const q = filterText.trim().toLowerCase();
+        availableUsers = availableUsers.filter(u => u.nickname.toLowerCase().includes(q));
+    }
+
+    if (availableUsers.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-4 text-slate-500 text-xs">
+                ${filterText ? 'لا يوجد زملاء مطابقين للبحث' : 'لا يوجد زملاء آخرين مسجلين في الفصل بعد! شاركهم رابط الدخول أولاً.'}
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = availableUsers.map(u => {
+        const isOnline = STATE.onlineUserIds.has(u.id);
+        return `
+            <label class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-900 cursor-pointer border border-transparent hover:border-white/5 transition-all">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <input type="checkbox" name="groupMemberCheckbox" value="${u.id}" onchange="updateSelectedMembersCount()" class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-slate-900 border-slate-700 accent-purple-500">
+                    <div class="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-xs shrink-0 overflow-hidden">
+                        ${renderAvatarHTML(u.avatar)}
+                    </div>
+                    <span class="text-xs font-bold text-white truncate">${escapeHtml(u.nickname)}</span>
+                </div>
+                <span class="text-[9px] px-1.5 py-0.5 rounded-full ${isOnline ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'}">
+                    ${isOnline ? 'متصل 🟢' : 'غير متصل'}
+                </span>
+            </label>
+        `;
+    }).join('');
+
+    updateSelectedMembersCount();
+}
+
+function filterGroupMembersList(val) {
+    renderGroupMembersCheckboxes(val);
+}
+
+function updateSelectedMembersCount() {
+    const checked = document.querySelectorAll('input[name="groupMemberCheckbox"]:checked');
+    const badge = document.getElementById('selectedMembersCountBadge');
+    if (badge) {
+        badge.textContent = `${checked.length} مختار`;
+    }
+}
+
+function toggleSelectAllGroupMembers() {
+    const checkboxes = document.querySelectorAll('input[name="groupMemberCheckbox"]');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => cb.checked = !allChecked);
+    const btn = document.getElementById('selectAllMembersBtn');
+    if (btn) {
+        btn.textContent = allChecked ? 'تحديد الكل' : 'إلغاء التحديد';
+    }
+    updateSelectedMembersCount();
+}
+
+async function handleCreateGroupSubmit(e) {
+    if (e) e.preventDefault();
+    const nameInput = document.getElementById('createGroupNameInput');
+    const descInput = document.getElementById('createGroupDescInput');
+    const iconInput = document.getElementById('createGroupIconInput');
+    const btn = document.getElementById('submitCreateGroupBtn');
+
+    const name = nameInput ? nameInput.value.trim() : '';
+    const description = descInput ? descInput.value.trim() : '';
+    const icon = iconInput ? iconInput.value.trim() || '👥' : '👥';
+
+    if (!name) {
+        showNotification('الرجاء كتابة اسم الجروب أولاً!');
+        return;
+    }
+
+    const checkedBoxes = document.querySelectorAll('input[name="groupMemberCheckbox"]:checked');
+    const memberIds = Array.from(checkedBoxes).map(cb => cb.value);
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = 'جاري الإنشاء... ⏳';
+    }
+
+    try {
+        const res = await fetch('/api/groups', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name,
+                icon,
+                description,
+                creatorId: STATE.user.id,
+                memberIds
+            })
+        });
+
+        const data = await res.json();
+        if (data.success && data.group) {
+            hideModal('createGroupModal');
+            showNotification(`🎉 تم إنشاء جروب "${data.group.name}" بنجاح!`);
+            await loadGroups();
+            selectGroupChat(data.group.id);
+        } else {
+            showNotification(data.error || 'فشل إنشاء الجروب');
+        }
+    } catch (err) {
+        showNotification('حدث خطأ أثناء إنشاء الجروب');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span>إنشاء الجروب 🚀</span>';
+        }
+    }
+}
+
+async function handleDeleteCurrentGroup() {
+    const grp = STATE.activeChat.group;
+    if (!grp || !STATE.user) return;
+
+    if (!confirm(`هل أنت متأكد من حذف الجروب "${grp.name}" نهائياً من الفصل؟`)) {
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/groups/${grp.id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: STATE.user.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showNotification(`تم حذف الجروب "${grp.name}".`);
+            await loadGroups();
+            selectGeneralChat();
+        } else {
+            showNotification(data.error || 'تعذر حذف الجروب!');
+        }
+    } catch (err) {
+        showNotification('حدث خطأ أثناء حذف الجروب.');
+    }
+}
+
+async function openGroupMembersModal() {
+    const grp = STATE.activeChat.group;
+    if (!grp) return;
+
+    const iconEl = document.getElementById('groupInfoModalIcon');
+    const titleEl = document.getElementById('groupInfoModalTitle');
+    const descEl = document.getElementById('groupInfoModalDesc');
+    const listEl = document.getElementById('groupMembersListModalContainer');
+
+    if (iconEl) iconEl.textContent = grp.icon || '👥';
+    if (titleEl) titleEl.textContent = grp.name;
+    if (descEl) descEl.textContent = grp.description || `أنشئ بواسطة: ${grp.creator_name || 'زميلك'}`;
+
+    if (listEl) {
+        listEl.innerHTML = '<div class="text-center py-6 text-slate-400 text-xs">جاري تحميل الأعضاء... ⏳</div>';
+    }
+
+    showModal('groupMembersModal');
+
+    try {
+        const res = await fetch(`/api/groups/${grp.id}/members`);
+        const data = await res.json();
+        const members = data.members || [];
+
+        if (listEl) {
+            listEl.innerHTML = members.map(m => {
+                const isOnline = STATE.onlineUserIds.has(m.id);
+                const isCreator = m.group_role === 'creator';
+                return `
+                    <div class="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-white/5">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-xs shrink-0 overflow-hidden">
+                                ${renderAvatarHTML(m.avatar)}
+                            </div>
+                            <div class="min-w-0">
+                                <h5 class="text-xs font-bold text-white truncate">${escapeHtml(m.nickname)}</h5>
+                                <span class="text-[9px] text-purple-300 font-bold">${isCreator ? 'مؤسس الجروب 👑' : 'عضو في الجروب'}</span>
+                            </div>
+                        </div>
+                        <span class="text-[9px] px-2 py-0.5 rounded-full ${isOnline ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'}">
+                            ${isOnline ? 'متصل 🟢' : 'أوفلاين'}
+                        </span>
+                    </div>
+                `;
+            }).join('');
+        }
+    } catch (err) {
+        if (listEl) listEl.innerHTML = '<div class="text-center py-4 text-red-400 text-xs">تعذر تحميل الأعضاء!</div>';
+    }
 }
 
 // ----------------------------------------------------
@@ -752,6 +1181,9 @@ async function loadMessages() {
         });
         if (STATE.activeChat.type === 'direct' && STATE.activeChat.recipient) {
             params.append('recipient_id', STATE.activeChat.recipient.id);
+        }
+        if (STATE.activeChat.type === 'group' && STATE.activeChat.group) {
+            params.append('group_id', STATE.activeChat.group.id);
         }
 
         const res = await fetch(`/api/messages?${params.toString()}`);
@@ -983,9 +1415,16 @@ async function handleSendMessage(e) {
 function sendChatMessagePayload({ content = '', mediaUrl = null, mediaType = 'text', mediaName = null, mediaSize = 0 }) {
     if (!STATE.socket || !STATE.user) return;
 
+    let recipientId = null;
+    if (STATE.activeChat.type === 'direct') {
+        recipientId = STATE.activeChat.recipient?.id;
+    } else if (STATE.activeChat.type === 'group') {
+        recipientId = STATE.activeChat.group?.id;
+    }
+
     STATE.socket.emit('send_message', {
         senderId: STATE.user.id,
-        recipientId: STATE.activeChat.type === 'direct' ? STATE.activeChat.recipient?.id : null,
+        recipientId,
         chatType: STATE.activeChat.type,
         role: STATE.user.role,
         content,

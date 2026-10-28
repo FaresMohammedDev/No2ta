@@ -131,6 +131,29 @@ const initDB = async () => {
         FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE CASCADE
     );`);
 
+    // Groups & Squads
+    await run(`CREATE TABLE IF NOT EXISTS groups (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        icon TEXT DEFAULT '👥',
+        description TEXT DEFAULT '',
+        creator_id TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(creator_id) REFERENCES users(id) ON DELETE CASCADE
+    );`);
+
+    // Group Members
+    await run(`CREATE TABLE IF NOT EXISTS group_members (
+        id TEXT PRIMARY KEY,
+        group_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        role TEXT DEFAULT 'member',
+        joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(group_id, user_id),
+        FOREIGN KEY(group_id) REFERENCES groups(id) ON DELETE CASCADE,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );`);
+
     // System Settings (Focus mode, Stealth status, etc.)
     await run(`CREATE TABLE IF NOT EXISTS system_settings (
         key TEXT PRIMARY KEY,

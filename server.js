@@ -217,7 +217,7 @@ app.post('/api/users/profile', async (req, res) => {
 // 5. Get Messages
 app.get('/api/messages', async (req, res) => {
     try {
-        const { chat_type = 'general', recipient_id, user_id } = req.query;
+        const { chat_type = 'general', recipient_id, group_id, user_id } = req.query;
 
         // Clean up expired disappearing messages before query
         await run(`DELETE FROM messages WHERE is_disappearing = 1 AND expires_at < CURRENT_TIMESTAMP`);
@@ -242,6 +242,17 @@ app.get('/api/messages', async (req, res) => {
                  ORDER BY m.created_at ASC
                  LIMIT 150`,
                 [user_id, recipient_id, recipient_id, user_id]
+            );
+        } else if (chat_type === 'group' && (group_id || recipient_id)) {
+            const targetGroupId = group_id || recipient_id;
+            messages = await all(
+                `SELECT m.*, u.nickname as sender_name, u.avatar as sender_avatar, u.role as sender_role
+                 FROM messages m
+                 JOIN users u ON m.sender_id = u.id
+                 WHERE m.chat_type = 'group' AND m.recipient_id = ?
+                 ORDER BY m.created_at ASC
+                 LIMIT 150`,
+                [targetGroupId]
             );
         }
 
@@ -529,6 +540,161 @@ app.post('/api/airdrop/download/:id', async (req, res) => {
         const file = await get(`SELECT * FROM airdrop_files WHERE id = ?`, [id]);
         io.emit('airdrop_download_incremented', { id, count: file ? file.downloads_count : 0 });
         res.json({ success: true, count: file ? file.downloads_count : 0 });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 9c. Classroom Groups & Squads API 👥
+app.get('/api/groups', async (req, res) => {
+    try {
+        const userId = req.query.userId;
+        let groups = [];
+        if (userId) {
+            groups = await all(
+                `SELECT g.*, u.nickname as creator_name,
+                        (SELECT COUNT(*) FROM group_members gm2 WHERE gm2.group_id = g.id) as members_count
+                 FROM groups g
+                 JOIN group_members gm ON g.id = gm.group_id
+                 JOIN users u ON g.creator_id = u.id
+                 WHERE gm.user_id = ?
+                 GROUP BY g.id
+                 ORDER BY g.created_at DESC`,
+                [userId]
+            );
+        } else {
+            groups = await all(
+                `SELECT g.*, u.nickname as creator_name,
+                        (SELECT COUNT(*) FROM group_members gm2 WHERE gm2.group_id = g.id) as members_count
+                 FROM groups g
+                 JOIN users u ON g.creator_id = u.id
+                 GROUP BY g.id
+                 ORDER BY g.created_at DESC`
+            );
+        }
+
+        // Attach member previews for each group
+        for (let g of groups) {
+            const members = await all(
+                `SELECT u.id, u.nickname, u.avatar, gm.role as group_role
+                 FROM group_members gm
+                 JOIN users u ON gm.user_id = u.id
+                 WHERE gm.group_id = ?`,
+                [g.id]
+            );
+            g.members = members;
+        }
+
+        res.json({ success: true, groups });
+    } catch (err) {
+        console.error('Error fetching groups:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/groups/:id/members', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const members = await all(
+            `SELECT u.id, u.nickname, u.avatar, u.role as user_role, gm.role as group_role, gm.joined_at
+             FROM group_members gm
+             JOIN users u ON gm.user_id = u.id
+             WHERE gm.group_id = ?
+             ORDER BY (CASE WHEN gm.role = 'creator' THEN 0 ELSE 1 END), gm.joined_at ASC`,
+            [id]
+        );
+        res.json({ success: true, members });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/groups', async (req, res) => {
+    try {
+        const { name, icon = '👥', description = '', creatorId, memberIds = [] } = req.body;
+        if (!name || !name.trim()) {
+            return res.status(400).json({ error: 'اسم الجروب مطلوب!' });
+        }
+        if (!creatorId) {
+            return res.status(400).json({ error: 'معرّف منشئ الجروب مطلوب!' });
+        }
+
+        const groupId = 'group_' + crypto.randomUUID();
+        const trimmedName = name.trim();
+        const groupIcon = (icon && icon.trim()) ? icon.trim() : '👥';
+        const groupDesc = (description && description.trim()) ? description.trim() : '';
+
+        // 1. Insert Group
+        await run(
+            `INSERT INTO groups (id, name, icon, description, creator_id) VALUES (?, ?, ?, ?, ?)`,
+            [groupId, trimmedName, groupIcon, groupDesc, creatorId]
+        );
+
+        // 2. Insert Creator
+        await run(
+            `INSERT INTO group_members (id, group_id, user_id, role) VALUES (?, ?, ?, 'creator')`,
+            [crypto.randomUUID(), groupId, creatorId]
+        );
+
+        // 3. Insert other unique members
+        const uniqueMemberIds = Array.from(new Set(memberIds)).filter(uid => uid && uid !== creatorId);
+        for (const uid of uniqueMemberIds) {
+            await run(
+                `INSERT OR IGNORE INTO group_members (id, group_id, user_id, role) VALUES (?, ?, ?, 'member')`,
+                [crypto.randomUUID(), groupId, uid]
+            );
+        }
+
+        // 4. Retrieve complete group with members
+        const createdGroup = await get(
+            `SELECT g.*, u.nickname as creator_name,
+                    (SELECT COUNT(*) FROM group_members gm2 WHERE gm2.group_id = g.id) as members_count
+             FROM groups g
+             JOIN users u ON g.creator_id = u.id
+             WHERE g.id = ?`,
+            [groupId]
+        );
+
+        const allGroupMembers = await all(
+            `SELECT u.id, u.nickname, u.avatar, gm.role as group_role
+             FROM group_members gm
+             JOIN users u ON gm.user_id = u.id
+             WHERE gm.group_id = ?`,
+            [groupId]
+        );
+        createdGroup.members = allGroupMembers;
+
+        // Broadcast group_created to all connected clients
+        io.emit('group_created', { group: createdGroup });
+
+        res.json({ success: true, group: createdGroup });
+    } catch (err) {
+        console.error('Create group error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/groups/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId } = req.body;
+        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientMac = await resolveMacAddress(clientIp);
+        const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
+
+        const group = await get(`SELECT * FROM groups WHERE id = ?`, [id]);
+        if (!group) return res.status(404).json({ error: 'الجروب غير موجود أو تم حذفه مسبقاً!' });
+
+        if (!isDeviceAdmin && group.creator_id !== userId) {
+            return res.status(403).json({ error: 'غير مسموح لك بحذف هذا الجروب! فقط منشئ الجروب أو الأدمن يمكنه حذفه.' });
+        }
+
+        await run(`DELETE FROM groups WHERE id = ?`, [id]);
+        await run(`DELETE FROM group_members WHERE group_id = ?`, [id]);
+        await run(`DELETE FROM messages WHERE chat_type = 'group' AND recipient_id = ?`, [id]);
+
+        io.emit('group_deleted', { groupId: id, groupName: group.name });
+        res.json({ success: true, groupId: id });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -948,6 +1114,15 @@ io.on('connection', async (socket) => {
                 // Send to recipient sockets
                 const recipientSockets = userSockets.get(recipientId);
                 if (recipientSockets) recipientSockets.forEach(s => io.to(s).emit('new_message', { message: newMsg, streakInfo }));
+            } else if (chatType === 'group' && recipientId) {
+                // Send to all members of this group
+                const members = await all(`SELECT user_id FROM group_members WHERE group_id = ?`, [recipientId]);
+                const memberSet = new Set(members.map(m => m.user_id));
+                memberSet.add(senderId);
+                memberSet.forEach(uid => {
+                    const sockList = userSockets.get(uid);
+                    if (sockList) sockList.forEach(s => io.to(s).emit('new_message', { message: newMsg, streakInfo: null }));
+                });
             }
         } catch (err) {
             console.error('Error sending message:', err);

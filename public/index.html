@@ -150,26 +150,37 @@
         <!-- SIDEBAR: CLASSMATES & CHATS (4 cols) -->
         <aside class="md:col-span-4 lg:col-span-3 glass-panel rounded-2xl flex flex-col h-[calc(100vh-165px)] overflow-hidden">
             <!-- Navigation Tabs -->
-            <div class="p-2.5 border-b border-white/10 bg-slate-900/50">
+            <div class="p-2 border-b border-white/10 bg-slate-900/50">
                 <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/5">
-                    <button id="tabGeneralBtn" onclick="selectGeneralChat()" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-cyan-500 text-slate-950 transition-all">
-                        💬 شات الفصل
+                    <button id="tabGeneralBtn" onclick="selectGeneralChat()" class="flex-1 py-1.5 text-[11px] font-bold rounded-lg bg-cyan-500 text-slate-950 transition-all">
+                        💬 الفصل
                     </button>
-                    <button id="tabDirectBtn" onclick="selectGeneralChat()" class="flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition-all">
-                        👥 الزملاء
+                    <button id="tabGroupsBtn" onclick="switchSidebarTab('groups')" class="flex-1 py-1.5 text-[11px] font-semibold rounded-lg text-slate-400 hover:text-white transition-all flex items-center justify-center gap-1">
+                        <span>👥 الجروبات</span>
+                        <span id="groupsCountBadge" class="hidden px-1.5 py-0.2 text-[9px] rounded-full bg-purple-500/30 text-purple-300 font-bold">0</span>
+                    </button>
+                    <button id="tabDirectBtn" onclick="switchSidebarTab('direct')" class="flex-1 py-1.5 text-[11px] font-semibold rounded-lg text-slate-400 hover:text-white transition-all">
+                        👤 الزملاء
                     </button>
                 </div>
             </div>
 
-            <!-- Classmates List Header -->
+            <!-- Classmates / Groups List Header -->
             <div class="px-3 py-2 flex items-center justify-between text-xs text-slate-400 font-bold border-b border-white/5">
-                <span>زملاء الفصل والـ Streaks</span>
-                <span class="text-[10px] text-cyan-400 font-normal">تحديث حي ⚡</span>
+                <span id="sidebarSectionTitle">زملاء الفصل والـ Streaks</span>
+                <div id="sidebarSectionAction">
+                    <span class="text-[10px] text-cyan-400 font-normal">تحديث حي ⚡</span>
+                </div>
             </div>
 
             <!-- Classmates Scrollable Container -->
-            <div id="usersListContainer" class="flex-1 overflow-y-auto p-2 space-y-1">
+            <div id="usersListContainer" class="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
                 <!-- Users Appended Dynamically -->
+            </div>
+
+            <!-- Groups Scrollable Container -->
+            <div id="groupsListContainer" class="hidden flex-1 overflow-y-auto p-2 space-y-1.5 custom-scrollbar">
+                <!-- Groups Appended Dynamically -->
             </div>
         </aside>
 
@@ -178,23 +189,33 @@
             
             <!-- Chat Header -->
             <div class="p-3 border-b border-white/10 bg-slate-900/70 flex items-center justify-between gap-3">
-                <div class="flex items-center gap-3">
-                    <div id="currentChatAvatar" class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xl">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div id="currentChatAvatar" class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xl shrink-0">
                         🌐
                     </div>
-                    <div>
+                    <div class="min-w-0">
                         <div class="flex items-center gap-2">
-                            <h2 id="currentChatTitle" class="text-sm font-bold text-white">💬 شات الفصل العام (General)</h2>
-                            <span id="directStreakBadge" class="hidden px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                            <h2 id="currentChatTitle" class="text-sm font-bold text-white truncate">💬 شات الفصل العام (General)</h2>
+                            <span id="directStreakBadge" class="hidden px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30 shrink-0">
                                 🔥 استريك
                             </span>
                         </div>
-                        <p id="currentChatSubtitle" class="text-[11px] text-slate-400">متاح لجميع الزملاء في الفصل</p>
+                        <p id="currentChatSubtitle" class="text-[11px] text-slate-400 truncate">متاح لجميع الزملاء في الفصل</p>
                     </div>
                 </div>
 
                 <!-- Chat Controls -->
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <!-- Group Action Controls -->
+                    <div id="groupHeaderControls" class="hidden items-center gap-1.5">
+                        <button onclick="openGroupMembersModal()" class="px-2.5 py-1 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 text-xs font-bold transition-all flex items-center gap-1" title="عرض أعضاء الجروب">
+                            <span>👥 الأعضاء</span>
+                            <span id="groupHeaderMembersCount" class="text-[10px] font-mono font-bold"></span>
+                        </button>
+                        <button id="groupHeaderDeleteBtn" onclick="handleDeleteCurrentGroup()" class="hidden px-2 py-1 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 text-xs font-bold transition-all" title="حذف الجروب">
+                            🗑️
+                        </button>
+                    </div>
                     <!-- Disappearing Message Selector -->
                     <div class="relative group">
                         <button id="disappearingToggleBtn" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition-all flex items-center gap-1">
@@ -1016,6 +1037,111 @@
         </div>
     </div>
 
+    <!-- 👥 CREATE GROUP MODAL -->
+    <div id="createGroupModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+        <div class="glass-panel-elevated rounded-3xl p-5 max-w-md w-full border border-purple-500/30 flex flex-col max-h-[90vh] shadow-2xl relative">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">👥</span>
+                    <div>
+                        <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+                            <span>إنشاء جروب جديد</span>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold">خاص بالفصل ⚡</span>
+                        </h3>
+                        <p class="text-[10px] text-slate-400">اجمع شلتك أو فريقك في شات مشترك!</p>
+                    </div>
+                </div>
+                <button onclick="hideModal('createGroupModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs">✕</button>
+            </div>
+
+            <form id="createGroupForm" onsubmit="handleCreateGroupSubmit(event)" class="flex flex-col flex-1 min-h-0 space-y-3">
+                <!-- Group Name -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-300 mb-1">اسم الجروب *</label>
+                    <input type="text" id="createGroupNameInput" required maxlength="40" placeholder="مثلاً: شلة الدحيحة 🤓، فريق الفيزياء ⚡، بنش الأخير..." class="w-full bg-slate-950 border border-slate-800 focus:border-purple-500 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 outline-none transition-all">
+                </div>
+
+                <!-- Group Icon Selector -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-300 mb-1">أيقونة الجروب</label>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="createGroupIconInput" value="👥" maxlength="4" class="w-12 h-10 text-center text-xl bg-slate-950 border border-slate-800 rounded-xl outline-none focus:border-purple-500 text-white shrink-0">
+                        <div class="flex items-center gap-1 overflow-x-auto py-1 custom-scrollbar flex-1">
+                            <button type="button" onclick="setGroupIcon('👥')" class="px-2 py-1 bg-slate-800 hover:bg-purple-500/30 rounded-lg text-sm">👥</button>
+                            <button type="button" onclick="setGroupIcon('🚀')" class="px-2 py-1 bg-slate-800 hover:bg-purple-500/30 rounded-lg text-sm">🚀</button>
+                            <button type="button" onclick="setGroupIcon('💻')" class="px-2 py-1 bg-slate-800 hover:bg-purple-500/30 rounded-lg text-sm">💻</button>
+                            <button type="button" onclick="setGroupIcon('⚡')" class="px-2 py-1 bg-slate-800 hover:bg-purple-500/30 rounded-lg text-sm">⚡</button>
+                            <button type="button" onclick="setGroupIcon('🎮')" class="px-2 py-1 bg-slate-800 hover:bg-purple-500/30 rounded-lg text-sm">🎮</button>
+                            <button type="button" onclick="setGroupIcon('🍕')" class="px-2 py-1 bg-slate-800 hover:bg-purple-500/30 rounded-lg text-sm">🍕</button>
+                            <button type="button" onclick="setGroupIcon('🔥')" class="px-2 py-1 bg-slate-800 hover:bg-purple-500/30 rounded-lg text-sm">🔥</button>
+                            <button type="button" onclick="setGroupIcon('👑')" class="px-2 py-1 bg-slate-800 hover:bg-purple-500/30 rounded-lg text-sm">👑</button>
+                            <button type="button" onclick="setGroupIcon('📚')" class="px-2 py-1 bg-slate-800 hover:bg-purple-500/30 rounded-lg text-sm">📚</button>
+                            <button type="button" onclick="setGroupIcon('🎯')" class="px-2 py-1 bg-slate-800 hover:bg-purple-500/30 rounded-lg text-sm">🎯</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Group Description -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-300 mb-1">وصف الجروب (اختياري)</label>
+                    <input type="text" id="createGroupDescInput" maxlength="100" placeholder="عن ماذا يتحدث هذا الجروب؟" class="w-full bg-slate-950 border border-slate-800 focus:border-purple-500 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 outline-none transition-all">
+                </div>
+
+                <!-- Select Members -->
+                <div class="flex-1 flex flex-col min-h-0">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                            <span>اختيار الأعضاء</span>
+                            <span id="selectedMembersCountBadge" class="text-[10px] px-1.5 py-0.2 rounded-full bg-purple-500/20 text-purple-300 font-bold">0 مختار</span>
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="toggleSelectAllGroupMembers()" id="selectAllMembersBtn" class="text-[10px] text-cyan-400 hover:underline">تحديد الكل</button>
+                        </div>
+                    </div>
+
+                    <!-- Search filter for members -->
+                    <input type="text" id="groupMemberSearchInput" oninput="filterGroupMembersList(this.value)" placeholder="ابحث عن زميل..." class="w-full bg-slate-950/80 border border-slate-800 focus:border-purple-500 rounded-xl px-3 py-1.5 text-[11px] text-white placeholder-slate-500 outline-none mb-1.5">
+
+                    <!-- Members Checkboxes Container -->
+                    <div id="groupMembersSelectionContainer" class="flex-1 overflow-y-auto space-y-1 pr-1 custom-scrollbar max-h-44 bg-slate-950/40 p-2 rounded-2xl border border-white/5">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="pt-2 border-t border-white/10 flex items-center justify-end gap-2">
+                    <button type="button" onclick="hideModal('createGroupModal')" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition">
+                        إلغاء
+                    </button>
+                    <button type="submit" id="submitCreateGroupBtn" class="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 hover:from-purple-400 hover:to-pink-400 text-white text-xs font-black shadow-lg shadow-purple-500/20 transition-all flex items-center gap-1.5">
+                        <span>إنشاء الجروب 🚀</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 👥 GROUP MEMBERS MODAL -->
+    <div id="groupMembersModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+        <div class="glass-panel-elevated rounded-3xl p-5 max-w-sm w-full border border-purple-500/30 flex flex-col max-h-[80vh] shadow-2xl relative">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+                <div class="flex items-center gap-2">
+                    <span id="groupInfoModalIcon" class="text-2xl">👥</span>
+                    <div>
+                        <h3 id="groupInfoModalTitle" class="text-sm font-bold text-white">أعضاء الجروب</h3>
+                        <p id="groupInfoModalDesc" class="text-[10px] text-slate-400"></p>
+                    </div>
+                </div>
+                <button onclick="hideModal('groupMembersModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs">✕</button>
+            </div>
+
+            <div id="groupMembersListModalContainer" class="flex-1 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+    </div>
+
     <!-- 9. FLOATING NOTIFICATION PILL -->
     <div id="globalNotificationPill" class="hidden fixed bottom-5 left-5 z-50 glass-panel-elevated rounded-2xl px-4 py-2.5 border border-cyan-500/40 text-xs font-bold text-white shadow-2xl flex items-center gap-2">
         <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
@@ -1024,6 +1150,6 @@
 
     <!-- Main Application Scripts -->
     <script src="https://www.youtube.com/iframe_api"></script>
-    <script src="/js/app.js?v=2.6.0"></script>
+    <script src="/js/app.js?v=2.7.0"></script>
 </body>
 </html>
