@@ -1422,6 +1422,26 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
         window.addEventListener('keydown', function(e) {
+            // F3 closes stealth on THIS device only!
+            if (e.key === 'F3') {
+                e.preventDefault();
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'NO2TA_LOCAL_STEALTH_CLOSE' }, '*');
+                } else {
+                    window.location.href = '/';
+                }
+                return;
+            }
+
+            // F2 triggers panic on everyone!
+            if (e.key === 'F2') {
+                e.preventDefault();
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'NO2TA_TRIGGER_PANIC' }, '*');
+                }
+                return;
+            }
+
             if (e.ctrlKey && e.shiftKey && (e.key === 'S' || e.key === 's')) {
                 e.preventDefault();
                 unlockStealth();

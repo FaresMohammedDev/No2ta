@@ -257,6 +257,31 @@ app.get('/api/messages', async (req, res) => {
     }
 });
 
+// 5b. Delete Message (Allowed for Message Sender OR Hardware Admin/Host)
+app.delete('/api/messages/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId } = req.body;
+        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientMac = await resolveMacAddress(clientIp);
+        const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
+
+        const message = await get(`SELECT * FROM messages WHERE id = ?`, [id]);
+        if (!message) return res.status(404).json({ error: 'الرسالة غير موجودة أو تم حذفها بالفعل' });
+
+        if (!isDeviceAdmin && message.sender_id !== userId) {
+            return res.status(403).json({ error: 'غير مسموح لك بحذف هذه الرسالة!' });
+        }
+
+        await run(`DELETE FROM messages WHERE id = ?`, [id]);
+        await run(`DELETE FROM message_reactions WHERE message_id = ?`, [id]);
+        io.emit('message_deleted', { messageId: id });
+        res.json({ success: true, messageId: id });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // 6. Media and Audio Upload Endpoints
 app.post('/api/upload/media', upload.single('file'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -372,6 +397,31 @@ app.post('/api/stories/:id/view', async (req, res) => {
         io.emit('story_view_updated', { storyId: id, viewsCount: viewsCount.count });
 
         res.json({ success: true, viewsCount: viewsCount.count });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 7b. Delete Story (Allowed for Story Author OR Hardware Admin/Host)
+app.delete('/api/stories/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId } = req.body;
+        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientMac = await resolveMacAddress(clientIp);
+        const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
+
+        const story = await get(`SELECT * FROM stories WHERE id = ?`, [id]);
+        if (!story) return res.status(404).json({ error: 'الاستوري غير موجود أو انتهت صلاحيته' });
+
+        if (!isDeviceAdmin && story.user_id !== userId) {
+            return res.status(403).json({ error: 'غير مسموح لك بحذف هذا الاستوري!' });
+        }
+
+        await run(`DELETE FROM stories WHERE id = ?`, [id]);
+        await run(`DELETE FROM story_views WHERE story_id = ?`, [id]);
+        io.emit('story_deleted', { storyId: id });
+        res.json({ success: true, storyId: id });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -743,6 +793,21 @@ io.on('connection', async (socket) => {
         }
     });
 
+    // 7. Delete Message Socket Handler
+    socket.on('delete_message', async ({ messageId, userId }) => {
+        try {
+            const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
+            const message = await get(`SELECT * FROM messages WHERE id = ?`, [messageId]);
+            if (message && (isDeviceAdmin || message.sender_id === userId)) {
+                await run(`DELETE FROM messages WHERE id = ?`, [messageId]);
+                await run(`DELETE FROM message_reactions WHERE message_id = ?`, [messageId]);
+                io.emit('message_deleted', { messageId });
+            }
+        } catch (err) {
+            console.error('Error deleting message via socket:', err);
+        }
+    });
+
     // Disconnect Handling
     socket.on('disconnect', async () => {
         const userInfo = onlineUsers.get(socket.id);
@@ -764,7 +829,7 @@ io.on('connection', async (socket) => {
 
 // ---------------------- BACKGROUND CLEANUP INTERVALS ----------------------
 
-// 1. Cleanup expired disappearing messages every 3 seconds
+// 1. Cleanup expired disappearing messages every 1 second (supports 2s fast burn)
 setInterval(async () => {
     try {
         const expired = await all(`SELECT id FROM messages WHERE is_disappearing = 1 AND expires_at < CURRENT_TIMESTAMP`);
@@ -777,7 +842,7 @@ setInterval(async () => {
     } catch (e) {
         // Silent error in background
     }
-}, 3000);
+}, 1000);
 
 // 2. Cleanup expired stories every 5 minutes
 setInterval(async () => {

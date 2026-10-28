@@ -303,7 +303,20 @@ function initSocket() {
         });
     });
 
+    STATE.socket.on('message_deleted', ({ messageId }) => {
+        const el = document.getElementById(`msg-${messageId}`);
+        if (el) {
+            el.classList.add('transition-all', 'duration-500', 'opacity-0', 'scale-90', 'blur-sm');
+            setTimeout(() => el.remove(), 500);
+        }
+        STATE.messages = STATE.messages.filter(m => m.id !== messageId);
+    });
+
     STATE.socket.on('new_story_published', () => {
+        loadStories();
+    });
+
+    STATE.socket.on('story_deleted', () => {
         loadStories();
     });
 
@@ -359,10 +372,17 @@ let lastEscPress = 0;
 
 function setupStealthHotkeys() {
     window.addEventListener('keydown', (e) => {
-        // Hotkey: F2 triggers instant stealth
+        // Hotkey: F2 triggers instant stealth on EVERYONE!
         if (e.key === 'F2') {
             e.preventDefault();
             triggerPanicButton();
+            return;
+        }
+
+        // Hotkey: F3 closes stealth on THIS device only!
+        if (e.key === 'F3') {
+            e.preventDefault();
+            releaseStealthMode({ message: 'تم إغلاق شاشة التمويه على جهازك فقط 🤫' });
             return;
         }
 
@@ -607,10 +627,27 @@ function renderMessagesFeed() {
     }
 
     container.innerHTML = STATE.messages.map(m => formatMessageHTML(m)).join('');
+
+    // Schedule client-side disappearing timers for 2s / fast burn messages
+    STATE.messages.forEach(m => {
+        if (m.is_disappearing && m.expires_at) {
+            const ms = new Date(m.expires_at).getTime() - Date.now();
+            if (ms > 0) {
+                setTimeout(() => {
+                    const el = document.getElementById(`msg-${m.id}`);
+                    if (el) {
+                        el.classList.add('transition-all', 'duration-500', 'opacity-0', 'scale-90', 'blur-sm');
+                        setTimeout(() => el.remove(), 500);
+                    }
+                }, ms);
+            }
+        }
+    });
 }
 
 function formatMessageHTML(m) {
     const isMe = STATE.user && m.sender_id === STATE.user.id;
+    const canDelete = isMe || (STATE.user && STATE.user.role === 'admin') || (STATE.networkInfo && STATE.networkInfo.isHostAdmin);
     const time = new Date(m.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
 
     let mediaHTML = '';
@@ -708,7 +745,7 @@ function formatMessageHTML(m) {
                     <button onclick="toggleReaction('${m.id}', '🔥')" class="hover:scale-125 transition-transform">🔥</button>
                     <button onclick="toggleReaction('${m.id}', '😮')" class="hover:scale-125 transition-transform">😮</button>
                     <button onclick="toggleReaction('${m.id}', '👏')" class="hover:scale-125 transition-transform">👏</button>
-                    ${STATE.user && STATE.user.role === 'admin' ? `<button onclick="adminDeleteMessage('${m.id}')" class="text-red-400 font-bold ml-1 hover:text-red-300">🗑️</button>` : ''}
+                    ${canDelete ? `<button onclick="deleteChatMessage('${m.id}')" class="text-red-400 font-bold ml-1 hover:text-red-300 hover:scale-125 transition-all" title="${isMe ? 'حذف رسالتي للجميع' : 'حذف الرسالة (صلاحية أدمن)'}">🗑️</button>` : ''}
                 </div>
             </div>
         </div>
@@ -736,6 +773,37 @@ function appendMessageBubble(message) {
     const div = document.createElement('div');
     div.innerHTML = formatMessageHTML(message);
     container.appendChild(div.firstElementChild);
+
+    // Auto-schedule self-destruction for fast burn disappearing messages (e.g. 2s)
+    if (message.is_disappearing && message.expires_at) {
+        const ms = new Date(message.expires_at).getTime() - Date.now();
+        if (ms > 0) {
+            setTimeout(() => {
+                const el = document.getElementById(`msg-${message.id}`);
+                if (el) {
+                    el.classList.add('transition-all', 'duration-500', 'opacity-0', 'scale-90', 'blur-sm');
+                    setTimeout(() => el.remove(), 500);
+                }
+            }, ms);
+        }
+    }
+}
+
+async function deleteChatMessage(messageId) {
+    if (!confirm('هل تريد حذف هذه الرسالة نهائياً للجميع؟')) return;
+    if (STATE.socket) {
+        STATE.socket.emit('delete_message', {
+            messageId,
+            userId: STATE.user ? STATE.user.id : null
+        });
+    }
+    try {
+        await fetch(`/api/messages/${messageId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: STATE.user ? STATE.user.id : null })
+        });
+    } catch (e) {}
 }
 
 function scrollToBottom() {
@@ -995,6 +1063,53 @@ function renderCurrentStory() {
                 ${escapeHtml(story.text_content)}
             </div>
         `;
+    }
+
+    // Story Delete Button Permission Check (Owner or Admin/Host)
+    const deleteBtn = document.getElementById('deleteStoryBtn');
+    if (deleteBtn) {
+        const isOwner = STATE.user && story.user_id === STATE.user.id;
+        const isAdmin = (STATE.user && STATE.user.role === 'admin') || (STATE.networkInfo && STATE.networkInfo.isHostAdmin);
+        if (isOwner || isAdmin) {
+            deleteBtn.classList.remove('hidden');
+            deleteBtn.title = isOwner ? 'حذف الاستوري الخاص بي 🗑️' : 'حذف الاستوري (صلاحية الأدمن / المضيف) 👑';
+        } else {
+            deleteBtn.classList.add('hidden');
+        }
+    }
+}
+
+async function deleteCurrentActiveStory() {
+    if (!currentViewingGroup) return;
+    const story = currentViewingGroup.stories[activeStoryIndex];
+    if (!story) return;
+
+    if (!confirm('هل أنت متأكد من حذف هذا الاستوري نهائياً؟')) return;
+
+    try {
+        const res = await fetch(`/api/stories/${story.id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: STATE.user ? STATE.user.id : null })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showNotification('تم حذف الاستوري بنجاح! 🗑️');
+            currentViewingGroup.stories.splice(activeStoryIndex, 1);
+            if (currentViewingGroup.stories.length === 0) {
+                hideModal('storyViewerModal');
+            } else {
+                if (activeStoryIndex >= currentViewingGroup.stories.length) {
+                    activeStoryIndex = currentViewingGroup.stories.length - 1;
+                }
+                renderCurrentStory();
+            }
+            loadStories();
+        } else {
+            alert(data.error || 'فشل حذف الاستوري');
+        }
+    } catch (e) {
+        alert('حدث خطأ أثناء حذف الاستوري');
     }
 }
 
@@ -1882,6 +1997,12 @@ function setupEventListeners() {
     window.addEventListener('message', (e) => {
         if (e.data && e.data.type === 'NO2TA_STEALTH_RESTORE') {
             releaseStealthMode();
+        } else if (e.data && e.data.type === 'NO2TA_LOCAL_STEALTH_CLOSE') {
+            // F3 pressed inside iframe: close on THIS device only!
+            releaseStealthMode({ message: 'تم إغلاق شاشة التمويه على جهازك فقط 🤫' });
+        } else if (e.data && e.data.type === 'NO2TA_TRIGGER_PANIC') {
+            // F2 pressed inside iframe: trigger panic on everyone!
+            triggerPanicButton();
         }
     });
 
