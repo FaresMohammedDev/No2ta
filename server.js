@@ -78,7 +78,8 @@ uploadDirs.forEach(dir => {
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         let dest = 'uploads/media';
-        if (req.path.includes('audio')) dest = 'uploads/audio';
+        if (req.path.includes('music')) dest = 'uploads/music';
+        else if (req.path.includes('audio')) dest = 'uploads/audio';
         else if (req.path.includes('stori') || req.path.includes('story')) dest = 'uploads/stories';
         else if (req.path.includes('airdrop')) dest = 'uploads/airdrop';
         else if (req.path.includes('avatar')) dest = 'uploads/avatars';
@@ -708,190 +709,113 @@ app.get('/api/screen-share/status', (req, res) => {
     });
 });
 
-// 11. Online Free Music API (YouTube Music + JioSaavn + iTunes) 🎵
-app.get('/api/music/search', async (req, res) => {
-    const query = req.query.q || '';
-    if (!query.trim()) return res.json({ success: true, tracks: [] });
-
+// 11. Classroom Local Music Library & Jukebox API 🎵 (100% Offline / Local LAN)
+// Get or Search tracks in Classroom Local Library
+app.get('/api/music/library', async (req, res) => {
     try {
-        const agent = new https.Agent({ rejectUnauthorized: false });
-
-        // 1. Primary Engine: YouTube Music Catalog (Full support for Arabic, Egyptian, Mahraganat, Rap & Pop)
-        const ytResults = await new Promise((resolve) => {
-            const clientReq = https.get({
-                hostname: 'yoyt.vercel.app',
-                path: `/api/public/search?q=${encodeURIComponent(query)}&filter=songs&limit=15`,
-                agent,
-                headers: { 'User-Agent': 'Mozilla/5.0' },
-                timeout: 5000
-            }, (apiRes) => {
-                let d = '';
-                apiRes.on('data', c => d += c);
-                apiRes.on('end', () => {
-                    try {
-                        const json = JSON.parse(d);
-                        const items = json.items || [];
-                        const tracks = items.map(item => {
-                            const artistName = (item.artists || []).map(a => a.name).join(', ') || 'فنان';
-                            const cover = item.thumbnails?.[item.thumbnails.length - 1]?.url ||
-                                          `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`;
-                            return {
-                                id: item.videoId,
-                                videoId: item.videoId,
-                                title: item.title,
-                                artist: artistName,
-                                cover,
-                                duration: item.duration || '',
-                                audioUrl: null,
-                                rawAudioUrl: `https://www.youtube.com/watch?v=${item.videoId}`,
-                                youtubeUrl: `https://www.youtube.com/watch?v=${item.videoId}`,
-                                source: 'youtube'
-                            };
-                        });
-                        resolve(tracks);
-                    } catch(e) {
-                        resolve([]);
-                    }
-                });
-            });
-            clientReq.on('error', () => resolve([]));
-            clientReq.on('timeout', () => { clientReq.destroy(); resolve([]); });
-        });
-
-        if (ytResults && ytResults.length > 0) {
-            return res.json({ success: true, tracks: ytResults });
+        const query = (req.query.q || '').trim();
+        let tracks = [];
+        if (query) {
+            tracks = await all(
+                `SELECT * FROM music_library
+                 WHERE title LIKE ? OR artist LIKE ? OR file_name LIKE ?
+                 ORDER BY created_at DESC`,
+                [`%${query}%`, `%${query}%`, `%${query}%`]
+            );
+        } else {
+            tracks = await all(`SELECT * FROM music_library ORDER BY created_at DESC`);
         }
-
-        // 2. Secondary Engine: JioSaavn API on Vercel
-        const jioResults = await new Promise((resolve) => {
-            const clientReq = https.get({
-                hostname: 'jiosaavn-api.vercel.app',
-                path: '/search?query=' + encodeURIComponent(query),
-                agent,
-                headers: { 'User-Agent': 'Mozilla/5.0' },
-                timeout: 5000
-            }, (apiRes) => {
-                let d = '';
-                apiRes.on('data', c => d += c);
-                apiRes.on('end', async () => {
-                    try {
-                        const json = JSON.parse(d);
-                        const results = (json.results || []).slice(0, 10);
-                        const detailed = await Promise.all(results.map(async r => {
-                            return new Promise((resDetails) => {
-                                https.get({
-                                    hostname: 'jiosaavn-api.vercel.app',
-                                    path: '/song?id=' + r.id,
-                                    agent,
-                                    headers: { 'User-Agent': 'Mozilla/5.0' },
-                                    timeout: 4000
-                                }, (dRes) => {
-                                    let detData = '';
-                                    dRes.on('data', c => detData += c);
-                                    dRes.on('end', () => {
-                                        try {
-                                            const song = JSON.parse(detData);
-                                            resDetails({
-                                                id: r.id,
-                                                title: song.song || r.title,
-                                                artist: song.singers || r.description || r.more_info?.singers || 'فنان',
-                                                cover: song.image || r.image,
-                                                audioUrl: song.media_url ? `/api/music/stream?url=${encodeURIComponent(song.media_url)}` : null,
-                                                rawAudioUrl: song.media_url,
-                                                duration: song.duration || ''
-                                            });
-                                        } catch(e) {
-                                            resDetails(null);
-                                        }
-                                    });
-                                }).on('error', () => resDetails(null));
-                            });
-                        }));
-                        resolve(detailed.filter(t => t && t.audioUrl));
-                    } catch(e) {
-                        resolve([]);
-                    }
-                });
-            });
-            clientReq.on('error', () => resolve([]));
-            clientReq.on('timeout', () => { clientReq.destroy(); resolve([]); });
-        });
-
-        if (jioResults && jioResults.length > 0) {
-            return res.json({ success: true, tracks: jioResults });
-        }
-
-        // 2. Try iTunes Search API as fallback
-        const itunesResults = await new Promise((resolve) => {
-            const clientReq = https.get({
-                hostname: 'itunes.apple.com',
-                path: `/search?term=${encodeURIComponent(query)}&media=music&entity=song&limit=12`,
-                agent,
-                headers: { 'User-Agent': 'Mozilla/5.0' },
-                timeout: 4000
-            }, (apiRes) => {
-                let d = '';
-                apiRes.on('data', c => d += c);
-                apiRes.on('end', () => {
-                    try {
-                        const json = JSON.parse(d);
-                        const tracks = (json.results || []).map(r => ({
-                            id: String(r.trackId),
-                            title: r.trackName,
-                            artist: r.artistName,
-                            cover: r.artworkUrl100?.replace('100x100', '300x300') || r.artworkUrl100,
-                            audioUrl: r.previewUrl ? `/api/music/stream?url=${encodeURIComponent(r.previewUrl)}` : null,
-                            rawAudioUrl: r.previewUrl,
-                            duration: r.trackTimeMillis ? `${Math.floor(r.trackTimeMillis / 60000)}:${String(Math.floor((r.trackTimeMillis % 60000) / 1000)).padStart(2, '0')}` : ''
-                        }));
-                        resolve(tracks.filter(t => t.audioUrl));
-                    } catch(e) {
-                        resolve([]);
-                    }
-                });
-            });
-            clientReq.on('error', () => resolve([]));
-            clientReq.on('timeout', () => { clientReq.destroy(); resolve([]); });
-        });
-
-        res.json({ success: true, tracks: itunesResults });
-    } catch(err) {
+        res.json({ success: true, tracks });
+    } catch (err) {
         res.status(500).json({ error: err.message, tracks: [] });
     }
 });
 
-// 12. Audio Stream Proxy Endpoint (Bypasses CORS & Network Blocks)
-app.get('/api/music/stream', (req, res) => {
-    const audioUrl = req.query.url;
-    if (!audioUrl) return res.status(400).send('URL required');
-
+// Search route for local library (zero external requests, 0ms latency)
+app.get('/api/music/search', async (req, res) => {
     try {
-        const parsed = new URL(audioUrl);
-        const protocol = parsed.protocol === 'http:' ? require('http') : https;
-        const agent = new https.Agent({ rejectUnauthorized: false });
+        const query = (req.query.q || '').trim();
+        let tracks = [];
+        if (query) {
+            tracks = await all(
+                `SELECT * FROM music_library
+                 WHERE title LIKE ? OR artist LIKE ? OR file_name LIKE ?
+                 ORDER BY created_at DESC`,
+                [`%${query}%`, `%${query}%`, `%${query}%`]
+            );
+        } else {
+            tracks = await all(`SELECT * FROM music_library ORDER BY created_at DESC`);
+        }
+        res.json({ success: true, tracks });
+    } catch (err) {
+        res.status(500).json({ error: err.message, tracks: [] });
+    }
+});
 
-        const clientReq = protocol.get(audioUrl, {
-            agent,
-            headers: {
-                'User-Agent': 'Mozilla/5.0',
-                'Referer': parsed.origin,
-                'Range': req.headers.range || ''
+// Upload song to Classroom Music Library (stored locally on host LAN)
+app.post('/api/music/upload', upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'لم يتم اختيار ملف صوتي!' });
+        }
+
+        const { title, artist, uploaderId, uploaderName, duration = '' } = req.body;
+        const trackId = 'track_' + crypto.randomUUID();
+        const originalName = req.file.originalname;
+        const songTitle = (title && title.trim()) ? title.trim() : originalName.replace(/\.[^/.]+$/, '');
+        const songArtist = (artist && artist.trim()) ? artist.trim() : (uploaderName || 'دي جي الفصل 🎧');
+        const fileUrl = `/uploads/music/${req.file.filename}`;
+
+        await run(
+            `INSERT INTO music_library (id, title, artist, file_url, file_name, duration, uploader_id, uploader_name)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [trackId, songTitle, songArtist, fileUrl, originalName, duration, uploaderId || null, uploaderName || null]
+        );
+
+        const newTrack = await get(`SELECT * FROM music_library WHERE id = ?`, [trackId]);
+        io.emit('music_library_updated', { track: newTrack, action: 'add' });
+
+        res.json({ success: true, track: newTrack });
+    } catch (err) {
+        console.error('Music upload error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Delete song from Classroom Music Library
+app.delete('/api/music/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId } = req.body;
+        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientMac = await resolveMacAddress(clientIp);
+        const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
+
+        const track = await get(`SELECT * FROM music_library WHERE id = ?`, [id]);
+        if (!track) return res.status(404).json({ error: 'الأغنية غير موجودة أو تم حذفها مسبقاً!' });
+
+        if (!isDeviceAdmin && track.uploader_id && track.uploader_id !== userId) {
+            return res.status(403).json({ error: 'غير مسموح لك بحذف هذه الأغنية!' });
+        }
+
+        await run(`DELETE FROM music_library WHERE id = ?`, [id]);
+
+        if (track.file_url && track.file_url.startsWith('/uploads/music/')) {
+            const diskPath = path.join(__dirname, track.file_url);
+            if (fs.existsSync(diskPath)) {
+                try { fs.unlinkSync(diskPath); } catch (e) {}
             }
-        }, (streamRes) => {
-            const headers = { ...streamRes.headers };
-            delete headers['content-security-policy'];
-            headers['Access-Control-Allow-Origin'] = '*';
-            headers['Accept-Ranges'] = 'bytes';
+        }
 
-            res.writeHead(streamRes.statusCode, headers);
-            streamRes.pipe(res);
-        });
+        if (activeRadioTrack && activeRadioTrack.track && activeRadioTrack.track.id === id) {
+            activeRadioTrack = null;
+            io.emit('radio_sync_state', null);
+        }
 
-        clientReq.on('error', (err) => {
-            if (!res.headersSent) res.status(502).send(err.message);
-        });
-    } catch(err) {
-        if (!res.headersSent) res.status(400).send('Invalid audio URL');
+        io.emit('music_library_updated', { trackId: id, action: 'delete' });
+        res.json({ success: true, trackId: id });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 

@@ -154,6 +154,32 @@ const initDB = async () => {
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     );`);
 
+    // Classroom Local Music Library 🎵
+    await run(`CREATE TABLE IF NOT EXISTS music_library (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        artist TEXT DEFAULT 'موسيقى الفصل',
+        file_url TEXT NOT NULL,
+        file_name TEXT,
+        duration TEXT DEFAULT '',
+        cover TEXT DEFAULT '',
+        uploader_id TEXT,
+        uploader_name TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );`);
+
+    // Seed starter tracks into music_library if empty
+    try {
+        const existingMusic = await get(`SELECT count(*) as count FROM music_library`);
+        if (!existingMusic || existingMusic.count === 0) {
+            await run(`INSERT OR IGNORE INTO music_library (id, title, artist, file_url, file_name, duration) VALUES
+                ('track_starter_1', 'Lofi Study Beats ☕ (تركيز ومذاكرة)', 'موسيقى الفصل هادئة', '/uploads/music/starter_lofi_study.wav', 'starter_lofi_study.wav', '0:30'),
+                ('track_starter_2', 'Cyberpunk Synthwave ⚡ (حماس وبرمجة)', 'إيقاع الفصل الإلكتروني', '/uploads/music/starter_synthwave_energy.wav', 'starter_synthwave_energy.wav', '0:30'),
+                ('track_starter_3', 'Midnight Chill Vibes 🌙 (استرخاء الفصل)', 'ألحان الفصل الليلية', '/uploads/music/starter_midnight_chill.wav', 'starter_midnight_chill.wav', '0:30')
+            `);
+        }
+    } catch (e) {}
+
     // System Settings (Focus mode, Stealth status, etc.)
     await run(`CREATE TABLE IF NOT EXISTS system_settings (
         key TEXT PRIMARY KEY,

@@ -916,40 +916,28 @@
 
     <!-- 🎵 SYNCHRONIZED CLASSROOM MUSIC / RADIO BAR 🎵 -->
     <div id="classroomMusicBar" class="hidden fixed bottom-4 inset-x-4 max-w-xl mx-auto bg-slate-900/95 backdrop-blur-xl border border-pink-500/30 rounded-2xl p-2.5 shadow-2xl shadow-pink-500/15 z-40 transition-all duration-300 flex flex-col">
-        <!-- Optional Mini YouTube Video View -->
-        <div id="classroomYtVideoWrapper" class="hidden mb-2 rounded-xl overflow-hidden border border-pink-500/20 bg-black shadow-lg relative w-full aspect-video max-h-56">
-            <div id="classroomYtPlayer" class="w-full h-full"></div>
-        </div>
-
         <div class="flex items-center justify-between gap-3">
             <!-- Track Info & Cover -->
             <div class="flex items-center gap-2.5 min-w-0">
-                <div id="radioCoverWrapper" class="relative w-11 h-11 rounded-xl bg-slate-800 border border-white/10 overflow-hidden shrink-0 shadow-md">
-                    <img id="radioCoverImg" src="" class="hidden w-full h-full object-cover">
-                    <span id="radioDefaultCover" class="w-full h-full flex items-center justify-center text-lg">🎵</span>
+                <div id="radioCoverWrapper" class="relative w-11 h-11 rounded-xl bg-slate-800 border border-white/10 overflow-hidden shrink-0 shadow-md flex items-center justify-center text-xl">
+                    <span id="radioDefaultCover" class="animate-spin" style="animation-duration: 4s;">💿</span>
                 </div>
                 <div class="min-w-0">
-                    <h4 id="radioTrackTitle" class="text-xs font-bold text-white truncate max-w-[140px] sm:max-w-xs">اسم الأغنية</h4>
+                    <h4 id="radioTrackTitle" class="text-xs font-bold text-white truncate max-w-[150px] sm:max-w-xs">اسم الأغنية</h4>
                     <p id="radioTrackArtist" class="text-[10px] text-pink-400 truncate">الفنان • دي جي الفصل 🎧</p>
                 </div>
             </div>
 
             <!-- Playback Controls -->
             <div class="flex items-center gap-1.5 shrink-0">
-                <a id="radioDirectYtLink" href="#" target="_blank" rel="noopener" class="hidden px-2 py-1.5 rounded-xl bg-red-600/30 hover:bg-red-600 text-red-200 hover:text-white text-[11px] font-bold transition-all border border-red-500/40 flex items-center gap-1" title="فتح وسماع الأغنية مباشرة على يوتيوب">
-                    <span>↗</span>
-                    <span>يوتيوب</span>
-                </a>
-                <button id="radioToggleVideoBtn" onclick="toggleRadioVideoDisplay()" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-pink-300 text-[11px] font-bold transition-all border border-pink-500/20" title="عرض/إخفاء فيديو الكليب">
-                    📺 كليب
-                </button>
                 <button id="radioPlayPauseBtn" onclick="toggleRadioPlayPause()" class="w-9 h-9 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white flex items-center justify-center font-bold shadow-md shadow-pink-500/30 transition-all text-sm">
                     <span id="radioPlayIcon">▶</span>
                 </button>
-                <button onclick="openMusicModal()" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-xs" title="تغيير الأغنية / بحث">
-                    🔍
+                <button onclick="openMusicModal()" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1 text-xs font-bold transition-all" title="فتح مكتبة الأغاني">
+                    <span>🎵</span>
+                    <span>المكتبة</span>
                 </button>
-                <button onclick="closeRadioBar()" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-xs" title="إغلاق المشغل">
+                <button onclick="closeRadioBar()" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-xs" title="إيقاف ومغادرة الراديو">
                     ✕
                 </button>
             </div>
@@ -961,77 +949,63 @@
             <input type="range" id="radioProgressBar" min="0" max="100" value="0" step="0.5" oninput="handleRadioProgressInput(this.value)" class="flex-1 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-pink-500">
             <span id="radioTotalDuration" class="text-[9px] font-mono text-slate-400 shrink-0">0:00</span>
         </div>
-
-        <!-- Firewall hint if YouTube blocked on PC -->
-        <div id="radioYtFirewallNotice" class="hidden mt-1 px-1 text-[10px] text-amber-300/90 flex items-center justify-between bg-amber-500/10 rounded-lg py-1 px-2 border border-amber-500/20">
-            <span>⚠️ شبكة المعمل تحجب يوتيوب على هذا الكمبيوتر.</span>
-            <a id="radioNoticeYtBtn" href="#" target="_blank" rel="noopener" class="underline text-cyan-300 font-bold hover:text-white flex items-center gap-0.5">
-                <span>اسمعها هنا مباشرة</span>
-                <span>↗</span>
-            </a>
-        </div>
         <audio id="classroomAudioElement" preload="auto" class="hidden"></audio>
     </div>
 
-    <!-- 🎵 ONLINE MUSIC SEARCH & SELECTION MODAL -->
+    <!-- 🎵 CLASSROOM LOCAL MUSIC LIBRARY & JUKEBOX MODAL (100% LAN) -->
     <div id="musicSearchModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-        <div class="glass-panel-elevated rounded-3xl p-5 max-w-lg w-full border border-pink-500/30 flex flex-col max-h-[85vh] shadow-2xl relative">
+        <div class="glass-panel-elevated rounded-3xl p-5 max-w-lg w-full border border-pink-500/30 flex flex-col max-h-[88vh] shadow-2xl relative">
             <!-- Modal Header -->
             <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
                 <div class="flex items-center gap-2">
-                    <span class="text-2xl">🎵</span>
+                    <span class="text-2xl">📻</span>
                     <div>
                         <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
-                            <span>راديو وأغاني الفصل أونلاين</span>
-                            <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-pink-500/20 text-pink-400 font-bold">بث مباشر للكل 📻</span>
+                            <span>راديو ومكتبة أغاني الفصل</span>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold">100% شبكة المعمل (LAN) ⚡</span>
                         </h3>
-                        <p class="text-[10px] text-slate-400">ابحث عن أي أغنية بالاسم وهتشتغل فوراً للجميع بدون تحميل!</p>
+                        <p class="text-[10px] text-slate-400">شغال بدون إنترنت • بدون حجب • صوت متزامن لجميع أجهزة المعمل!</p>
                     </div>
                 </div>
                 <button onclick="hideModal('musicSearchModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs">✕</button>
             </div>
 
-            <!-- Search Form -->
-            <form id="musicSearchForm" onsubmit="handleMusicSearchSubmit(event)" class="flex items-center gap-2 mb-3">
-                <div class="relative flex-1">
-                    <input type="text" id="musicSearchInput" placeholder="اكتب اسم الأغنية أو الفنان (مثال: ويجز، عمرو دياب، تامر عاشور، حماقي)..." class="w-full bg-slate-950 border border-slate-800 focus:border-pink-500 rounded-xl pr-9 pl-3 py-2 text-xs text-white placeholder-slate-500 outline-none transition-all">
-                    <span class="absolute right-3 top-2.5 text-slate-400 text-xs">🔍</span>
+            <!-- Upload Song Box (Top Prominent Action) -->
+            <div class="mb-3 p-3 rounded-2xl bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-pink-500/10 border border-pink-500/30 flex items-center justify-between gap-3 shrink-0">
+                <div class="min-w-0">
+                    <h4 class="text-xs font-bold text-white flex items-center gap-1">
+                        <span>📁</span>
+                        <span>عندك أغنية على جهازك أو فلاشة؟</span>
+                    </h4>
+                    <p class="text-[10px] text-slate-400">ارفع أي ملف (MP3 / WAV / M4A) وهيشتغل فوراً لكل زمايلك في الفصل!</p>
                 </div>
-                <button type="submit" id="musicSearchBtn" class="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white text-xs font-bold transition-all shadow-md shrink-0 flex items-center gap-1">
-                    <span>بحث</span>
-                    <span>⚡</span>
+                <button type="button" onclick="document.getElementById('radioAudioFileInput').click()" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white text-xs font-black shadow-lg shadow-pink-500/20 transition-all shrink-0 flex items-center gap-1.5">
+                    <span>➕</span>
+                    <span>رفع أغنية</span>
                 </button>
-            </form>
-
-            <!-- Quick Suggestions / Preset Tags -->
-            <div class="flex items-center gap-1.5 overflow-x-auto pb-2 mb-2 text-[11px] custom-scrollbar shrink-0">
-                <span class="text-slate-500 shrink-0 text-[10px]">اقتراحات:</span>
-                <button type="button" onclick="quickSearchMusic('ويجز')" class="px-2.5 py-0.5 rounded-full bg-slate-800 hover:bg-pink-500/20 hover:text-pink-300 text-slate-300 transition shrink-0">🔥 ويجز</button>
-                <button type="button" onclick="quickSearchMusic('عمرو دياب')" class="px-2.5 py-0.5 rounded-full bg-slate-800 hover:bg-pink-500/20 hover:text-pink-300 text-slate-300 transition shrink-0">🌟 عمرو دياب</button>
-                <button type="button" onclick="quickSearchMusic('تامر عاشور')" class="px-2.5 py-0.5 rounded-full bg-slate-800 hover:bg-pink-500/20 hover:text-pink-300 text-slate-300 transition shrink-0">💔 تامر عاشور</button>
-                <button type="button" onclick="quickSearchMusic('حماقي')" class="px-2.5 py-0.5 rounded-full bg-slate-800 hover:bg-pink-500/20 hover:text-pink-300 text-slate-300 transition shrink-0">⚡ حماقي</button>
-                <button type="button" onclick="quickSearchMusic('كايروكي')" class="px-2.5 py-0.5 rounded-full bg-slate-800 hover:bg-pink-500/20 hover:text-pink-300 text-slate-300 transition shrink-0">🎸 كايروكي</button>
+                <input type="file" id="radioAudioFileInput" accept="audio/*" class="hidden" onchange="handleRadioFileUpload(this.files[0])">
             </div>
 
-            <!-- Direct URL / Local Audio Upload Quick Bar -->
-            <div class="p-2 rounded-2xl bg-slate-950/70 border border-slate-800 mb-2 flex items-center justify-between gap-2 shrink-0">
-                <input type="text" id="directAudioUrlInput" placeholder="أو الصق رابط مباشر لملف صوتي (MP3 / Direct Audio URL)..." class="flex-1 bg-transparent text-[11px] text-white placeholder-slate-500 outline-none pr-1">
-                <div class="flex items-center gap-1.5 shrink-0">
-                    <button type="button" onclick="playDirectAudioUrl()" class="px-2.5 py-1 rounded-xl bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 text-[11px] font-bold transition-all border border-pink-500/30">
-                        تشغيل 🔗
-                    </button>
-                    <button type="button" onclick="document.getElementById('radioAudioFileInput').click()" class="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold transition-all" title="تشغيل ملف صوتي من جهازك">
-                        📁 ملف صوتي
-                    </button>
-                    <input type="file" id="radioAudioFileInput" accept="audio/*" class="hidden" onchange="handleRadioFileUpload(this.files[0])">
-                </div>
+            <!-- Search Form -->
+            <div class="relative mb-3">
+                <input type="text" id="musicSearchInput" oninput="handleMusicSearchInput(this.value)" placeholder="ابحث في مكتبة الفصل (اكتب اسم الأغنية أو الفنان)..." class="w-full bg-slate-950 border border-slate-800 focus:border-pink-500 rounded-xl pr-9 pl-3 py-2 text-xs text-white placeholder-slate-500 outline-none transition-all">
+                <span class="absolute right-3 top-2.5 text-slate-400 text-xs">🔍</span>
             </div>
 
-            <!-- Results List Container -->
+            <!-- Library Tracks Count & Refresh -->
+            <div class="flex items-center justify-between px-1 mb-2 text-[11px] text-slate-400">
+                <span id="musicLibraryCountText">الأغاني المتاحة في الفصل</span>
+                <button type="button" onclick="loadMusicLibrary()" class="text-cyan-400 hover:text-white transition flex items-center gap-1">
+                    <span>🔄</span>
+                    <span>تحديث</span>
+                </button>
+            </div>
+
+            <!-- Results & Library List Container -->
             <div id="musicResultsContainer" class="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar min-h-[220px]">
                 <div class="text-center py-10 text-slate-500">
                     <span class="text-4xl block mb-2">🎧</span>
-                    <p class="text-xs font-bold">ابحث عن أي أغنية تحب تسمعها أنت وزمايلك في الشات!</p>
+                    <p class="text-xs font-bold">جاري تحميل مكتبة موسيقى الفصل...</p>
                 </div>
             </div>
         </div>
@@ -1149,7 +1123,6 @@
     </div>
 
     <!-- Main Application Scripts -->
-    <script src="https://www.youtube.com/iframe_api"></script>
-    <script src="/js/app.js?v=2.7.0"></script>
+    <script src="/js/app.js?v=3.0.0"></script>
 </body>
 </html>

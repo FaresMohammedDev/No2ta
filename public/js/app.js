@@ -337,6 +337,11 @@ function initSocket() {
         }
     });
 
+    // 🎵 Classroom Music Library Sync
+    STATE.socket.on('music_library_updated', () => {
+        loadMusicLibrary();
+    });
+
     STATE.socket.on('user_typing_start', (data) => {
         if (data.userId !== STATE.user.id) {
             showTypingIndicator(data.nickname);
@@ -2733,144 +2738,50 @@ async function handleIncomingIceCandidate({ fromSocketId, candidate }) {
 }
 
 // ----------------------------------------------------
-// 9d. Synchronized Online Classroom Radio & Music Hub 🎵⚡
+// ----------------------------------------------------
+// 9d. Synchronized Classroom Local Music Library & Jukebox 🎵⚡ (100% LAN)
 // ----------------------------------------------------
 
 function openMusicModal() {
     showModal('musicSearchModal');
+    loadMusicLibrary();
     setTimeout(() => {
         const inp = document.getElementById('musicSearchInput');
         if (inp) inp.focus();
     }, 150);
 }
 
-function quickSearchMusic(query) {
-    const input = document.getElementById('musicSearchInput');
-    if (input) input.value = query;
-    searchOnlineMusic(query);
+let musicSearchDebounce = null;
+function handleMusicSearchInput(val) {
+    if (musicSearchDebounce) clearTimeout(musicSearchDebounce);
+    musicSearchDebounce = setTimeout(() => {
+        loadMusicLibrary(val);
+    }, 250);
 }
 
-function handleMusicSearchSubmit(e) {
-    e.preventDefault();
-    const input = document.getElementById('musicSearchInput');
-    if (input && input.value.trim()) {
-        searchOnlineMusic(input.value.trim());
-    }
-}
-
-async function searchOnlineMusic(query) {
+async function loadMusicLibrary(query = '') {
     const container = document.getElementById('musicResultsContainer');
-    const searchBtn = document.getElementById('musicSearchBtn');
+    const countEl = document.getElementById('musicLibraryCountText');
     if (!container) return;
 
-    container.innerHTML = `
-        <div class="text-center py-10 text-slate-400 text-xs flex flex-col items-center justify-center gap-2">
-            <div class="w-7 h-7 border-3 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
-            <span>جاري البحث عن "${escapeHtml(query)}" في مكتبة الأغاني أونلاين... 🔍</span>
-        </div>
-    `;
-
-    if (searchBtn) searchBtn.disabled = true;
-
     try {
-        const res = await fetch(`/api/music/search?q=${encodeURIComponent(query)}`);
+        const res = await fetch(`/api/music/library?q=${encodeURIComponent(query)}`);
         const data = await res.json();
         const tracks = data.tracks || [];
+        window._lastSearchedTracks = tracks;
+
+        if (countEl) {
+            countEl.textContent = `${tracks.length} أغنية متوفرة في الفصل 🎵`;
+        }
 
         renderMusicResults(tracks, query);
     } catch (err) {
         container.innerHTML = `
             <div class="text-center py-8 text-red-400 text-xs">
                 <span class="text-3xl block mb-2">⚠️</span>
-                <p class="font-bold">فشل البحث عن الأغنية! تأكد من اتصال الإنترنت وحاول مرة أخرى.</p>
+                <p class="font-bold">تعذر تحميل مكتبة موسيقى الفصل!</p>
             </div>
         `;
-    } finally {
-        if (searchBtn) searchBtn.disabled = false;
-    }
-}
-
-// YouTube Player Global State
-window.ytPlayer = null;
-window.isYtReady = false;
-
-window.onYouTubeIframeAPIReady = function() {
-    try {
-        window.ytPlayer = new YT.Player('classroomYtPlayer', {
-            height: '100%',
-            width: '100%',
-            playerVars: {
-                autoplay: 1,
-                controls: 1,
-                enablejsapi: 1,
-                playsinline: 1,
-                rel: 0,
-                origin: window.location.origin
-            },
-            events: {
-                onReady: () => {
-                    window.isYtReady = true;
-                    if (STATE.radio.pendingYtTrack) {
-                        const p = STATE.radio.pendingYtTrack;
-                        STATE.radio.pendingYtTrack = null;
-                        syncYouTubePlayback(p.videoId, p.currentTime, p.isPlaying);
-                    }
-                },
-                onStateChange: (event) => {
-                    if (window.YT && event.data === YT.PlayerState.ENDED) {
-                        if (STATE.socket && STATE.radio.activeTrack) {
-                            STATE.socket.emit('radio_stop');
-                        }
-                    }
-                }
-            }
-        });
-    } catch (e) {
-        console.warn('YouTube API init note:', e);
-    }
-};
-
-function syncYouTubePlayback(videoId, currentTime = 0, isPlaying = true) {
-    if (!window.isYtReady || !window.ytPlayer || typeof window.ytPlayer.loadVideoById !== 'function') {
-        STATE.radio.pendingYtTrack = { videoId, currentTime, isPlaying };
-        return;
-    }
-
-    try {
-        const curData = window.ytPlayer.getVideoData ? window.ytPlayer.getVideoData() : null;
-        if (!curData || curData.video_id !== videoId) {
-            window.ytPlayer.loadVideoById({
-                videoId: videoId,
-                startSeconds: currentTime || 0
-            });
-        } else {
-            const currentSeconds = window.ytPlayer.getCurrentTime ? window.ytPlayer.getCurrentTime() : 0;
-            if (Math.abs(currentSeconds - currentTime) > 2) {
-                window.ytPlayer.seekTo(currentTime, true);
-            }
-        }
-
-        if (isPlaying && !STATE.isStealthActive) {
-            window.ytPlayer.playVideo();
-        } else {
-            window.ytPlayer.pauseVideo();
-        }
-    } catch (e) {
-        console.warn('YouTube sync note:', e);
-    }
-}
-
-function toggleRadioVideoDisplay() {
-    const videoWrapper = document.getElementById('classroomYtVideoWrapper');
-    const btn = document.getElementById('radioToggleVideoBtn');
-    if (!videoWrapper) return;
-    const isHidden = videoWrapper.classList.contains('hidden');
-    if (isHidden) {
-        videoWrapper.classList.remove('hidden');
-        if (btn) btn.innerHTML = '✕ إخفاء';
-    } else {
-        videoWrapper.classList.add('hidden');
-        if (btn) btn.innerHTML = '📺 كليب';
     }
 }
 
@@ -2882,42 +2793,52 @@ function renderMusicResults(tracks, query) {
         container.innerHTML = `
             <div class="text-center py-10 text-slate-500">
                 <span class="text-3xl block mb-2">🔍</span>
-                <p class="text-xs font-bold text-slate-400">لم يتم العثور على أغاني لـ "${escapeHtml(query)}"</p>
-                <p class="text-[10px] text-slate-500 mt-1">جرب كتابة اسم الأغنية أو اسم المطرب بالعربي أو الإنجليزي</p>
+                <p class="text-xs font-bold text-slate-400">
+                    ${query ? `لم يتم العثور على أغاني مطابقة لـ "${escapeHtml(query)}"` : 'لا توجد أغاني في مكتبة الفصل حالياً!'}
+                </p>
+                <p class="text-[10px] text-slate-500 mt-1">اضغط على زر "➕ رفع أغنية" فوق لرفع أي أغنية عندك على الجهاز!</p>
             </div>
         `;
         return;
     }
 
     let html = '';
-    window._lastSearchedTracks = tracks;
-
     tracks.forEach((track, idx) => {
+        const isCurrentPlaying = STATE.radio.activeTrack && STATE.radio.activeTrack.id === track.id && STATE.radio.isPlaying;
+        const canDelete = STATE.user && (track.uploader_id === STATE.user.id || STATE.user.role === 'admin');
+
         html += `
-            <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-pink-500/40 transition-all group">
+            <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-900/70 border ${isCurrentPlaying ? 'border-pink-500/60 bg-pink-500/10' : 'border-slate-800'} hover:border-pink-500/40 transition-all group">
                 <div class="flex items-center gap-3 min-w-0">
-                    <div class="w-11 h-11 rounded-xl bg-slate-800 border border-white/10 overflow-hidden shrink-0 shadow-md">
-                        <img src="${track.cover || ''}" onerror="this.style.display='none'" class="w-full h-full object-cover">
+                    <div class="w-11 h-11 rounded-xl bg-slate-800 border border-white/10 overflow-hidden shrink-0 shadow-md flex items-center justify-center text-xl text-pink-400">
+                        ${track.cover ? `<img src="${track.cover}" class="w-full h-full object-cover">` : (isCurrentPlaying ? '💿' : '🎵')}
                     </div>
                     <div class="min-w-0">
-                        <h4 class="text-xs font-bold text-white truncate max-w-[150px] sm:max-w-xs group-hover:text-pink-300 transition-colors">${escapeHtml(track.title)}</h4>
-                        <p class="text-[10px] text-slate-400 truncate">${escapeHtml(track.artist)} ${track.duration ? '• ' + track.duration : ''}</p>
+                        <div class="flex items-center gap-1.5">
+                            <h4 class="text-xs font-bold text-white truncate max-w-[140px] sm:max-w-xs group-hover:text-pink-300 transition-colors">${escapeHtml(track.title)}</h4>
+                            ${isCurrentPlaying ? '<span class="text-[9px] px-1.5 py-0.2 rounded-full bg-pink-500/30 text-pink-300 font-bold animate-pulse">شغالة الآن 🔊</span>' : ''}
+                        </div>
+                        <p class="text-[10px] text-slate-400 truncate">
+                            ${escapeHtml(track.artist || 'فنان')} 
+                            ${track.uploader_name ? `• رافعها: ${escapeHtml(track.uploader_name)}` : ''}
+                            ${track.duration ? '• ' + track.duration : ''}
+                        </p>
                     </div>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
-                    <!-- YouTube link if available -->
-                    ${track.videoId ? `
-                        <a href="https://www.youtube.com/watch?v=${track.videoId}" target="_blank" rel="noopener" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 text-xs font-bold transition-all" title="فتح على يوتيوب ↗">
-                            ↗
-                        </a>
-                    ` : ''}
                     <!-- Share to Chat -->
-                    <button onclick="shareTrackToChatByIndex(${idx})" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all" title="مشاركة الأغنية في الشات 💬">
+                    <button onclick="shareTrackToChatByIndex(${idx})" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all" title="مشاركة في الشات 💬">
                         💬
                     </button>
+                    <!-- Delete Track (if allowed) -->
+                    ${canDelete ? `
+                        <button onclick="deleteLibraryMusic('${track.id}')" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 text-xs font-bold transition-all" title="حذف الأغنية من المكتبة">
+                            🗑️
+                        </button>
+                    ` : ''}
                     <!-- Play for Class -->
                     <button onclick="playTrackForEveryoneByIndex(${idx})" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1">
-                        <span>تشغيل للكل 🎵</span>
+                        <span>${isCurrentPlaying ? 'إعادة تشغيل 🔄' : 'تشغيل للكل 🎵'}</span>
                     </button>
                 </div>
             </div>
@@ -2933,9 +2854,17 @@ function playTrackForEveryoneByIndex(idx) {
 
     if (STATE.socket) {
         STATE.socket.emit('radio_play', {
-            track,
+            track: {
+                id: track.id,
+                title: track.title,
+                artist: track.artist,
+                cover: track.cover || '',
+                audioUrl: track.file_url,
+                file_url: track.file_url,
+                duration: track.duration || ''
+            },
             currentTime: 0,
-            djName: STATE.user ? STATE.user.nickname : 'زميلك',
+            djName: STATE.user ? STATE.user.nickname : 'دي جي الفصل',
             djId: STATE.user ? STATE.user.id : null
         });
     }
@@ -2956,78 +2885,74 @@ function shareTrackToChatByIndex(idx) {
     showNotification('تمت مشاركة الأغنية في الشات 💬');
 }
 
-function playDirectAudioUrl() {
-    const input = document.getElementById('directAudioUrlInput');
-    const url = input ? input.value.trim() : '';
-    if (!url) {
-        showNotification('الرجاء إدخال رابط صوتي مباشر أولاً!');
+async function handleRadioFileUpload(file) {
+    if (!file || !STATE.user) {
+        showNotification('الرجاء اختيار ملف صوتي صالح!');
         return;
     }
-
-    const track = {
-        id: 'direct_' + Date.now(),
-        title: 'بث صوتي مباشر',
-        artist: 'رابط خارجي',
-        cover: '',
-        audioUrl: url,
-        rawAudioUrl: url,
-        duration: ''
-    };
-
-    if (STATE.socket) {
-        STATE.socket.emit('radio_play', {
-            track,
-            currentTime: 0,
-            djName: STATE.user ? STATE.user.nickname : 'دي جي الفصل',
-            djId: STATE.user ? STATE.user.id : null
-        });
-    }
-
-    if (input) input.value = '';
-    hideModal('musicSearchModal');
-    showNotification('تم تشغيل الرابط الصوتي لجميع الطلاب! 🎶');
-}
-
-async function handleRadioFileUpload(file) {
-    if (!file || !STATE.user) return;
-    showNotification('جاري رفع وتشغيل الملف الصوتي للفصل... ⏳');
+    showNotification(`جاري رفع "${file.name}" لمكتبة الفصل وتشغيلها... ⏳`);
 
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('senderId', STATE.user.id);
+    formData.append('title', file.name.replace(/\.[^/.]+$/, ''));
+    formData.append('artist', STATE.user.nickname);
+    formData.append('uploaderId', STATE.user.id);
+    formData.append('uploaderName', STATE.user.nickname);
 
     try {
-        const res = await fetch('/api/chat/upload', {
+        const res = await fetch('/api/music/upload', {
             method: 'POST',
             body: formData
         });
         const data = await res.json();
-        if (data.fileUrl) {
-            const track = {
-                id: 'file_' + Date.now(),
-                title: file.name.replace(/\.[^/.]+$/, ''),
-                artist: STATE.user.nickname,
-                cover: '',
-                audioUrl: data.fileUrl,
-                rawAudioUrl: data.fileUrl,
-                duration: ''
-            };
-
+        if (data.success && data.track) {
+            const track = data.track;
             if (STATE.socket) {
                 STATE.socket.emit('radio_play', {
-                    track,
+                    track: {
+                        id: track.id,
+                        title: track.title,
+                        artist: track.artist,
+                        cover: '',
+                        audioUrl: track.file_url,
+                        file_url: track.file_url,
+                        duration: track.duration || ''
+                    },
                     currentTime: 0,
                     djName: STATE.user.nickname,
                     djId: STATE.user.id
                 });
             }
             hideModal('musicSearchModal');
-            showNotification(`تم تشغيل "${track.title}" للفصل بالكامل! 🎵`);
+            showNotification(`تم رفع وتشغيل "${track.title}" لجميع أجهزة المعمل! 🎵⚡`);
+            loadMusicLibrary();
         } else {
-            showNotification('فشل رفع الملف الصوتي.');
+            showNotification(data.error || 'فشل رفع الملف الصوتي.');
         }
     } catch (e) {
         showNotification('حدث خطأ أثناء رفع الملف الصوتي.');
+    }
+}
+
+async function deleteLibraryMusic(trackId) {
+    if (!STATE.user) return;
+    if (!confirm('هل تريد حذف هذه الأغنية نهائياً من مكتبة الفصل؟')) return;
+
+    try {
+        const res = await fetch(`/api/music/${trackId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: STATE.user.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showNotification('تم حذف الأغنية من المكتبة.');
+            loadMusicLibrary();
+        } else {
+            showNotification(data.error || 'تعذر حذف الأغنية!');
+        }
+    } catch (err) {
+        showNotification('حدث خطأ أثناء حذف الأغنية.');
     }
 }
 
@@ -3036,14 +2961,7 @@ function handleRadioSyncState(state) {
     const audio = getRadioAudioElement();
     const titleEl = document.getElementById('radioTrackTitle');
     const artistEl = document.getElementById('radioTrackArtist');
-    const coverImg = document.getElementById('radioCoverImg');
-    const defaultCover = document.getElementById('radioDefaultCover');
     const playIcon = document.getElementById('radioPlayIcon');
-    const indicator = document.getElementById('radioPlayingIndicator');
-    const videoBtn = document.getElementById('radioToggleVideoBtn');
-    const ytDirectLink = document.getElementById('radioDirectYtLink');
-    const ytNotice = document.getElementById('radioYtFirewallNotice');
-    const ytNoticeBtn = document.getElementById('radioNoticeYtBtn');
 
     if (!state || !state.track) {
         STATE.radio.activeTrack = null;
@@ -3052,15 +2970,7 @@ function handleRadioSyncState(state) {
             audio.pause();
             audio.removeAttribute('src');
         }
-        if (window.isYtReady && window.ytPlayer && typeof window.ytPlayer.stopVideo === 'function') {
-            try { window.ytPlayer.stopVideo(); } catch (e) {}
-        }
-        const videoWrapper = document.getElementById('classroomYtVideoWrapper');
-        if (videoWrapper) videoWrapper.classList.add('hidden');
         if (bar) bar.classList.add('hidden');
-        if (indicator) indicator.classList.add('hidden');
-        if (ytDirectLink) ytDirectLink.classList.add('hidden');
-        if (ytNotice) ytNotice.classList.add('hidden');
         return;
     }
 
@@ -3068,81 +2978,30 @@ function handleRadioSyncState(state) {
     STATE.radio.isPlaying = !!state.isPlaying;
 
     if (bar) bar.classList.remove('hidden');
-    if (indicator) indicator.classList.remove('hidden');
 
-    if (titleEl) titleEl.textContent = state.track.title || 'أغنية';
-    if (artistEl) artistEl.textContent = `${state.track.artist || 'فنان'} • مشغل بواسطة: ${state.djName || 'دي جي الفصل 🎧'}`;
-
-    if (coverImg && state.track.cover) {
-        coverImg.src = state.track.cover;
-        coverImg.classList.remove('hidden');
-        if (defaultCover) defaultCover.classList.add('hidden');
-    } else {
-        if (coverImg) coverImg.classList.add('hidden');
-        if (defaultCover) defaultCover.classList.remove('hidden');
-    }
-
+    if (titleEl) titleEl.textContent = state.track.title || 'أغنية الفصل';
+    if (artistEl) artistEl.textContent = `${state.track.artist || 'موسيقى'} • مشغل بواسطة: ${state.djName || 'دي جي الفصل 🎧'}`;
     if (playIcon) playIcon.textContent = state.isPlaying ? '⏸' : '▶';
 
-    // 1. YouTube Track Playback
-    if (state.track.videoId) {
-        const ytWatchUrl = `https://www.youtube.com/watch?v=${state.track.videoId}`;
-        if (ytDirectLink) {
-            ytDirectLink.href = ytWatchUrl;
-            ytDirectLink.classList.remove('hidden');
-        }
-        if (ytNoticeBtn) {
-            ytNoticeBtn.href = ytWatchUrl;
-        }
-
-        // Safely stop and detach HTML5 audio element
-        if (audio) {
+    if (audio) {
+        const targetSrc = state.track.file_url || state.track.audioUrl;
+        if (targetSrc && audio.src !== targetSrc && !audio.src.endsWith(targetSrc)) {
+            audio.src = targetSrc;
+            audio.load();
+        } else if (!targetSrc) {
             audio.pause();
             audio.removeAttribute('src');
         }
 
-        if (videoBtn) videoBtn.classList.remove('hidden');
+        const expectedTime = state.currentTime || 0;
+        if (Math.abs(audio.currentTime - expectedTime) > 2) {
+            audio.currentTime = expectedTime;
+        }
 
-        // Check whether YouTube API loaded or blocked by school firewall
-        if (window.isYtReady && window.ytPlayer) {
-            if (ytNotice) ytNotice.classList.add('hidden');
-            syncYouTubePlayback(state.track.videoId, state.currentTime || 0, state.isPlaying);
+        if (state.isPlaying && !STATE.isStealthActive && targetSrc) {
+            audio.play().catch(e => console.warn('Radio autoplay error:', e));
         } else {
-            // YouTube blocked on school PC or loading
-            if (ytNotice) ytNotice.classList.remove('hidden');
-            syncYouTubePlayback(state.track.videoId, state.currentTime || 0, state.isPlaying);
-        }
-    } else {
-        // 2. Local Audio File or Direct URL Playback
-        if (ytDirectLink) ytDirectLink.classList.add('hidden');
-        if (ytNotice) ytNotice.classList.add('hidden');
-        if (videoBtn) videoBtn.classList.add('hidden');
-        const videoWrapper = document.getElementById('classroomYtVideoWrapper');
-        if (videoWrapper) videoWrapper.classList.add('hidden');
-        if (window.isYtReady && window.ytPlayer && typeof window.ytPlayer.pauseVideo === 'function') {
-            try { window.ytPlayer.pauseVideo(); } catch (e) {}
-        }
-
-        if (audio) {
-            const targetSrc = state.track.audioUrl;
-            if (targetSrc && audio.src !== targetSrc && !audio.src.endsWith(targetSrc)) {
-                audio.src = targetSrc;
-                audio.load();
-            } else if (!targetSrc) {
-                audio.pause();
-                audio.removeAttribute('src');
-            }
-
-            const expectedTime = state.currentTime || 0;
-            if (Math.abs(audio.currentTime - expectedTime) > 2) {
-                audio.currentTime = expectedTime;
-            }
-
-            if (state.isPlaying && !STATE.isStealthActive && targetSrc) {
-                audio.play().catch(e => console.warn('Radio autoplay error:', e));
-            } else {
-                audio.pause();
-            }
+            audio.pause();
         }
     }
 }
@@ -3152,17 +3011,6 @@ function getRadioAudioElement() {
         STATE.radio.audioEl = document.getElementById('classroomAudioElement');
         if (STATE.radio.audioEl) {
             STATE.radio.audioEl.addEventListener('timeupdate', updateRadioProgressUI);
-            STATE.radio.audioEl.addEventListener('error', () => {
-                const track = STATE.radio.activeTrack;
-                // Only retry fallback for non-YouTube tracks that actually have a direct audio URL
-                if (track && !track.videoId && track.rawAudioUrl && !track.rawAudioUrl.includes('youtube.com') && STATE.radio.audioEl.src !== track.rawAudioUrl) {
-                    console.warn('Proxy audio stream failed, falling back to direct stream:', track.rawAudioUrl);
-                    STATE.radio.audioEl.src = track.rawAudioUrl;
-                    if (STATE.radio.isPlaying && !STATE.isStealthActive) {
-                        STATE.radio.audioEl.play().catch(() => {});
-                    }
-                }
-            });
             STATE.radio.audioEl.addEventListener('ended', () => {
                 if (STATE.socket && STATE.radio.activeTrack) {
                     STATE.socket.emit('radio_stop');
@@ -3178,30 +3026,6 @@ function updateRadioProgressUI() {
     const progressBar = document.getElementById('radioProgressBar');
     const curTimeEl = document.getElementById('radioCurrentTime');
     const totTimeEl = document.getElementById('radioTotalDuration');
-
-    // YouTube Progress
-    if (STATE.radio.activeTrack?.videoId) {
-        if (window.isYtReady && window.ytPlayer && window.ytPlayer.getCurrentTime) {
-            try {
-                const cur = window.ytPlayer.getCurrentTime() || 0;
-                const dur = window.ytPlayer.getDuration() || 0;
-                if (dur > 0 && progressBar) {
-                    progressBar.value = (cur / dur) * 100;
-                }
-                if (curTimeEl) curTimeEl.textContent = formatAudioSeconds(cur);
-                if (dur > 0 && totTimeEl) totTimeEl.textContent = formatAudioSeconds(dur);
-            } catch (e) {}
-            return;
-        }
-
-        // When YouTube API is blocked on PC: display duration if known
-        if (STATE.radio.activeTrack.duration && totTimeEl) {
-            totTimeEl.textContent = STATE.radio.activeTrack.duration;
-        }
-        return;
-    }
-
-    // Audio Element Progress
     const audio = STATE.radio.audioEl;
     if (!audio) return;
 
@@ -3213,21 +3037,9 @@ function updateRadioProgressUI() {
 }
 
 // Keep progress bar updated smoothly
-setInterval(updateRadioProgressUI, 800);
+setInterval(updateRadioProgressUI, 500);
 
 function handleRadioProgressInput(percent) {
-    if (STATE.radio.activeTrack?.videoId && window.isYtReady && window.ytPlayer && window.ytPlayer.getDuration) {
-        try {
-            const dur = window.ytPlayer.getDuration() || 0;
-            if (dur > 0) {
-                const newTime = (percent / 100) * dur;
-                window.ytPlayer.seekTo(newTime, true);
-                if (STATE.socket) STATE.socket.emit('radio_seek', { currentTime: newTime });
-            }
-        } catch (e) {}
-        return;
-    }
-
     const audio = STATE.radio.audioEl;
     if (!audio || !audio.duration) return;
     const newTime = (percent / 100) * audio.duration;
@@ -3241,14 +3053,8 @@ function handleRadioProgressInput(percent) {
 function toggleRadioPlayPause() {
     if (!STATE.radio.activeTrack) return;
     const isPlaying = STATE.radio.isPlaying;
-    let curTime = 0;
-
-    if (STATE.radio.activeTrack.videoId && window.isYtReady && window.ytPlayer && window.ytPlayer.getCurrentTime) {
-        try { curTime = window.ytPlayer.getCurrentTime() || 0; } catch (e) {}
-    } else {
-        const audio = getRadioAudioElement();
-        if (audio) curTime = audio.currentTime || 0;
-    }
+    const audio = getRadioAudioElement();
+    const curTime = audio ? (audio.currentTime || 0) : 0;
 
     if (isPlaying) {
         if (STATE.socket) {
