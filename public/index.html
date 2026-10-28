@@ -34,82 +34,63 @@
 <body class="bg-[#070a13] text-slate-100 min-h-screen flex flex-col antialiased selection:bg-cyan-500 selection:text-black">
 
     <!-- 🌟 TOP GLOBAL HEADER -->
-    <header class="sticky top-0 z-40 bg-[#0c1222]/90 backdrop-blur-xl border-b border-white/10 px-4 py-2.5">
+    <header class="sticky top-0 z-40 bg-[#0c1222]/90 backdrop-blur-xl border-b border-white/10 px-4 py-2">
         <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
             
-            <!-- Logo & Brand -->
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-xl font-black shadow-lg shadow-cyan-500/20 text-white">
-                    نـ⚡
-                </div>
-                <div>
-                    <div class="flex items-center gap-2">
-                        <h1 class="text-lg font-black tracking-tight text-white">نؤطة <span class="text-cyan-400 text-xs font-mono en-text">No2ta</span></h1>
-                        <span id="weekendFreezeBadge" class="hidden px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                            ❄️🔥 الويك إند مجمّد
-                        </span>
-                    </div>
-                    <p class="text-[11px] text-slate-400">شبكة الفصل الاجتماعية والسرية</p>
-                </div>
-            </div>
-
-            <!-- Header Quick Actions -->
-            <div class="flex items-center gap-2">
-                <!-- Presence Pill -->
-                <button onclick="showModal('networkModal')" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs text-slate-300 transition-all">
-                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 live-glow"></span>
-                    <span id="onlineCountBadge" class="font-bold">1 متصل</span>
-                    <span class="text-slate-500 text-[10px]">📱 QR</span>
-                </button>
-
-                <!-- Connect to Host Server Button -->
-                <button onclick="showModal('connectHostModal')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 text-xs font-bold transition-all shadow-sm" title="الاتصال بسيرفر زميلي المضيف">
-                    <span>🔗</span>
-                    <span class="hidden lg:inline">سيرفر الفصل</span>
-                </button>
-
+            <!-- Quick Actions / Tools Group -->
+            <div class="flex items-center gap-2 overflow-x-auto custom-scrollbar py-0.5">
                 <!-- AirDrop Button -->
-                <button onclick="showModal('airdropModal')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-xs font-bold transition-all shadow-sm">
+                <button onclick="showModal('airdropModal')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-xs font-bold transition-all shadow-sm shrink-0" title="مشاركة الملفات السريعة في الفصل">
                     <span>⚡</span>
-                    <span class="hidden md:inline">AirDrop</span>
+                    <span>AirDrop</span>
                 </button>
 
                 <!-- Live Whiteboard Button -->
-                <button onclick="showModal('whiteboardModal')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-bold transition-all shadow-sm">
+                <button onclick="showModal('whiteboardModal')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-bold transition-all shadow-sm shrink-0" title="السبورة المشتركة">
                     <span>🎨</span>
-                    <span class="hidden md:inline">السبورة</span>
+                    <span>السبورة</span>
                 </button>
 
                 <!-- Classroom CodePad Button -->
-                <button onclick="openCodepadModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold transition-all shadow-sm" title="كشكول الأكواد والنصوص المشترك">
+                <button onclick="openCodepadModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold transition-all shadow-sm shrink-0" title="كشكول الأكواد والنصوص المشترك">
                     <span>💻</span>
-                    <span class="hidden md:inline">كشكول الأكواد</span>
+                    <span>كشكول الأكواد</span>
                 </button>
 
                 <!-- Screen Share Button 🖥️ -->
-                <button id="screenShareToggleBtn" onclick="toggleScreenShare()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-bold transition-all shadow-sm relative" title="بث شاشتي أو مشاهدة البث الحي لزملائي">
+                <button id="screenShareToggleBtn" onclick="toggleScreenShare()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-bold transition-all shadow-sm relative shrink-0" title="بث شاشتي أو مشاهدة البث الحي لزملائي">
                     <span class="text-sm">🖥️</span>
-                    <span class="hidden md:inline" id="screenShareBtnLabel">بث الشاشة</span>
+                    <span id="screenShareBtnLabel">بث الشاشة</span>
                     <span id="screenShareLiveDot" class="hidden w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
                 </button>
 
                 <!-- Classroom Radio Button 🎵 -->
-                <button id="radioToggleBtn" onclick="openMusicModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/30 text-pink-400 text-xs font-bold transition-all shadow-sm relative" title="راديو وموسيقى الفصل أونلاين">
+                <button id="radioToggleBtn" onclick="openMusicModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/30 text-pink-400 text-xs font-bold transition-all shadow-sm relative shrink-0" title="راديو وموسيقى الفصل أونلاين">
                     <span class="text-sm">🎵</span>
-                    <span class="hidden md:inline">أغاني الفصل</span>
+                    <span>أغاني الفصل</span>
                     <span id="radioPlayingIndicator" class="hidden w-2 h-2 rounded-full bg-pink-500 animate-ping"></span>
                 </button>
 
+                <!-- Weekend Freeze Badge (Hidden unless active) -->
+                <span id="weekendFreezeBadge" class="hidden px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shrink-0">
+                    ❄️🔥 الويك إند مجمّد
+                </span>
+                
+                <span id="onlineCountBadge" class="hidden"></span>
+            </div>
+
+            <!-- Right Controls: Profile & Panic -->
+            <div class="flex items-center gap-2 shrink-0">
                 <!-- Admin Dashboard Button -->
                 <button id="adminDashboardBtn" onclick="openAdminDashboard()" class="hidden flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-400 text-xs font-bold transition-all">
                     <span>👑</span>
-                    <span class="hidden md:inline">الأدمن</span>
+                    <span class="hidden sm:inline">الأدمن</span>
                 </button>
 
                 <!-- User Profile Badge -->
                 <div onclick="showModal('profileModal')" class="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer hover:border-slate-700 transition-all">
                     <div id="myAvatar" class="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden text-lg shrink-0">🚀</div>
-                    <div class="hidden lg:block text-right">
+                    <div class="hidden sm:block text-right">
                         <span id="myNickname" class="text-xs font-bold text-white block leading-tight">أنا</span>
                         <span id="myRoleBadge" class="text-[9px] text-cyan-400">طالب</span>
                     </div>
@@ -121,7 +102,6 @@
                     <span>البشمهندسة!</span>
                     <span class="text-[9px] bg-red-800/80 px-1 py-0.5 rounded font-mono hidden sm:inline">F2</span>
                 </button>
-
             </div>
         </div>
     </header>
@@ -1171,6 +1151,6 @@
     </div>
 
     <!-- Main Application Scripts -->
-    <script src="/js/app.js?v=3.1.0"></script>
+    <script src="/js/app.js?v=3.1.2"></script>
 </body>
 </html>
