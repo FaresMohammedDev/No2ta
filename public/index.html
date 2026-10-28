@@ -894,7 +894,12 @@
     </div>
 
     <!-- 🎵 SYNCHRONIZED CLASSROOM MUSIC / RADIO BAR 🎵 -->
-    <div id="classroomMusicBar" class="hidden fixed bottom-4 inset-x-4 max-w-xl mx-auto bg-slate-900/95 backdrop-blur-xl border border-pink-500/30 rounded-2xl p-2.5 shadow-2xl shadow-pink-500/15 z-40 transition-all duration-300">
+    <div id="classroomMusicBar" class="hidden fixed bottom-4 inset-x-4 max-w-xl mx-auto bg-slate-900/95 backdrop-blur-xl border border-pink-500/30 rounded-2xl p-2.5 shadow-2xl shadow-pink-500/15 z-40 transition-all duration-300 flex flex-col">
+        <!-- Optional Mini YouTube Video View -->
+        <div id="classroomYtVideoWrapper" class="hidden mb-2 rounded-xl overflow-hidden border border-pink-500/20 bg-black shadow-lg relative w-full aspect-video max-h-56">
+            <div id="classroomYtPlayer" class="w-full h-full"></div>
+        </div>
+
         <div class="flex items-center justify-between gap-3">
             <!-- Track Info & Cover -->
             <div class="flex items-center gap-2.5 min-w-0">
@@ -903,13 +908,16 @@
                     <span id="radioDefaultCover" class="w-full h-full flex items-center justify-center text-lg">🎵</span>
                 </div>
                 <div class="min-w-0">
-                    <h4 id="radioTrackTitle" class="text-xs font-bold text-white truncate max-w-[150px] sm:max-w-xs">اسم الأغنية</h4>
+                    <h4 id="radioTrackTitle" class="text-xs font-bold text-white truncate max-w-[140px] sm:max-w-xs">اسم الأغنية</h4>
                     <p id="radioTrackArtist" class="text-[10px] text-pink-400 truncate">الفنان • دي جي الفصل 🎧</p>
                 </div>
             </div>
 
             <!-- Playback Controls -->
-            <div class="flex items-center gap-2 shrink-0">
+            <div class="flex items-center gap-1.5 shrink-0">
+                <button id="radioToggleVideoBtn" onclick="toggleRadioVideoDisplay()" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-pink-300 text-[11px] font-bold transition-all border border-pink-500/20" title="عرض/إخفاء فيديو الكليب">
+                    📺 كليب
+                </button>
                 <button id="radioPlayPauseBtn" onclick="toggleRadioPlayPause()" class="w-9 h-9 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white flex items-center justify-center font-bold shadow-md shadow-pink-500/30 transition-all text-sm">
                     <span id="radioPlayIcon">▶</span>
                 </button>
@@ -1002,6 +1010,7 @@
     </div>
 
     <!-- Main Application Scripts -->
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script src="/js/app.js"></script>
 </body>
 </html>

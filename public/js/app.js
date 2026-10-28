@@ -514,6 +514,19 @@ function engageStealthMode(info) {
         screenVideo.muted = true;
     }
 
+    // Mute and pause radio audio / YouTube playback immediately
+    if (window.ytPlayer && typeof window.ytPlayer.pauseVideo === 'function') {
+        try {
+            window.ytPlayer.pauseVideo();
+            window.ytPlayer.mute();
+        } catch (e) {}
+    }
+    const radioAudio = document.getElementById('classroomAudioElement');
+    if (radioAudio) {
+        radioAudio.pause();
+        radioAudio.muted = true;
+    }
+
     // 1. Change Document Title & Favicon to Physics Exam
     document.title = 'نموذج إجابة ومراجعة الفيزياء - الوحدة الأولى (التأثير المغناطيسي)';
     const favicon = document.getElementById('appFavicon');
@@ -542,6 +555,23 @@ function releaseStealthMode(info) {
         screenVideo.play().catch(() => {});
         if (!STATE.screenShare.isSharing) {
             screenVideo.muted = false;
+        }
+    }
+
+    // Unmute YouTube player if active
+    if (window.ytPlayer && typeof window.ytPlayer.unMute === 'function') {
+        try {
+            window.ytPlayer.unMute();
+            if (STATE.radio.isPlaying && STATE.radio.activeTrack?.videoId) {
+                window.ytPlayer.playVideo();
+            }
+        } catch (e) {}
+    }
+    const radioAudio = document.getElementById('classroomAudioElement');
+    if (radioAudio) {
+        radioAudio.muted = false;
+        if (STATE.radio.isPlaying && !STATE.radio.activeTrack?.videoId) {
+            radioAudio.play().catch(() => {});
         }
     }
 
@@ -2321,6 +2351,90 @@ async function searchOnlineMusic(query) {
     }
 }
 
+// YouTube Player Global State
+window.ytPlayer = null;
+window.isYtReady = false;
+
+window.onYouTubeIframeAPIReady = function() {
+    try {
+        window.ytPlayer = new YT.Player('classroomYtPlayer', {
+            height: '100%',
+            width: '100%',
+            playerVars: {
+                autoplay: 1,
+                controls: 1,
+                enablejsapi: 1,
+                playsinline: 1,
+                rel: 0,
+                origin: window.location.origin
+            },
+            events: {
+                onReady: () => {
+                    window.isYtReady = true;
+                    if (STATE.radio.pendingYtTrack) {
+                        const p = STATE.radio.pendingYtTrack;
+                        STATE.radio.pendingYtTrack = null;
+                        syncYouTubePlayback(p.videoId, p.currentTime, p.isPlaying);
+                    }
+                },
+                onStateChange: (event) => {
+                    if (window.YT && event.data === YT.PlayerState.ENDED) {
+                        if (STATE.socket && STATE.radio.activeTrack) {
+                            STATE.socket.emit('radio_stop');
+                        }
+                    }
+                }
+            }
+        });
+    } catch (e) {
+        console.warn('YouTube API init note:', e);
+    }
+};
+
+function syncYouTubePlayback(videoId, currentTime = 0, isPlaying = true) {
+    if (!window.isYtReady || !window.ytPlayer || typeof window.ytPlayer.loadVideoById !== 'function') {
+        STATE.radio.pendingYtTrack = { videoId, currentTime, isPlaying };
+        return;
+    }
+
+    try {
+        const curData = window.ytPlayer.getVideoData ? window.ytPlayer.getVideoData() : null;
+        if (!curData || curData.video_id !== videoId) {
+            window.ytPlayer.loadVideoById({
+                videoId: videoId,
+                startSeconds: currentTime || 0
+            });
+        } else {
+            const currentSeconds = window.ytPlayer.getCurrentTime ? window.ytPlayer.getCurrentTime() : 0;
+            if (Math.abs(currentSeconds - currentTime) > 2) {
+                window.ytPlayer.seekTo(currentTime, true);
+            }
+        }
+
+        if (isPlaying && !STATE.isStealthActive) {
+            window.ytPlayer.playVideo();
+        } else {
+            window.ytPlayer.pauseVideo();
+        }
+    } catch (e) {
+        console.warn('YouTube sync note:', e);
+    }
+}
+
+function toggleRadioVideoDisplay() {
+    const videoWrapper = document.getElementById('classroomYtVideoWrapper');
+    const btn = document.getElementById('radioToggleVideoBtn');
+    if (!videoWrapper) return;
+    const isHidden = videoWrapper.classList.contains('hidden');
+    if (isHidden) {
+        videoWrapper.classList.remove('hidden');
+        if (btn) btn.innerHTML = '✕ إخفاء';
+    } else {
+        videoWrapper.classList.add('hidden');
+        if (btn) btn.innerHTML = '📺 كليب';
+    }
+}
+
 function renderMusicResults(tracks, query) {
     const container = document.getElementById('musicResultsContainer');
     if (!container) return;
@@ -2330,7 +2444,7 @@ function renderMusicResults(tracks, query) {
             <div class="text-center py-10 text-slate-500">
                 <span class="text-3xl block mb-2">🔍</span>
                 <p class="text-xs font-bold text-slate-400">لم يتم العثور على أغاني لـ "${escapeHtml(query)}"</p>
-                <p class="text-[10px] text-slate-500 mt-1">جرب البحث باسم مختلف أو اسم المغني</p>
+                <p class="text-[10px] text-slate-500 mt-1">جرب كتابة اسم الأغنية أو اسم المطرب بالعربي أو الإنجليزي</p>
             </div>
         `;
         return;
@@ -2347,13 +2461,19 @@ function renderMusicResults(tracks, query) {
                         <img src="${track.cover || ''}" onerror="this.style.display='none'" class="w-full h-full object-cover">
                     </div>
                     <div class="min-w-0">
-                        <h4 class="text-xs font-bold text-white truncate max-w-[170px] sm:max-w-xs group-hover:text-pink-300 transition-colors">${escapeHtml(track.title)}</h4>
+                        <h4 class="text-xs font-bold text-white truncate max-w-[150px] sm:max-w-xs group-hover:text-pink-300 transition-colors">${escapeHtml(track.title)}</h4>
                         <p class="text-[10px] text-slate-400 truncate">${escapeHtml(track.artist)} ${track.duration ? '• ' + track.duration : ''}</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
+                    <!-- YouTube link if available -->
+                    ${track.videoId ? `
+                        <a href="https://www.youtube.com/watch?v=${track.videoId}" target="_blank" rel="noopener" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 text-xs font-bold transition-all" title="فتح على يوتيوب ↗">
+                            ↗
+                        </a>
+                    ` : ''}
                     <!-- Share to Chat -->
-                    <button onclick="shareTrackToChatByIndex(${idx})" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all" title="مشاركة الأغنية في الشات 💬">
+                    <button onclick="shareTrackToChatByIndex(${idx})" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all" title="مشاركة الأغنية في الشات 💬">
                         💬
                     </button>
                     <!-- Play for Class -->
@@ -2489,6 +2609,11 @@ function handleRadioSyncState(state) {
             audio.pause();
             audio.src = '';
         }
+        if (window.isYtReady && window.ytPlayer && typeof window.ytPlayer.stopVideo === 'function') {
+            try { window.ytPlayer.stopVideo(); } catch (e) {}
+        }
+        const videoWrapper = document.getElementById('classroomYtVideoWrapper');
+        if (videoWrapper) videoWrapper.classList.add('hidden');
         if (bar) bar.classList.add('hidden');
         if (indicator) indicator.classList.add('hidden');
         return;
@@ -2514,22 +2639,39 @@ function handleRadioSyncState(state) {
 
     if (playIcon) playIcon.textContent = state.isPlaying ? '⏸' : '▶';
 
-    if (audio) {
-        const targetSrc = state.track.audioUrl;
-        if (audio.src !== targetSrc && !audio.src.endsWith(targetSrc)) {
-            audio.src = targetSrc;
-            audio.load();
+    const videoBtn = document.getElementById('radioToggleVideoBtn');
+
+    // 1. YouTube Track Playback
+    if (state.track.videoId) {
+        if (videoBtn) videoBtn.classList.remove('hidden');
+        if (audio) { audio.pause(); audio.src = ''; }
+        syncYouTubePlayback(state.track.videoId, state.currentTime || 0, state.isPlaying);
+    } else {
+        // 2. Local Audio File or Direct URL Playback
+        if (videoBtn) videoBtn.classList.add('hidden');
+        const videoWrapper = document.getElementById('classroomYtVideoWrapper');
+        if (videoWrapper) videoWrapper.classList.add('hidden');
+        if (window.isYtReady && window.ytPlayer && typeof window.ytPlayer.pauseVideo === 'function') {
+            try { window.ytPlayer.pauseVideo(); } catch (e) {}
         }
 
-        const expectedTime = state.currentTime || 0;
-        if (Math.abs(audio.currentTime - expectedTime) > 2) {
-            audio.currentTime = expectedTime;
-        }
+        if (audio) {
+            const targetSrc = state.track.audioUrl;
+            if (targetSrc && audio.src !== targetSrc && !audio.src.endsWith(targetSrc)) {
+                audio.src = targetSrc;
+                audio.load();
+            }
 
-        if (state.isPlaying && !STATE.isStealthActive) {
-            audio.play().catch(e => console.warn('Radio autoplay error:', e));
-        } else {
-            audio.pause();
+            const expectedTime = state.currentTime || 0;
+            if (Math.abs(audio.currentTime - expectedTime) > 2) {
+                audio.currentTime = expectedTime;
+            }
+
+            if (state.isPlaying && !STATE.isStealthActive) {
+                audio.play().catch(e => console.warn('Radio autoplay error:', e));
+            } else {
+                audio.pause();
+            }
         }
     }
 }
@@ -2560,12 +2702,27 @@ function getRadioAudioElement() {
 
 function updateRadioProgressUI() {
     if (STATE.radio.isSeeking) return;
-    const audio = STATE.radio.audioEl;
-    if (!audio) return;
-
     const progressBar = document.getElementById('radioProgressBar');
     const curTimeEl = document.getElementById('radioCurrentTime');
     const totTimeEl = document.getElementById('radioTotalDuration');
+
+    // YouTube Progress
+    if (STATE.radio.activeTrack?.videoId && window.isYtReady && window.ytPlayer && window.ytPlayer.getCurrentTime) {
+        try {
+            const cur = window.ytPlayer.getCurrentTime() || 0;
+            const dur = window.ytPlayer.getDuration() || 0;
+            if (dur > 0 && progressBar) {
+                progressBar.value = (cur / dur) * 100;
+            }
+            if (curTimeEl) curTimeEl.textContent = formatAudioSeconds(cur);
+            if (dur > 0 && totTimeEl) totTimeEl.textContent = formatAudioSeconds(dur);
+        } catch (e) {}
+        return;
+    }
+
+    // Audio Element Progress
+    const audio = STATE.radio.audioEl;
+    if (!audio) return;
 
     if (audio.duration && !isNaN(audio.duration)) {
         if (progressBar) progressBar.value = (audio.currentTime / audio.duration) * 100;
@@ -2574,7 +2731,22 @@ function updateRadioProgressUI() {
     if (curTimeEl) curTimeEl.textContent = formatAudioSeconds(audio.currentTime);
 }
 
+// Keep progress bar updated smoothly
+setInterval(updateRadioProgressUI, 800);
+
 function handleRadioProgressInput(percent) {
+    if (STATE.radio.activeTrack?.videoId && window.isYtReady && window.ytPlayer && window.ytPlayer.getDuration) {
+        try {
+            const dur = window.ytPlayer.getDuration() || 0;
+            if (dur > 0) {
+                const newTime = (percent / 100) * dur;
+                window.ytPlayer.seekTo(newTime, true);
+                if (STATE.socket) STATE.socket.emit('radio_seek', { currentTime: newTime });
+            }
+        } catch (e) {}
+        return;
+    }
+
     const audio = STATE.radio.audioEl;
     if (!audio || !audio.duration) return;
     const newTime = (percent / 100) * audio.duration;
@@ -2586,18 +2758,26 @@ function handleRadioProgressInput(percent) {
 }
 
 function toggleRadioPlayPause() {
-    const audio = getRadioAudioElement();
-    if (!audio || !STATE.radio.activeTrack) return;
+    if (!STATE.radio.activeTrack) return;
+    const isPlaying = STATE.radio.isPlaying;
+    let curTime = 0;
 
-    if (STATE.radio.isPlaying) {
+    if (STATE.radio.activeTrack.videoId && window.isYtReady && window.ytPlayer && window.ytPlayer.getCurrentTime) {
+        try { curTime = window.ytPlayer.getCurrentTime() || 0; } catch (e) {}
+    } else {
+        const audio = getRadioAudioElement();
+        if (audio) curTime = audio.currentTime || 0;
+    }
+
+    if (isPlaying) {
         if (STATE.socket) {
-            STATE.socket.emit('radio_pause', { currentTime: audio.currentTime });
+            STATE.socket.emit('radio_pause', { currentTime: curTime });
         }
     } else {
         if (STATE.socket) {
             STATE.socket.emit('radio_play', {
                 track: STATE.radio.activeTrack,
-                currentTime: audio.currentTime,
+                currentTime: curTime,
                 djName: STATE.user ? STATE.user.nickname : 'أنت'
             });
         }

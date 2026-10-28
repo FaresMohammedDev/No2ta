@@ -542,7 +542,7 @@ app.get('/api/screen-share/status', (req, res) => {
     });
 });
 
-// 11. Online Free Music API (JioSaavn + iTunes + Proxied Stream) 🎵
+// 11. Online Free Music API (YouTube Music + JioSaavn + iTunes) 🎵
 app.get('/api/music/search', async (req, res) => {
     const query = req.query.q || '';
     if (!query.trim()) return res.json({ success: true, tracks: [] });
@@ -550,7 +550,53 @@ app.get('/api/music/search', async (req, res) => {
     try {
         const agent = new https.Agent({ rejectUnauthorized: false });
 
-        // 1. Try JioSaavn API on Vercel (Fast, Full-length tracks, bypasses firewall)
+        // 1. Primary Engine: YouTube Music Catalog (Full support for Arabic, Egyptian, Mahraganat, Rap & Pop)
+        const ytResults = await new Promise((resolve) => {
+            const clientReq = https.get({
+                hostname: 'yoyt.vercel.app',
+                path: `/api/public/search?q=${encodeURIComponent(query)}&filter=songs&limit=15`,
+                agent,
+                headers: { 'User-Agent': 'Mozilla/5.0' },
+                timeout: 5000
+            }, (apiRes) => {
+                let d = '';
+                apiRes.on('data', c => d += c);
+                apiRes.on('end', () => {
+                    try {
+                        const json = JSON.parse(d);
+                        const items = json.items || [];
+                        const tracks = items.map(item => {
+                            const artistName = (item.artists || []).map(a => a.name).join(', ') || 'فنان';
+                            const cover = item.thumbnails?.[item.thumbnails.length - 1]?.url ||
+                                          `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`;
+                            return {
+                                id: item.videoId,
+                                videoId: item.videoId,
+                                title: item.title,
+                                artist: artistName,
+                                cover,
+                                duration: item.duration || '',
+                                audioUrl: null,
+                                rawAudioUrl: `https://www.youtube.com/watch?v=${item.videoId}`,
+                                youtubeUrl: `https://www.youtube.com/watch?v=${item.videoId}`,
+                                source: 'youtube'
+                            };
+                        });
+                        resolve(tracks);
+                    } catch(e) {
+                        resolve([]);
+                    }
+                });
+            });
+            clientReq.on('error', () => resolve([]));
+            clientReq.on('timeout', () => { clientReq.destroy(); resolve([]); });
+        });
+
+        if (ytResults && ytResults.length > 0) {
+            return res.json({ success: true, tracks: ytResults });
+        }
+
+        // 2. Secondary Engine: JioSaavn API on Vercel
         const jioResults = await new Promise((resolve) => {
             const clientReq = https.get({
                 hostname: 'jiosaavn-api.vercel.app',
