@@ -92,6 +92,22 @@ async function fetchNetworkInfo() {
             const adminRadio = document.querySelector('input[name="authAvatar"][value="👑"]');
             if (adminRadio) adminRadio.checked = true;
         }
+
+        // Check if user is on standalone localhost on a secondary machine
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const warnBanner = document.getElementById('standaloneLocalhostBanner');
+        if (warnBanner) {
+            if (isLocalhost && !data.isHostAdmin) {
+                warnBanner.classList.remove('hidden');
+            } else {
+                warnBanner.classList.add('hidden');
+            }
+        }
+
+        const hostInput = document.getElementById('targetHostIpInput');
+        if (hostInput) {
+            hostInput.value = localStorage.getItem('no2ta_custom_host_ip') || (data.primaryLanIp !== '127.0.0.1' ? data.primaryLanIp : '');
+        }
     } catch (e) {
         console.error('Failed to fetch network info:', e);
     }
@@ -1070,6 +1086,46 @@ async function handleAirDropUpload(file) {
 // ----------------------------------------------------
 // 9. Live Collaborative Whiteboard (سبورة الفصل الحية 🎨)
 // ----------------------------------------------------
+function resizeWhiteboardCanvas() {
+    const canvas = STATE.whiteboard.canvas;
+    if (!canvas) return;
+    const parent = canvas.parentElement;
+    if (!parent) return;
+
+    const w = parent.clientWidth || 900;
+    const h = parent.clientHeight || 550;
+
+    if (w <= 0 || h <= 0) return;
+
+    if (canvas.width !== w || canvas.height !== h) {
+        let prevImage = null;
+        if (canvas.width > 0 && canvas.height > 0) {
+            try {
+                prevImage = STATE.whiteboard.ctx.getImageData(0, 0, canvas.width, canvas.height);
+            } catch(e) {}
+        }
+
+        canvas.width = w;
+        canvas.height = h;
+
+        const ctx = canvas.getContext('2d');
+        STATE.whiteboard.ctx = ctx;
+
+        ctx.fillStyle = '#070a13';
+        ctx.fillRect(0, 0, w, h);
+
+        if (prevImage) {
+            try {
+                ctx.putImageData(prevImage, 0, 0);
+            } catch(e) {}
+        }
+
+        if (STATE.socket) {
+            STATE.socket.emit('request_whiteboard_history');
+        }
+    }
+}
+
 function initWhiteboard() {
     const canvas = document.getElementById('whiteboardCanvas');
     if (!canvas) return;
@@ -1078,14 +1134,17 @@ function initWhiteboard() {
     STATE.whiteboard.canvas = canvas;
     STATE.whiteboard.ctx = ctx;
 
-    // Resize canvas
-    function resizeCanvas() {
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width;
-        canvas.height = rect.height;
-    }
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    canvas.width = 900;
+    canvas.height = 550;
+    ctx.fillStyle = '#070a13';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    window.addEventListener('resize', () => {
+        const modal = document.getElementById('whiteboardModal');
+        if (modal && !modal.classList.contains('hidden')) {
+            resizeWhiteboardCanvas();
+        }
+    });
 
     // Mouse & Touch events
     const startDraw = (e) => {
@@ -1104,7 +1163,7 @@ function initWhiteboard() {
             x1: pos.x,
             y1: pos.y,
             color: STATE.whiteboard.mode === 'eraser' ? '#070a13' : STATE.whiteboard.color,
-            size: STATE.whiteboard.mode === 'eraser' ? STATE.whiteboard.brushSize * 4 : STATE.whiteboard.brushSize
+            size: STATE.whiteboard.mode === 'eraser' ? STATE.whiteboard.brushSize * 5 : STATE.whiteboard.brushSize
         };
 
         drawStrokeOnCanvas(drawData);
@@ -1126,9 +1185,9 @@ function initWhiteboard() {
     canvas.addEventListener('mouseup', stopDraw);
     canvas.addEventListener('mouseleave', stopDraw);
 
-    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDraw(e.touches[0]); });
-    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); drawMove(e.touches[0]); });
-    canvas.addEventListener('touchend', stopDraw);
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDraw(e); }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); drawMove(e); }, { passive: false });
+    canvas.addEventListener('touchend', (e) => { e.preventDefault(); stopDraw(); }, { passive: false });
 
     // Socket drawing receiver
     if (STATE.socket) {
@@ -1137,7 +1196,9 @@ function initWhiteboard() {
         });
 
         STATE.socket.on('whiteboard_init', (history) => {
-            history.forEach(stroke => drawStrokeOnCanvas(stroke));
+            if (Array.isArray(history)) {
+                history.forEach(stroke => drawStrokeOnCanvas(stroke));
+            }
         });
 
         STATE.socket.on('whiteboard_cleared', () => {
@@ -1147,10 +1208,25 @@ function initWhiteboard() {
 }
 
 function getCanvasPos(e) {
-    const rect = STATE.whiteboard.canvas.getBoundingClientRect();
+    const canvas = STATE.whiteboard.canvas;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / (rect.width || 1);
+    const scaleY = canvas.height / (rect.height || 1);
+
+    let clientX = e.clientX;
+    let clientY = e.clientY;
+
+    if (clientX === undefined && e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else if (clientX === undefined && e.changedTouches && e.changedTouches.length > 0) {
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+    }
+
     return {
-        x: (e.clientX || e.pageX) - rect.left,
-        y: (e.clientY || e.pageY) - rect.top
+        x: ((clientX !== undefined ? clientX : 0) - rect.left) * scaleX,
+        y: ((clientY !== undefined ? clientY : 0) - rect.top) * scaleY
     };
 }
 
@@ -1362,6 +1438,10 @@ function showModal(id) {
         const radio = document.querySelector(`input[name="editAvatar"][value="${STATE.user.avatar}"]`);
         if (radio) radio.checked = true;
     }
+    if (id === 'whiteboardModal') {
+        setTimeout(resizeWhiteboardCanvas, 50);
+        setTimeout(resizeWhiteboardCanvas, 200);
+    }
 }
 
 function hideModal(id) {
@@ -1425,6 +1505,25 @@ function escapeHtml(str) {
         "'": '&#39;',
         '"': '&quot;'
     }[tag] || tag));
+}
+
+function connectToEnteredHost() {
+    const input = document.getElementById('targetHostIpInput');
+    let target = input ? input.value.trim() : '';
+    if (!target) {
+        alert('يرجى كتابة عنوان IP السيرفر أولاً!');
+        return;
+    }
+    target = target.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+    let host = target;
+    let port = 5000;
+    if (target.includes(':')) {
+        const parts = target.split(':');
+        host = parts[0];
+        port = parts[1];
+    }
+    localStorage.setItem('no2ta_custom_host_ip', host);
+    window.location.href = `http://${host}:${port}`;
 }
 
 // ----------------------------------------------------

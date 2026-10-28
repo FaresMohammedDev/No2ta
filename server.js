@@ -11,6 +11,7 @@ const crypto = require('crypto');
 const { db, run, get, all, initDB } = require('./data/db');
 const { cleanIP, getServerLanIPs, resolveMacAddress } = require('./services/network');
 const { recordInteraction, getStreakBetween, getAllUserStreaks, isWeekendFreeze } = require('./services/streaks');
+const { startBeacon } = require('./services/discovery');
 
 const app = express();
 const server = http.createServer(app);
@@ -680,6 +681,10 @@ io.on('connection', async (socket) => {
         io.emit('whiteboard_cleared');
     });
 
+    socket.on('request_whiteboard_history', () => {
+        socket.emit('whiteboard_init', whiteboardHistory);
+    });
+
     // 5. GLOBAL PANIC BUTTON ("زر البشمهندسة" 🚨)
     // Accessible by ANY student! Instantly broadcasts to everyone in <15ms
     socket.on('TRIGGER_GLOBAL_PANIC', async () => {
@@ -749,6 +754,7 @@ setInterval(async () => {
 
 async function startServer() {
     await initDB();
+    startBeacon(PORT);
 
     server.listen(PORT, '0.0.0.0', async () => {
         const lanIps = getServerLanIPs();
