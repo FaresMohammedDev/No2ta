@@ -94,7 +94,7 @@
 
                 <!-- User Profile Badge -->
                 <div onclick="showModal('profileModal')" class="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer hover:border-slate-700 transition-all">
-                    <span id="myAvatar" class="text-lg">🚀</span>
+                    <div id="myAvatar" class="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden text-lg shrink-0">🚀</div>
                     <div class="hidden lg:block text-right">
                         <span id="myNickname" class="text-xs font-bold text-white block leading-tight">أنا</span>
                         <span id="myRoleBadge" class="text-[9px] text-cyan-400">طالب</span>
@@ -314,7 +314,26 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-300 mb-2">اختر صورتك الرمزية (Avatar)</label>
+                    <label class="block text-xs font-bold text-slate-300 mb-2">صورتك الشخصية (Avatar)</label>
+                    
+                    <!-- Upload from Device -->
+                    <div class="p-2.5 bg-slate-950 rounded-2xl border border-slate-800 mb-2.5 flex items-center justify-between gap-2.5">
+                        <div class="flex items-center gap-2.5">
+                            <div id="authAvatarCustomPreview" class="w-10 h-10 rounded-full border border-cyan-500 overflow-hidden bg-slate-900 flex items-center justify-center text-lg shrink-0">
+                                🚀
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold text-white leading-tight">ارفع صورة من جهازك</p>
+                                <p class="text-[10px] text-slate-400">صورة شخصية حقيقية لك 📷</p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('authAvatarFileInput').click()" class="shrink-0 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 text-xs font-bold transition-all border border-slate-700">
+                            اختيار ملف
+                        </button>
+                        <input type="file" id="authAvatarFileInput" accept="image/*" class="hidden">
+                    </div>
+
+                    <span class="block text-[11px] text-slate-400 mb-1.5">أو اختر رمزاً تعبيرياً (Emoji):</span>
                     <div class="flex items-center justify-between gap-2 p-2 bg-slate-950 rounded-xl border border-slate-800">
                         <label class="cursor-pointer"><input type="radio" name="authAvatar" value="🚀" checked class="hidden peer"><span class="w-9 h-9 rounded-lg flex items-center justify-center text-lg peer-checked:bg-cyan-500 peer-checked:text-black">🚀</span></label>
                         <label class="cursor-pointer"><input type="radio" name="authAvatar" value="⚡" class="hidden peer"><span class="w-9 h-9 rounded-lg flex items-center justify-center text-lg peer-checked:bg-cyan-500 peer-checked:text-black">⚡</span></label>
@@ -561,8 +580,21 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-300 mb-1">أو ارفع صورة / فيديو للاستوري</label>
-                    <input type="file" id="storyFileInput" accept="image/*,video/*" class="w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-slate-800 file:text-cyan-400 hover:file:bg-slate-700">
+                    <label class="block text-xs font-bold text-slate-300 mb-1">رفع صورة أو فيديو للاستوري (من جهازك):</label>
+                    <div id="storyDropZone" onclick="document.getElementById('storyFileInput').click()" class="border-2 border-dashed border-slate-700 hover:border-cyan-500 rounded-2xl p-4 text-center cursor-pointer transition-all bg-slate-950/50">
+                        <div id="storyFileEmptyState">
+                            <span class="text-3xl block mb-1">📷</span>
+                            <p class="text-xs font-bold text-cyan-300">اضغط هنا لاختيار صورة من جهازك</p>
+                            <p class="text-[10px] text-slate-400">يدعم الصور من الكمبيوتر أو الموبايل</p>
+                        </div>
+                        <div id="storyFilePreviewState" class="hidden flex flex-col items-center gap-2">
+                            <img id="storyImagePreview" class="max-h-40 rounded-xl object-contain shadow-lg border border-white/10" />
+                            <button type="button" onclick="event.stopPropagation(); removeStorySelectedFile();" class="text-xs text-red-400 hover:text-red-300 font-bold bg-slate-900 px-3 py-1 rounded-lg border border-red-500/30">
+                                إلغاء الصورة ✕
+                            </button>
+                        </div>
+                        <input type="file" id="storyFileInput" accept="image/*,video/*" class="hidden">
+                    </div>
                 </div>
 
                 <button type="submit" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold text-sm transition-all shadow-lg">
@@ -682,7 +714,26 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-300 mb-2">الصورة الرمزية (Avatar)</label>
+                    <label class="block text-xs font-bold text-slate-300 mb-2">صورتك الشخصية (Avatar)</label>
+                    
+                    <!-- Upload Profile Photo From Device -->
+                    <div class="p-3 bg-slate-950 rounded-2xl border border-slate-800 mb-3 flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <div id="editAvatarCustomPreview" class="w-12 h-12 rounded-full border-2 border-cyan-500 overflow-hidden bg-slate-900 flex items-center justify-center text-xl shrink-0">
+                                🚀
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold text-white leading-tight">اختر صورة من جهازك</p>
+                                <p class="text-[10px] text-slate-400">صورة شخصية حقيقية لك 📷</p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('editAvatarFileInput').click()" class="shrink-0 px-3.5 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-black transition-all shadow-md shadow-cyan-500/20">
+                            📷 اختيار ملف
+                        </button>
+                        <input type="file" id="editAvatarFileInput" accept="image/*" class="hidden">
+                    </div>
+
+                    <span class="block text-[11px] text-slate-400 mb-1.5">أو اختر رمزاً تعبيرياً (Emoji):</span>
                     <div class="flex items-center justify-between gap-2 p-2 bg-slate-950 rounded-xl border border-slate-800">
                         <label class="cursor-pointer"><input type="radio" name="editAvatar" value="🚀" class="hidden peer"><span class="w-9 h-9 rounded-lg flex items-center justify-center text-lg peer-checked:bg-cyan-500 peer-checked:text-black">🚀</span></label>
                         <label class="cursor-pointer"><input type="radio" name="editAvatar" value="⚡" class="hidden peer"><span class="w-9 h-9 rounded-lg flex items-center justify-center text-lg peer-checked:bg-cyan-500 peer-checked:text-black">⚡</span></label>

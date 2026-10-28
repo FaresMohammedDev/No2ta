@@ -55,7 +55,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Ensure Upload directories exist
-const uploadDirs = ['uploads', 'uploads/media', 'uploads/audio', 'uploads/stories', 'uploads/airdrop'];
+const uploadDirs = ['uploads', 'uploads/media', 'uploads/audio', 'uploads/stories', 'uploads/airdrop', 'uploads/avatars'];
 uploadDirs.forEach(dir => {
     const full = path.join(__dirname, dir);
     if (!fs.existsSync(full)) fs.mkdirSync(full, { recursive: true });
@@ -68,6 +68,7 @@ const storage = multer.diskStorage({
         if (req.path.includes('audio')) dest = 'uploads/audio';
         else if (req.path.includes('story')) dest = 'uploads/stories';
         else if (req.path.includes('airdrop')) dest = 'uploads/airdrop';
+        else if (req.path.includes('avatar')) dest = 'uploads/avatars';
         cb(null, path.join(__dirname, dest));
     },
     filename: (req, file, cb) => {
@@ -303,6 +304,12 @@ app.post('/api/upload/audio', upload.single('audio'), (req, res) => {
         size: req.file.size,
         type: 'audio'
     });
+});
+
+app.post('/api/upload/avatar', upload.single('avatar'), (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    res.json({ success: true, url: avatarUrl });
 });
 
 // 7. Instagram Stories Endpoints

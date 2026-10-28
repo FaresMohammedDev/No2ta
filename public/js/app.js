@@ -35,10 +35,20 @@ const STATE = {
     codepad: {
         text: '',
         debounceTimer: null
-    }
+    },
+    pendingEditAvatarUrl: null,
+    pendingAuthAvatarUrl: null
 };
 
 const MASTER_PASSWORD = 'SdSdSdSd';
+
+function renderAvatarHTML(avatar, extraClasses = 'w-full h-full') {
+    if (!avatar) return '<span>👤</span>';
+    if (avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('/') || avatar.startsWith('data:image')) {
+        return `<img src="${avatar}" class="${extraClasses} object-cover rounded-full" alt="Avatar" />`;
+    }
+    return `<span>${avatar}</span>`;
+}
 
 // DOM Ready Init
 document.addEventListener('DOMContentLoaded', async () => {
@@ -148,7 +158,7 @@ async function handleLoginSubmit(e) {
     errorEl.classList.add('hidden');
     const password = passInput.value.trim();
     const nickname = nickInput.value.trim();
-    const avatar = avatarInput ? avatarInput.value : '🚀';
+    const avatar = STATE.pendingAuthAvatarUrl || (avatarInput ? avatarInput.value : '🚀');
 
     if (password !== MASTER_PASSWORD) {
         errorEl.textContent = 'كلمة السر غير صحيحة! الباسوورد هو SdSdSdSd';
@@ -205,7 +215,7 @@ function updateProfileUI() {
     const adminBtn = document.getElementById('adminDashboardBtn');
 
     if (nameEl) nameEl.textContent = STATE.user.nickname;
-    if (avatarEl) avatarEl.textContent = STATE.user.avatar || '🚀';
+    if (avatarEl) avatarEl.innerHTML = renderAvatarHTML(STATE.user.avatar);
     if (roleEl) {
         roleEl.textContent = STATE.user.role === 'admin' ? '👑 أدمن الفصل' : 'طالب عبقري ⚡';
         roleEl.className = STATE.user.role === 'admin' 
@@ -521,9 +531,9 @@ function renderUsersList() {
         return `
             <div onclick="selectDirectChat('${u.id}')" class="flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all ${isSelected ? 'bg-cyan-500/15 border border-cyan-500/30' : 'hover:bg-slate-800/60 border border-transparent'}">
                 <div class="flex items-center gap-3">
-                    <div class="relative">
-                        <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xl">
-                            ${u.avatar || '👤'}
+                    <div class="relative shrink-0">
+                        <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xl overflow-hidden">
+                            ${renderAvatarHTML(u.avatar)}
                         </div>
                         <span class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 ${isOnline ? 'bg-emerald-500 live-glow' : 'bg-slate-600'}"></span>
                     </div>
@@ -552,7 +562,7 @@ function selectGeneralChat() {
     STATE.activeChat = { type: 'general', recipient: null };
     document.getElementById('currentChatTitle').textContent = '💬 شات الفصل العام (General)';
     document.getElementById('currentChatSubtitle').textContent = 'متاح لجميع الزملاء في الفصل';
-    document.getElementById('currentChatAvatar').textContent = '🌐';
+    document.getElementById('currentChatAvatar').innerHTML = '🌐';
     document.getElementById('directStreakBadge').classList.add('hidden');
 
     document.getElementById('tabGeneralBtn').className = 'flex-1 py-1.5 text-xs font-bold rounded-lg bg-cyan-500 text-slate-950 transition-all';
@@ -569,7 +579,7 @@ function selectDirectChat(userId) {
     STATE.activeChat = { type: 'direct', recipient: target };
     document.getElementById('currentChatTitle').textContent = target.nickname;
     document.getElementById('currentChatSubtitle').textContent = STATE.onlineUserIds.has(target.id) ? 'متصل الآن 🟢' : 'غير متصل حالياً';
-    document.getElementById('currentChatAvatar').textContent = target.avatar || '👤';
+    document.getElementById('currentChatAvatar').innerHTML = renderAvatarHTML(target.avatar);
 
     const streak = STATE.streaks.find(s => s.other_user_id === target.id);
     const directBadge = document.getElementById('directStreakBadge');
@@ -717,8 +727,8 @@ function formatMessageHTML(m) {
 
     return `
         <div id="msg-${m.id}" class="flex gap-2.5 my-3 ${isMe ? 'flex-row-reverse' : 'flex-row'} group">
-            <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sm shrink-0">
-                ${m.sender_avatar || '👤'}
+            <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sm shrink-0 overflow-hidden">
+                ${renderAvatarHTML(m.sender_avatar)}
             </div>
             <div class="max-w-[78%] md:max-w-[65%] flex flex-col ${isMe ? 'items-end' : 'items-start'}">
                 <div class="flex items-center gap-2 mb-1 px-1">
@@ -1005,8 +1015,8 @@ function renderStoriesBar() {
         html += `
             <div onclick="viewUserStories('${authorGroup.userId}')" class="flex flex-col items-center gap-1.5 cursor-pointer group shrink-0">
                 <div class="${ringClass} w-14 h-14 flex items-center justify-center group-hover:scale-105 transition-transform">
-                    <div class="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-2xl border-2 border-slate-950">
-                        ${authorGroup.authorAvatar || '👤'}
+                    <div class="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-2xl border-2 border-slate-950 overflow-hidden">
+                        ${renderAvatarHTML(authorGroup.authorAvatar)}
                     </div>
                 </div>
                 <span class="text-[11px] font-semibold text-slate-300 truncate max-w-[65px]">${escapeHtml(authorGroup.authorName)}</span>
@@ -1049,12 +1059,17 @@ function renderCurrentStory() {
     const contentEl = document.getElementById('storyViewerBody');
     const viewsCountEl = document.getElementById('storyViewersBadge');
 
-    if (avatarEl) avatarEl.textContent = currentViewingGroup.authorAvatar || '👤';
+    if (avatarEl) avatarEl.innerHTML = renderAvatarHTML(currentViewingGroup.authorAvatar);
     if (nameEl) nameEl.textContent = currentViewingGroup.authorName;
     if (viewsCountEl) viewsCountEl.textContent = `👀 ${story.views_count || 1} مشاهدة`;
 
     if (story.media_type === 'image') {
-        contentEl.innerHTML = `<img src="${story.media_url}" class="max-h-[60vh] object-contain rounded-2xl mx-auto shadow-2xl" />`;
+        contentEl.innerHTML = `
+            <div class="flex flex-col items-center">
+                <img src="${story.media_url}" class="max-h-[60vh] object-contain rounded-2xl mx-auto shadow-2xl" />
+                ${story.text_content ? `<div class="mt-3 px-4 py-2 bg-slate-900/90 border border-white/10 rounded-xl text-center text-white text-sm font-bold shadow-lg max-w-sm">${escapeHtml(story.text_content)}</div>` : ''}
+            </div>
+        `;
     } else if (story.media_type === 'video') {
         contentEl.innerHTML = `<video src="${story.media_url}" autoplay controls class="max-h-[60vh] rounded-2xl mx-auto shadow-2xl"></video>`;
     } else {
@@ -1158,13 +1173,24 @@ async function handleCreateStorySubmit(e) {
         if (data.success) {
             hideModal('storyCreatorModal');
             document.getElementById('storyTextInput').value = '';
-            document.getElementById('storyFileInput').value = '';
+            removeStorySelectedFile();
             loadStories();
             showNotification('تم نشر الاستوري بنجاح! 🔥');
         }
     } catch (e) {
         alert('فشل نشر الاستوري!');
     }
+}
+
+function removeStorySelectedFile() {
+    const input = document.getElementById('storyFileInput');
+    if (input) input.value = '';
+    const img = document.getElementById('storyImagePreview');
+    if (img) img.src = '';
+    const emptyState = document.getElementById('storyFileEmptyState');
+    const previewState = document.getElementById('storyFilePreviewState');
+    if (emptyState) emptyState.classList.remove('hidden');
+    if (previewState) previewState.classList.add('hidden');
 }
 
 // ----------------------------------------------------
@@ -1669,7 +1695,7 @@ function renderAdminDashboard(data) {
     container.innerHTML = data.devices.map(d => `
         <tr class="border-b border-slate-800 text-xs">
             <td class="py-2.5 px-3 font-bold text-white flex items-center gap-2">
-                <span>${d.avatar || '👤'}</span>
+                <span class="w-6 h-6 rounded-full overflow-hidden inline-flex items-center justify-center text-sm shrink-0">${renderAvatarHTML(d.avatar)}</span>
                 <span>${escapeHtml(d.nickname)}</span>
             </td>
             <td class="py-2.5 px-3 text-cyan-400 font-mono">${d.ip}</td>
@@ -1777,7 +1803,17 @@ function showModal(id) {
         if (nick) nick.value = STATE.user.nickname || '';
         if (bio) bio.value = STATE.user.bio || '';
         const radio = document.querySelector(`input[name="editAvatar"][value="${STATE.user.avatar}"]`);
-        if (radio) radio.checked = true;
+        if (radio) {
+            radio.checked = true;
+        } else {
+            document.querySelectorAll('input[name="editAvatar"]').forEach(r => r.checked = false);
+        }
+        const previewEl = document.getElementById('editAvatarCustomPreview');
+        if (previewEl) previewEl.innerHTML = renderAvatarHTML(STATE.user.avatar);
+        STATE.pendingEditAvatarUrl = null;
+    }
+    if (id === 'storyCreatorModal') {
+        removeStorySelectedFile();
     }
     if (id === 'whiteboardModal') {
         setTimeout(resizeWhiteboardCanvas, 50);
@@ -1966,7 +2002,7 @@ function setupEventListeners() {
             if (!STATE.user) return;
             const nickname = document.getElementById('editNickname').value.trim();
             const bio = document.getElementById('editBio').value.trim();
-            const avatar = document.querySelector('input[name="editAvatar"]:checked')?.value;
+            const avatar = STATE.pendingEditAvatarUrl || document.querySelector('input[name="editAvatar"]:checked')?.value;
 
             try {
                 const res = await fetch('/api/users/profile', {
@@ -1982,13 +2018,102 @@ function setupEventListeners() {
                 const data = await res.json();
                 if (data.success) {
                     STATE.user = data.user;
+                    STATE.pendingEditAvatarUrl = null;
                     localStorage.setItem('no2ta_user', JSON.stringify(data.user));
                     updateProfileUI();
+                    loadUsers(); // Refresh sidebar
                     hideModal('profileModal');
                     showNotification('تم تحديث بروفايلك بنجاح! 🚀');
                 }
             } catch (err) {
                 alert('فشل تحديث البروفايل!');
+            }
+        });
+    }
+
+    // Avatar Upload Listeners (From Device)
+    const editAvatarFileInput = document.getElementById('editAvatarFileInput');
+    if (editAvatarFileInput) {
+        editAvatarFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const previewEl = document.getElementById('editAvatarCustomPreview');
+                if (previewEl) previewEl.innerHTML = `<img src="${ev.target.result}" class="w-full h-full object-cover rounded-full" />`;
+            };
+            reader.readAsDataURL(file);
+
+            const formData = new FormData();
+            formData.append('avatar', file);
+            try {
+                showNotification('جاري رفع صورة البروفايل... ⏳');
+                const res = await fetch('/api/upload/avatar', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.url) {
+                    STATE.pendingEditAvatarUrl = data.url;
+                    document.querySelectorAll('input[name="editAvatar"]').forEach(r => r.checked = false);
+                    showNotification('تم رفع الصورة بنجاح! 📷 اضغط حفظ التعديلات');
+                }
+            } catch (err) {
+                alert('فشل رفع صورة البروفايل!');
+            }
+        });
+    }
+
+    const authAvatarFileInput = document.getElementById('authAvatarFileInput');
+    if (authAvatarFileInput) {
+        authAvatarFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const previewEl = document.getElementById('authAvatarCustomPreview');
+                if (previewEl) previewEl.innerHTML = `<img src="${ev.target.result}" class="w-full h-full object-cover rounded-full" />`;
+            };
+            reader.readAsDataURL(file);
+
+            const formData = new FormData();
+            formData.append('avatar', file);
+            try {
+                const res = await fetch('/api/upload/avatar', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.url) {
+                    STATE.pendingAuthAvatarUrl = data.url;
+                    document.querySelectorAll('input[name="authAvatar"]').forEach(r => r.checked = false);
+                    showNotification('تم اختيار صورتك الشخصية بنجاح! 📷');
+                }
+            } catch (err) {
+                alert('فشل رفع الصورة!');
+            }
+        });
+    }
+
+    // Story File Preview Listeners
+    const storyFileInput = document.getElementById('storyFileInput');
+    if (storyFileInput) {
+        storyFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        const img = document.getElementById('storyImagePreview');
+                        if (img) img.src = ev.target.result;
+                        const emptyState = document.getElementById('storyFileEmptyState');
+                        const previewState = document.getElementById('storyFilePreviewState');
+                        if (emptyState) emptyState.classList.add('hidden');
+                        if (previewState) previewState.classList.remove('hidden');
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    const emptyState = document.getElementById('storyFileEmptyState');
+                    const previewState = document.getElementById('storyFilePreviewState');
+                    if (emptyState) emptyState.classList.add('hidden');
+                    if (previewState) previewState.classList.remove('hidden');
+                }
             }
         });
     }
