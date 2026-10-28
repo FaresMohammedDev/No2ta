@@ -709,7 +709,253 @@ app.get('/api/screen-share/status', (req, res) => {
     });
 });
 
-// 11. Classroom Local Music Library & Jukebox API 🎵 (100% Offline / Local LAN)
+// 11. Classroom Local Music Library & Jukebox API 🎵 (100% Offline / Local LAN & Online Stream)
+
+// Unblocked Proxy endpoints on Vercel to bypass school firewall (FortiGuard)
+const VERCEL_PROXIES = [
+    'https://vercel-proxycors.vercel.app/?url=',
+    'https://corsproxy-gateway.vercel.app/?url='
+];
+
+// Helper to make HTTPS requests with rejectUnauthorized: false and timeout
+function fetchJsonOnline(url, timeoutMs = 8000) {
+    return new Promise((resolve, reject) => {
+        const req = https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, rejectUnauthorized: false, timeout: timeoutMs }, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    resolve(JSON.parse(data));
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('TIMEOUT')); });
+    });
+}
+
+// Download media stream through unblocked Vercel proxies
+async function downloadMediaViaProxy(targetUrl, destPath) {
+    let lastErr = null;
+    for (const proxyBase of VERCEL_PROXIES) {
+        const fullUrl = proxyBase + encodeURIComponent(targetUrl);
+        try {
+            const success = await new Promise((resolve, reject) => {
+                const file = fs.createWriteStream(destPath);
+                const req = https.get(fullUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, rejectUnauthorized: false, timeout: 25000 }, (response) => {
+                    if (response.statusCode !== 200) {
+                        file.close();
+                        try { fs.unlinkSync(destPath); } catch (e) {}
+                        return reject(new Error('Proxy returned HTTP ' + response.statusCode));
+                    }
+                    response.pipe(file);
+                    file.on('finish', () => {
+                        file.close(() => resolve(true));
+                    });
+                });
+                req.on('error', err => {
+                    file.close();
+                    try { fs.unlinkSync(destPath); } catch (e) {}
+                    reject(err);
+                });
+                req.on('timeout', () => {
+                    req.destroy();
+                    file.close();
+                    try { fs.unlinkSync(destPath); } catch (e) {}
+                    reject(new Error('Download timeout'));
+                });
+            });
+            if (success) return true;
+        } catch (err) {
+            lastErr = err;
+            console.warn(`⚠️ [MUSIC PROXY] ${proxyBase} failed: ${err.message}, trying next...`);
+        }
+    }
+    throw (lastErr || new Error('All music proxies failed'));
+}
+
+// Search online songs from unblocked endpoints
+async function searchOnlineSongs(query) {
+    if (!query || !query.trim()) return [];
+    const q = query.trim();
+
+    // 1. Primary: soulsync-backend on Render (100% unblocked, comprehensive Arabic & English catalog)
+    try {
+        const data = await fetchJsonOnline(`https://soulsync-backend-a5fs.onrender.com/api/search?q=${encodeURIComponent(q)}`, 7000);
+        if (data && Array.isArray(data.songs) && data.songs.length > 0) {
+            return data.songs.map(s => {
+                let streamUrl = s.streamUrl;
+                if (!streamUrl && Array.isArray(s.downloadUrl)) {
+                    const high = s.downloadUrl.find(u => u.quality === '320kbps' || u.quality === '160kbps') || s.downloadUrl[s.downloadUrl.length - 1];
+                    streamUrl = high ? (high.url || high.link) : null;
+                }
+                const rawImg = s.image || (Array.isArray(s.images) ? s.images[0] : null);
+                return {
+                    id: String(s.id || crypto.randomUUID().slice(0, 8)),
+                    title: s.name || s.title || 'أغنية أونلاين',
+                    artist: s.primaryArtists || s.artist || 'فنان',
+                    album: s.album || (s.album?.name || ''),
+                    duration: s.duration ? (typeof s.duration === 'number' ? Math.floor(s.duration / 60) + ':' + String(s.duration % 60).padStart(2, '0') : s.duration) : '',
+                    cover: rawImg ? `/api/music/cover?url=${encodeURIComponent(rawImg)}` : '',
+                    rawCover: rawImg || '',
+                    streamUrl
+                };
+            }).filter(s => s.streamUrl);
+        }
+    } catch (err) {
+        console.warn('⚠️ [ONLINE MUSIC] SoulSync search failed:', err.message);
+    }
+
+    // 2. Secondary Fallback: jiosaavn-api-2 on Vercel
+    try {
+        const data = await fetchJsonOnline(`https://jiosaavn-api-2.vercel.app/search/songs?query=${encodeURIComponent(q)}`, 7000);
+        const results = data.results || [];
+        return results.map(s => {
+            let streamUrl = null;
+            if (Array.isArray(s.downloadUrl)) {
+                const high = s.downloadUrl.find(u => u.quality === '320kbps' || u.quality === '160kbps') || s.downloadUrl[s.downloadUrl.length - 1];
+                streamUrl = high ? (high.url || high.link) : null;
+            }
+            const rawImg = Array.isArray(s.image) ? (s.image.find(i => i.quality === '150x150') || s.image[0])?.link : s.image;
+            return {
+                id: String(s.id || crypto.randomUUID().slice(0, 8)),
+                title: s.name || s.title || 'أغنية أونلاين',
+                artist: s.primaryArtists || s.artist || 'فنان',
+                album: s.album?.name || s.album || '',
+                duration: s.duration ? (typeof s.duration === 'number' ? Math.floor(s.duration / 60) + ':' + String(s.duration % 60).padStart(2, '0') : s.duration) : '',
+                cover: rawImg ? `/api/music/cover?url=${encodeURIComponent(rawImg)}` : '',
+                rawCover: rawImg || '',
+                streamUrl
+            };
+        }).filter(s => s.streamUrl);
+    } catch (err) {
+        console.warn('⚠️ [ONLINE MUSIC] JioSaavn-2 search fallback failed:', err.message);
+        return [];
+    }
+}
+
+// Online Music Search API
+app.get('/api/music/online/search', async (req, res) => {
+    try {
+        const q = (req.query.q || '').trim();
+        if (!q) return res.json({ success: true, songs: [] });
+        const songs = await searchOnlineSongs(q);
+        res.json({ success: true, songs });
+    } catch (err) {
+        console.error('Online music search error:', err);
+        res.status(500).json({ success: false, error: err.message, songs: [] });
+    }
+});
+
+// Proxy cover art images through unblocked Vercel proxy with local disk cache
+app.get('/api/music/cover', async (req, res) => {
+    try {
+        const targetUrl = req.query.url;
+        if (!targetUrl) return res.status(400).send('Missing url parameter');
+
+        // Check local disk cache
+        const cacheHash = crypto.createHash('md5').update(targetUrl).digest('hex');
+        const localCachePath = path.join(__dirname, 'uploads', 'music', `cover_cache_${cacheHash}.jpg`);
+        if (fs.existsSync(localCachePath)) {
+            res.setHeader('Content-Type', 'image/jpeg');
+            res.setHeader('Cache-Control', 'public, max-age=604800');
+            return fs.createReadStream(localCachePath).pipe(res);
+        }
+
+        // Fetch via unblocked proxy
+        const proxyUrl = VERCEL_PROXIES[0] + encodeURIComponent(targetUrl);
+        const proxyReq = https.get(proxyUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, rejectUnauthorized: false, timeout: 8000 }, (proxyRes) => {
+            if (proxyRes.statusCode === 200) {
+                res.setHeader('Content-Type', proxyRes.headers['content-type'] || 'image/jpeg');
+                res.setHeader('Cache-Control', 'public, max-age=604800');
+                const fileOut = fs.createWriteStream(localCachePath);
+                proxyRes.pipe(fileOut);
+                proxyRes.pipe(res);
+            } else {
+                res.status(proxyRes.statusCode).end();
+            }
+        });
+        proxyReq.on('error', () => {
+            res.status(502).end();
+        });
+    } catch (err) {
+        res.status(500).send(err.message);
+    }
+});
+
+// Online Song Play & Auto-Cache for the Classroom LAN
+app.post('/api/music/online/play', async (req, res) => {
+    try {
+        const { songId, title, artist, rawCover, streamUrl, duration, djName, djId } = req.body;
+        if (!songId || !streamUrl) {
+            return res.status(400).json({ success: false, error: 'بيانات الأغنية غير مكتملة!' });
+        }
+
+        const safeId = String(songId).replace(/[^a-zA-Z0-9_-]/g, '');
+        const filename = `online_${safeId}.mp4`;
+        const destPath = path.join(__dirname, 'uploads', 'music', filename);
+        const localAudioUrl = `/uploads/music/${filename}`;
+
+        let localCoverUrl = '';
+        if (rawCover) {
+            const coverFilename = `cover_${safeId}.jpg`;
+            const coverDest = path.join(__dirname, 'uploads', 'music', coverFilename);
+            if (!fs.existsSync(coverDest)) {
+                downloadMediaViaProxy(rawCover, coverDest).catch(e => console.warn('Cover download skipped:', e.message));
+            }
+            localCoverUrl = `/uploads/music/${coverFilename}`;
+        }
+
+        // Check if audio file already exists locally
+        if (!fs.existsSync(destPath)) {
+            console.log(`📥 [ONLINE MUSIC] Downloading "${title}" from outside via unblocked proxy...`);
+            await downloadMediaViaProxy(streamUrl, destPath);
+            console.log(`✅ [ONLINE MUSIC] Successfully downloaded "${title}" to ${destPath}`);
+        }
+
+        // Insert into music_library if not already exists
+        const trackDbId = 'track_online_' + safeId;
+        const existingTrack = await get(`SELECT id FROM music_library WHERE id = ?`, [trackDbId]);
+        if (!existingTrack) {
+            await run(
+                `INSERT INTO music_library (id, title, artist, file_url, file_name, duration, cover, uploader_id, uploader_name)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [trackDbId, title || 'أغنية أونلاين', artist || 'فنان', localAudioUrl, filename, duration || '', localCoverUrl, djId || null, djName || 'دي جي الفصل']
+            );
+            const savedTrack = await get(`SELECT * FROM music_library WHERE id = ?`, [trackDbId]);
+            io.emit('music_library_updated', { track: savedTrack, action: 'add' });
+        }
+
+        // Broadcast to all sockets to play synchronously
+        activeRadioTrack = {
+            track: {
+                id: trackDbId,
+                title: title || 'أغنية أونلاين',
+                artist: artist || 'فنان',
+                cover: localCoverUrl,
+                audioUrl: localAudioUrl,
+                file_url: localAudioUrl,
+                duration: duration || ''
+            },
+            currentTime: 0,
+            isPlaying: true,
+            startedAt: Date.now(),
+            djName: djName || 'دي جي الفصل',
+            djId: djId || null
+        };
+
+        console.log(`🎵 [RADIO SYNC PLAY] Broadcasting "${title}" across LAN to all devices`);
+        io.emit('radio_sync_state', activeRadioTrack);
+
+        res.json({ success: true, track: activeRadioTrack.track });
+    } catch (err) {
+        console.error('Online play error:', err);
+        res.status(500).json({ success: false, error: 'تعذر تشغيل الأغنية: ' + err.message });
+    }
+});
+
 // Get or Search tracks in Classroom Local Library
 app.get('/api/music/library', async (req, res) => {
     try {

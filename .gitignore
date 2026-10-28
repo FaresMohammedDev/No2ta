@@ -18,6 +18,10 @@ uploads/airdrop/*
 !uploads/airdrop/.gitkeep
 uploads/avatars/*
 !uploads/avatars/.gitkeep
+uploads/music/online_*
+uploads/music/cover_*
+uploads/music/test_*
+uploads/music/*_cache_*
 
 # OS generated files
 .DS_Store

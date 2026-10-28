@@ -2738,17 +2738,239 @@ async function handleIncomingIceCandidate({ fromSocketId, candidate }) {
 }
 
 // ----------------------------------------------------
+// 9d. Synchronized Classroom Music Library & Online Jukebox 🎵⚡ (LAN + Online Stream)
 // ----------------------------------------------------
-// 9d. Synchronized Classroom Local Music Library & Jukebox 🎵⚡ (100% LAN)
-// ----------------------------------------------------
+
+let currentMusicTab = 'online';
+
+function switchMusicModalTab(tab) {
+    currentMusicTab = tab;
+    const onlineBtn = document.getElementById('onlineMusicTabBtn');
+    const localBtn = document.getElementById('localMusicTabBtn');
+    const onlinePanel = document.getElementById('onlineMusicTabPanel');
+    const localPanel = document.getElementById('localMusicTabPanel');
+
+    if (tab === 'online') {
+        if (onlineBtn) {
+            onlineBtn.className = 'flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-gradient-to-r from-pink-500/20 to-purple-500/20 text-pink-400 border border-pink-500/40 shadow-sm';
+        }
+        if (localBtn) {
+            localBtn.className = 'flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-slate-400 hover:text-white border border-transparent';
+        }
+        if (onlinePanel) onlinePanel.classList.remove('hidden');
+        if (localPanel) localPanel.classList.add('hidden');
+        setTimeout(() => {
+            const inp = document.getElementById('onlineMusicSearchInput');
+            if (inp) inp.focus();
+        }, 100);
+    } else {
+        if (localBtn) {
+            localBtn.className = 'flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 text-purple-300 border border-purple-500/40 shadow-sm';
+        }
+        if (onlineBtn) {
+            onlineBtn.className = 'flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-slate-400 hover:text-white border border-transparent';
+        }
+        if (localPanel) localPanel.classList.remove('hidden');
+        if (onlinePanel) onlinePanel.classList.add('hidden');
+        loadMusicLibrary();
+        setTimeout(() => {
+            const inp = document.getElementById('musicSearchInput');
+            if (inp) inp.focus();
+        }, 100);
+    }
+}
 
 function openMusicModal() {
     showModal('musicSearchModal');
-    loadMusicLibrary();
-    setTimeout(() => {
-        const inp = document.getElementById('musicSearchInput');
-        if (inp) inp.focus();
-    }, 150);
+    switchMusicModalTab('online');
+    loadMusicLibraryCountOnly();
+}
+
+async function loadMusicLibraryCountOnly() {
+    try {
+        const res = await fetch('/api/music/library');
+        const data = await res.json();
+        const count = data.tracks ? data.tracks.length : 0;
+        const badge = document.getElementById('localTabCountBadge');
+        if (badge) badge.textContent = count;
+    } catch (e) {}
+}
+
+function quickSearchOnline(term) {
+    const inp = document.getElementById('onlineMusicSearchInput');
+    if (inp) {
+        inp.value = term;
+        searchOnlineMusic(term);
+    }
+}
+
+let onlineSearchDebounce = null;
+function handleOnlineMusicSearchInput(val) {
+    if (onlineSearchDebounce) clearTimeout(onlineSearchDebounce);
+    if (!val || !val.trim()) return;
+    onlineSearchDebounce = setTimeout(() => {
+        searchOnlineMusic(val);
+    }, 600);
+}
+
+async function searchOnlineMusic(query) {
+    const q = (query || '').trim();
+    const container = document.getElementById('onlineMusicResultsContainer');
+    if (!container) return;
+
+    if (!q) {
+        container.innerHTML = `
+            <div class="text-center py-10 text-slate-500">
+                <span class="text-4xl block mb-2">🌐</span>
+                <p class="text-xs font-bold text-slate-400">ابحث عن أي أغنية أونلاين لتشغيلها لجميع الطلاب فوراً!</p>
+                <p class="text-[10px] text-slate-500 mt-1">يتم سحب الأغنية وتوزيعها تلقائياً عبر شبكة المعمل بدون حجب ⚡</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="text-center py-12 text-pink-400">
+            <span class="text-4xl block mb-3 animate-spin">🌀</span>
+            <p class="text-xs font-bold text-white">جاري البحث عن "${escapeHtml(q)}" في قاعدة الموسيقى العالمية...</p>
+            <p class="text-[10px] text-slate-400 mt-1">تخطي حجب الفايروول شغال 🛡️⚡</p>
+        </div>
+    `;
+
+    try {
+        const res = await fetch(`/api/music/online/search?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        const songs = data.songs || [];
+        window._lastOnlineSongs = songs;
+
+        renderOnlineMusicResults(songs, q);
+    } catch (err) {
+        container.innerHTML = `
+            <div class="text-center py-8 text-red-400 text-xs">
+                <span class="text-3xl block mb-2">⚠️</span>
+                <p class="font-bold">تعذر البحث عن الأغاني أونلاين!</p>
+                <p class="text-[10px] text-slate-400 mt-1">${escapeHtml(err.message)}</p>
+            </div>
+        `;
+    }
+}
+
+function renderOnlineMusicResults(songs, query) {
+    const container = document.getElementById('onlineMusicResultsContainer');
+    if (!container) return;
+
+    if (songs.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-10 text-slate-500">
+                <span class="text-3xl block mb-2">🔍</span>
+                <p class="text-xs font-bold text-slate-400">لم يتم العثور على نتائج لـ "${escapeHtml(query)}"</p>
+                <p class="text-[10px] text-slate-500 mt-1">جرب كتابة اسم الأغنية أو الفنان بشكل مختلف (عربي أو إنجليزي)</p>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    songs.forEach((song, idx) => {
+        const isCurrentPlaying = STATE.radio.activeTrack && 
+            (STATE.radio.activeTrack.id === 'track_online_' + song.id || STATE.radio.activeTrack.title === song.title) && 
+            STATE.radio.isPlaying;
+
+        html += `
+            <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-900/80 border ${isCurrentPlaying ? 'border-pink-500/60 bg-pink-500/10' : 'border-slate-800'} hover:border-pink-500/40 transition-all group">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-12 h-12 rounded-xl bg-slate-800 border border-white/10 overflow-hidden shrink-0 shadow-md flex items-center justify-center text-xl text-pink-400 relative">
+                        ${song.cover ? `<img src="${song.cover}" loading="lazy" class="w-full h-full object-cover" onerror="this.outerHTML='🎵'">` : '🎵'}
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-1.5">
+                            <h4 class="text-xs font-bold text-white truncate max-w-[130px] sm:max-w-xs group-hover:text-pink-300 transition-colors">${escapeHtml(song.title)}</h4>
+                            ${isCurrentPlaying ? '<span class="text-[9px] px-1.5 py-0.2 rounded-full bg-pink-500/30 text-pink-300 font-bold animate-pulse">شغالة الآن 🔊</span>' : ''}
+                        </div>
+                        <p class="text-[10px] text-slate-400 truncate mt-0.5">
+                            ${escapeHtml(song.artist || 'فنان')} 
+                            ${song.album ? `• ${escapeHtml(song.album)}` : ''}
+                            ${song.duration ? `• ${song.duration}` : ''}
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <!-- Share to Chat -->
+                    <button type="button" onclick="shareOnlineTrackToChat(${idx})" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all" title="مشاركة في الشات 💬">
+                        💬
+                    </button>
+                    <!-- Play for Class -->
+                    <button type="button" id="onlinePlayBtn_${idx}" onclick="playOnlineSongForEveryone(${idx})" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1">
+                        <span>${isCurrentPlaying ? 'إعادة تشغيل 🔄' : 'تشغيل للكل 🎵'}</span>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+async function playOnlineSongForEveryone(idx) {
+    const song = window._lastOnlineSongs?.[idx];
+    if (!song) return;
+
+    const btn = document.getElementById(`onlinePlayBtn_${idx}`);
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span>جاري التجهيز... ⏳</span>`;
+    }
+
+    showNotification(`جاري جلب وتوزيع "${song.title}" لجميع أجهزة المعمل... ⏳🎵`);
+
+    try {
+        const res = await fetch('/api/music/online/play', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                songId: song.id,
+                title: song.title,
+                artist: song.artist,
+                rawCover: song.rawCover,
+                streamUrl: song.streamUrl,
+                duration: song.duration,
+                djName: STATE.user ? STATE.user.nickname : 'دي جي الفصل',
+                djId: STATE.user ? STATE.user.id : null
+            })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            hideModal('musicSearchModal');
+            showNotification(`🎶 تم تشغيل "${song.title}" لجميع أجهزة المعمل!`);
+            loadMusicLibraryCountOnly();
+        } else {
+            showNotification(data.error || 'تعذر تشغيل الأغنية.');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<span>تشغيل للكل 🎵</span>`;
+            }
+        }
+    } catch (err) {
+        showNotification('حدث خطأ أثناء تشغيل الأغنية أونلاين: ' + err.message);
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<span>تشغيل للكل 🎵</span>`;
+        }
+    }
+}
+
+function shareOnlineTrackToChat(idx) {
+    const song = window._lastOnlineSongs?.[idx];
+    if (!song) return;
+
+    sendChatMessagePayload({
+        content: `🎵 أرشح لكم الاستماع إلى: **${song.title}** - *${song.artist}* 🎧`,
+        mediaType: 'text',
+        mediaName: song.title
+    });
+    hideModal('musicSearchModal');
+    showNotification('تمت مشاركة الأغنية في الشات 💬');
 }
 
 let musicSearchDebounce = null;
@@ -2773,6 +2995,8 @@ async function loadMusicLibrary(query = '') {
         if (countEl) {
             countEl.textContent = `${tracks.length} أغنية متوفرة في الفصل 🎵`;
         }
+        const badge = document.getElementById('localTabCountBadge');
+        if (badge) badge.textContent = tracks.length;
 
         renderMusicResults(tracks, query);
     } catch (err) {
@@ -2811,7 +3035,7 @@ function renderMusicResults(tracks, query) {
             <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-900/70 border ${isCurrentPlaying ? 'border-pink-500/60 bg-pink-500/10' : 'border-slate-800'} hover:border-pink-500/40 transition-all group">
                 <div class="flex items-center gap-3 min-w-0">
                     <div class="w-11 h-11 rounded-xl bg-slate-800 border border-white/10 overflow-hidden shrink-0 shadow-md flex items-center justify-center text-xl text-pink-400">
-                        ${track.cover ? `<img src="${track.cover}" class="w-full h-full object-cover">` : (isCurrentPlaying ? '💿' : '🎵')}
+                        ${track.cover ? `<img src="${track.cover}" class="w-full h-full object-cover" onerror="this.outerHTML='🎵'">` : (isCurrentPlaying ? '💿' : '🎵')}
                     </div>
                     <div class="min-w-0">
                         <div class="flex items-center gap-1.5">
