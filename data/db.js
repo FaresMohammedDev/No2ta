@@ -154,6 +154,18 @@ const initDB = async () => {
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     );`);
 
+    // Group Join Requests (Private Group Access Approval)
+    await run(`CREATE TABLE IF NOT EXISTS group_join_requests (
+        id TEXT PRIMARY KEY,
+        group_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(group_id, user_id),
+        FOREIGN KEY(group_id) REFERENCES groups(id) ON DELETE CASCADE,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );`);
+
     // Classroom Local Music Library 🎵
     await run(`CREATE TABLE IF NOT EXISTS music_library (
         id TEXT PRIMARY KEY,

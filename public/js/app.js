@@ -337,6 +337,51 @@ function initSocket() {
         }
     });
 
+    STATE.socket.on('new_group_join_request', (data) => {
+        loadGroups();
+        if (window.soundEngine && typeof window.soundEngine.playNotification === 'function') {
+            window.soundEngine.playNotification();
+        }
+        showNotification(`📩 طلب انضمام جديد من ${data.request?.nickname || 'زميل'} لجروب "${data.groupName}"!`);
+        if (STATE.activeChat.type === 'group' && STATE.activeChat.group?.id === data.groupId) {
+            const reqBtn = document.getElementById('groupHeaderJoinRequestsBtn');
+            const reqCount = document.getElementById('groupHeaderJoinRequestsCount');
+            if (reqBtn && reqCount) {
+                reqBtn.classList.remove('hidden');
+                const curr = parseInt(reqCount.textContent || '0', 10) + 1;
+                reqCount.textContent = curr;
+            }
+        }
+    });
+
+    STATE.socket.on('group_join_request_accepted', (data) => {
+        loadGroups();
+        if (STATE.user && data.userId === STATE.user.id) {
+            showNotification(`🎉 وافق المشرف على انضمامك لجروب "${data.groupName}"! الشات متاح لك الآن.`);
+            if (STATE.activeChat.type === 'group' && STATE.activeChat.group?.id === data.groupId) {
+                loadGroups().then(() => {
+                    selectGroupChat(data.groupId);
+                });
+            }
+        }
+    });
+
+    STATE.socket.on('group_join_request_rejected', (data) => {
+        loadGroups();
+        if (STATE.user && data.userId === STATE.user.id) {
+            showNotification(`❌ تم رفض طلب انضمامك لجروب "${data.groupName}".`);
+            if (STATE.activeChat.type === 'group' && STATE.activeChat.group?.id === data.groupId) {
+                loadGroups().then(() => {
+                    selectGroupChat(data.groupId);
+                });
+            }
+        }
+    });
+
+    STATE.socket.on('groups_updated', () => {
+        loadGroups();
+    });
+
     // 🎵 Classroom Music Library Sync
     STATE.socket.on('music_library_updated', () => {
         loadMusicLibrary();
@@ -780,6 +825,18 @@ function updateSidebarTabsUI(activeTab) {
     if (tabDirect) tabDirect.className = activeTab === 'direct' ? activeClass : inactiveClass;
 }
 
+function toggleChatInputVisibility(visible) {
+    const chatForm = document.getElementById('chatForm');
+    const lockedNotice = document.getElementById('groupLockedNoticeBar');
+    if (visible) {
+        if (chatForm) chatForm.classList.remove('hidden');
+        if (lockedNotice) lockedNotice.classList.add('hidden');
+    } else {
+        if (chatForm) chatForm.classList.add('hidden');
+        if (lockedNotice) lockedNotice.classList.remove('hidden');
+    }
+}
+
 function selectGeneralChat() {
     STATE.activeChat = { type: 'general', recipient: null, group: null };
     document.getElementById('currentChatTitle').textContent = '💬 شات الفصل العام (General)';
@@ -795,6 +852,7 @@ function selectGeneralChat() {
         groupControls.classList.remove('flex');
     }
 
+    toggleChatInputVisibility(true);
     switchSidebarTab('general');
     loadMessages();
 }
@@ -825,6 +883,7 @@ function selectDirectChat(userId) {
         groupControls.classList.remove('flex');
     }
 
+    toggleChatInputVisibility(true);
     switchSidebarTab('direct');
     loadMessages();
 }
@@ -836,31 +895,59 @@ function selectGroupChat(groupId) {
     STATE.activeChat = { type: 'group', recipient: null, group: target };
     document.getElementById('currentChatTitle').textContent = target.name;
     const memberCount = target.members_count || (target.members ? target.members.length : 0);
-    document.getElementById('currentChatSubtitle').textContent = `${memberCount} أعضاء • أنشأه: ${target.creator_name || 'زميلك'}`;
+    const isMember = target.is_member === true;
+    const isCreator = STATE.user && (target.creator_id === STATE.user.id || STATE.user.role === 'admin');
+
+    if (isMember) {
+        document.getElementById('currentChatSubtitle').textContent = `${memberCount} أعضاء • أنشأه: ${target.creator_name || 'زميلك'}`;
+    } else {
+        document.getElementById('currentChatSubtitle').textContent = `🔒 جروب خاص • ${memberCount} أعضاء • المشرف: ${target.creator_name || 'زميلك'}`;
+    }
     document.getElementById('currentChatAvatar').innerHTML = `<span class="text-2xl">${target.icon || '👥'}</span>`;
 
     const directBadge = document.getElementById('directStreakBadge');
     if (directBadge) directBadge.classList.add('hidden');
 
-    // Show Group Header Controls
+    // Show Group Header Controls only if user is a member
     const groupControls = document.getElementById('groupHeaderControls');
     const membersCountEl = document.getElementById('groupHeaderMembersCount');
     const deleteBtn = document.getElementById('groupHeaderDeleteBtn');
+    const reqBtn = document.getElementById('groupHeaderJoinRequestsBtn');
+    const reqCount = document.getElementById('groupHeaderJoinRequestsCount');
 
-    if (groupControls) {
-        groupControls.classList.remove('hidden');
-        groupControls.classList.add('flex');
-    }
-    if (membersCountEl) {
-        membersCountEl.textContent = `${memberCount}`;
-    }
-    if (deleteBtn) {
-        const canDelete = (STATE.user && (target.creator_id === STATE.user.id || STATE.user.role === 'admin'));
-        if (canDelete) {
-            deleteBtn.classList.remove('hidden');
-        } else {
-            deleteBtn.classList.add('hidden');
+    if (isMember) {
+        if (groupControls) {
+            groupControls.classList.remove('hidden');
+            groupControls.classList.add('flex');
         }
+        if (membersCountEl) {
+            membersCountEl.textContent = `${memberCount}`;
+        }
+        if (deleteBtn) {
+            if (isCreator) {
+                deleteBtn.classList.remove('hidden');
+            } else {
+                deleteBtn.classList.add('hidden');
+            }
+        }
+        if (reqBtn) {
+            if (isCreator) {
+                reqBtn.classList.remove('hidden');
+                if (reqCount) {
+                    reqCount.textContent = target.pending_requests_count || 0;
+                }
+            } else {
+                reqBtn.classList.add('hidden');
+            }
+        }
+        toggleChatInputVisibility(true);
+    } else {
+        // Non-member: strictly hide group controls
+        if (groupControls) {
+            groupControls.classList.add('hidden');
+            groupControls.classList.remove('flex');
+        }
+        toggleChatInputVisibility(false);
     }
 
     switchSidebarTab('groups');
@@ -925,7 +1012,26 @@ function renderGroupsList() {
     STATE.groups.forEach(g => {
         const isSelected = STATE.activeChat.type === 'group' && STATE.activeChat.group?.id === g.id;
         const memberCount = g.members_count || (g.members ? g.members.length : 0);
-        const isCreator = STATE.user && g.creator_id === STATE.user.id;
+        const isCreator = STATE.user && (g.creator_id === STATE.user.id || STATE.user.role === 'admin');
+        const isMember = g.is_member === true;
+        const isPending = g.request_status === 'pending';
+        const pendingCount = g.pending_requests_count || 0;
+
+        let statusBadge = '';
+        if (isCreator) {
+            statusBadge = '<span class="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 font-bold">مؤسس 👑</span>';
+        } else if (isMember) {
+            statusBadge = '<span class="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">عضو ✅</span>';
+        } else if (isPending) {
+            statusBadge = '<span class="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 font-bold">⏳ معلق</span>';
+        } else {
+            statusBadge = '<span class="text-[9px] px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400 font-bold border border-slate-700">🔒 خاص</span>';
+        }
+
+        let pendingBadge = '';
+        if (isCreator && pendingCount > 0) {
+            pendingBadge = `<span class="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 font-black animate-pulse shadow-sm" title="${pendingCount} طلبات معلقة">📩 ${pendingCount}</span>`;
+        }
 
         html += `
             <div onclick="selectGroupChat('${g.id}')" class="flex items-center justify-between p-2.5 rounded-2xl cursor-pointer transition-all ${isSelected ? 'bg-purple-500/20 border border-purple-500/40 shadow-md' : 'hover:bg-slate-800/60 border border-transparent'}">
@@ -936,12 +1042,13 @@ function renderGroupsList() {
                     <div class="min-w-0">
                         <div class="flex items-center gap-1.5">
                             <h4 class="text-xs font-bold text-white truncate">${escapeHtml(g.name)}</h4>
-                            ${isCreator ? '<span class="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 font-bold">مؤسس 👑</span>' : ''}
+                            ${statusBadge}
                         </div>
                         <p class="text-[10px] text-slate-400 truncate">${g.description ? escapeHtml(g.description) : `${memberCount} أعضاء في الجروب`}</p>
                     </div>
                 </div>
                 <div class="shrink-0 flex items-center gap-1">
+                    ${pendingBadge}
                     <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono font-bold">${memberCount} 👤</span>
                 </div>
             </div>
@@ -1124,9 +1231,262 @@ async function handleDeleteCurrentGroup() {
     }
 }
 
+function renderGroupLockedView(grp) {
+    const container = document.getElementById('messagesContainer');
+    if (!container) return;
+
+    toggleChatInputVisibility(false);
+
+    const isPending = grp.request_status === 'pending';
+    const isRejected = grp.request_status === 'rejected';
+
+    container.innerHTML = `
+        <div class="h-full flex flex-col items-center justify-center p-6 text-center max-w-sm sm:max-w-md mx-auto my-auto">
+            <div class="relative mb-4">
+                <div class="w-20 h-20 rounded-3xl bg-purple-950/60 border-2 border-purple-500/40 flex items-center justify-center text-4xl shadow-2xl shadow-purple-500/10">
+                    ${grp.icon || '👥'}
+                </div>
+                <div class="absolute -bottom-1 -left-1 w-7 h-7 rounded-full bg-slate-900 border-2 border-slate-700 flex items-center justify-center text-xs shadow-md">
+                    🔒
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 mb-1.5">
+                <h3 class="text-base sm:text-lg font-black text-white">${escapeHtml(grp.name)}</h3>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">خاص 🛡️</span>
+            </div>
+
+            <p class="text-xs text-slate-400 mb-4 max-w-xs leading-relaxed">
+                ${grp.description ? escapeHtml(grp.description) : 'هذا الجروب خاص بالأعضاء المعتمدين فقط. لا يمكنك قراءة الرسائل أو مشاهدة الأعضاء حتى يقبلك المشرف.'}
+            </p>
+
+            <div class="p-3 bg-slate-950/70 rounded-2xl border border-white/5 w-full mb-5 text-xs text-slate-300 space-y-2">
+                <div class="flex justify-between items-center pb-1.5 border-b border-white/5">
+                    <span class="text-slate-400">👑 منشئ الجروب:</span>
+                    <span class="font-bold text-white">${escapeHtml(grp.creator_name || 'زميلك')}</span>
+                </div>
+                <div class="flex justify-between items-center pb-1.5 border-b border-white/5">
+                    <span class="text-slate-400">👥 عدد الأعضاء:</span>
+                    <span class="font-mono font-bold text-purple-400">${grp.members_count || 0}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-400">🛡️ حالة الانضمام:</span>
+                    ${isPending ? `
+                        <span class="text-amber-400 font-bold flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                            قيد المراجعة ⏳
+                        </span>
+                    ` : isRejected ? `
+                        <span class="text-red-400 font-bold">مرفوض ❌</span>
+                    ` : `
+                        <span class="text-slate-400 font-medium">غير منضم</span>
+                    `}
+                </div>
+            </div>
+
+            ${isPending ? `
+                <div class="w-full py-3 px-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold flex flex-col items-center gap-1.5 shadow-lg shadow-amber-500/5">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                        <span>تم إرسال طلب الانضمام للمشرف!</span>
+                    </div>
+                    <p class="text-[10px] text-amber-200/70 font-normal">بمجرد موافقة ${escapeHtml(grp.creator_name || 'المشرف')}، سيفتح الشات تلقائياً هنا 🚀</p>
+                </div>
+            ` : isRejected ? `
+                <div class="w-full space-y-2">
+                    <div class="py-2.5 px-3 rounded-2xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs font-bold">
+                        ⚠️ رفض منشئ الجروب طلب انضمامك السابق.
+                    </div>
+                    <button id="sendJoinReqBtn" onclick="sendGroupJoinRequest('${grp.id}')" class="w-full py-2.5 px-4 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-black text-xs shadow-lg shadow-purple-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer">
+                        <span>📩</span>
+                        <span>إعادة إرسال طلب انضمام</span>
+                    </button>
+                </div>
+            ` : `
+                <button id="sendJoinReqBtn" onclick="sendGroupJoinRequest('${grp.id}')" class="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 hover:from-purple-400 hover:to-pink-400 text-white font-black text-xs shadow-lg shadow-purple-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer">
+                    <span>📩</span>
+                    <span>إرسال طلب انضمام للمشرف (Join Request)</span>
+                </button>
+            `}
+        </div>
+    `;
+}
+
+async function sendGroupJoinRequest(groupId) {
+    if (!STATE.user) {
+        showNotification('يجب تسجيل الدخول أولاً!');
+        return;
+    }
+    const btn = document.getElementById('sendJoinReqBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>جاري الإرسال... ⏳</span>';
+    }
+
+    try {
+        const res = await fetch(`/api/groups/${groupId}/join-request`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: STATE.user.id })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showNotification(data.message || '📩 تم إرسال طلب الانضمام للمشرف!');
+            const g = STATE.groups.find(item => item.id === groupId);
+            if (g) {
+                g.request_status = 'pending';
+            }
+            if (STATE.activeChat.type === 'group' && STATE.activeChat.group?.id === groupId) {
+                STATE.activeChat.group.request_status = 'pending';
+                renderGroupLockedView(STATE.activeChat.group);
+            }
+            renderGroupsList();
+        } else {
+            showNotification(data.error || 'فشل إرسال طلب الانضمام!');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<span>📩 إرسال طلب انضمام</span>';
+            }
+        }
+    } catch (err) {
+        console.error('sendGroupJoinRequest error:', err);
+        showNotification('حدث خطأ أثناء الاتصال بالخادم!');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span>📩 إرسال طلب انضمام</span>';
+        }
+    }
+}
+
+async function openGroupJoinRequestsModal() {
+    const grp = STATE.activeChat.group;
+    if (!grp || !STATE.user) return;
+
+    const listEl = document.getElementById('groupJoinRequestsListContainer');
+    const subtitleEl = document.getElementById('groupJoinRequestsSubtitle');
+    if (subtitleEl) {
+        subtitleEl.textContent = `طلبات الانضمام لجروب "${grp.name}"`;
+    }
+    if (listEl) {
+        listEl.innerHTML = '<div class="text-center py-6 text-slate-400 text-xs">جاري تحميل الطلبات... ⏳</div>';
+    }
+
+    showModal('groupJoinRequestsModal');
+    await loadGroupJoinRequests(grp.id);
+}
+
+async function loadGroupJoinRequests(groupId) {
+    if (!STATE.user) return;
+    const listEl = document.getElementById('groupJoinRequestsListContainer');
+    try {
+        const res = await fetch(`/api/groups/${groupId}/join-requests?userId=${encodeURIComponent(STATE.user.id)}`);
+        const data = await res.json();
+        if (!res.ok) {
+            if (listEl) listEl.innerHTML = `<div class="text-center py-4 text-red-400 text-xs">${data.error || 'تعذر تحميل الطلبات!'}</div>`;
+            return;
+        }
+
+        const requests = data.requests || [];
+        const reqBadge = document.getElementById('groupHeaderJoinRequestsCount');
+        const reqBtn = document.getElementById('groupHeaderJoinRequestsBtn');
+        if (reqBadge) reqBadge.textContent = requests.length;
+        if (reqBtn) {
+            if (requests.length > 0) reqBtn.classList.remove('hidden');
+        }
+        if (STATE.activeChat.type === 'group' && STATE.activeChat.group?.id === groupId) {
+            STATE.activeChat.group.pending_requests_count = requests.length;
+        }
+
+        if (requests.length === 0) {
+            if (listEl) {
+                listEl.innerHTML = `
+                    <div class="text-center py-8 text-slate-400 text-xs">
+                        <span class="text-3xl block mb-2">🎉</span>
+                        <p class="font-bold text-white mb-1">لا توجد طلبات انضمام معلقة</p>
+                        <p class="text-[10px] text-slate-500">سيظهر هنا أي زميل يطلب الانضمام لهذا الجروب للموافقة عليه أو رفضه.</p>
+                    </div>
+                `;
+            }
+            return;
+        }
+
+        if (listEl) {
+            listEl.innerHTML = requests.map(r => `
+                <div id="join-request-row-${r.id}" class="p-3 rounded-2xl bg-slate-900/80 border border-white/5 flex flex-col gap-2.5">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-sm shrink-0 overflow-hidden">
+                                ${renderAvatarHTML(r.avatar || r.user_avatar)}
+                            </div>
+                            <div class="min-w-0">
+                                <h5 class="text-xs font-bold text-white truncate">${escapeHtml(r.nickname || r.user_name)}</h5>
+                                <span class="text-[9px] text-slate-400">طلب الانضمام: ${new Date(r.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 pt-1 border-t border-white/5">
+                        <button onclick="handleRespondJoinRequest('${groupId}', '${r.id}', 'accept')" class="flex-1 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer">
+                            <span>✅ قبول</span>
+                        </button>
+                        <button onclick="handleRespondJoinRequest('${groupId}', '${r.id}', 'reject')" class="flex-1 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer">
+                            <span>❌ رفض</span>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (err) {
+        console.error('loadGroupJoinRequests error:', err);
+        if (listEl) listEl.innerHTML = '<div class="text-center py-4 text-red-400 text-xs">تعذر تحميل الطلبات!</div>';
+    }
+}
+
+async function handleRespondJoinRequest(groupId, requestId, action) {
+    if (!STATE.user) return;
+    const rowEl = document.getElementById(`join-request-row-${requestId}`);
+    if (rowEl) {
+        rowEl.style.opacity = '0.5';
+        rowEl.style.pointerEvents = 'none';
+    }
+
+    try {
+        const res = await fetch(`/api/groups/${groupId}/join-requests/${requestId}/respond`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: STATE.user.id,
+                action: action
+            })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showNotification(action === 'accept' ? '✅ تم قبول الزميل في الجروب بنجاح!' : '❌ تم رفض طلب الانضمام.');
+            await loadGroupJoinRequests(groupId);
+            await loadGroups();
+        } else {
+            showNotification(data.error || 'حدث خطأ أثناء معالجة الطلب');
+            if (rowEl) {
+                rowEl.style.opacity = '1';
+                rowEl.style.pointerEvents = 'auto';
+            }
+        }
+    } catch (err) {
+        console.error('handleRespondJoinRequest error:', err);
+        showNotification('حدث خطأ في الاتصال بالخادم');
+        if (rowEl) {
+            rowEl.style.opacity = '1';
+            rowEl.style.pointerEvents = 'auto';
+        }
+    }
+}
+
 async function openGroupMembersModal() {
     const grp = STATE.activeChat.group;
     if (!grp) return;
+    if (!grp.is_member) {
+        showNotification('🔒 لا يمكنك عرض الأعضاء لأنك لست عضواً في هذا الجروب!');
+        return;
+    }
 
     const iconEl = document.getElementById('groupInfoModalIcon');
     const titleEl = document.getElementById('groupInfoModalTitle');
@@ -1144,7 +1504,8 @@ async function openGroupMembersModal() {
     showModal('groupMembersModal');
 
     try {
-        const res = await fetch(`/api/groups/${grp.id}/members`);
+        const uId = STATE.user ? STATE.user.id : '';
+        const res = await fetch(`/api/groups/${grp.id}/members?userId=${encodeURIComponent(uId)}`);
         const data = await res.json();
         const members = data.members || [];
 
@@ -1179,6 +1540,14 @@ async function openGroupMembersModal() {
 // 5. Messages Feed & Actions
 // ----------------------------------------------------
 async function loadMessages() {
+    if (STATE.activeChat.type === 'group' && STATE.activeChat.group) {
+        if (!STATE.activeChat.group.is_member) {
+            renderGroupLockedView(STATE.activeChat.group);
+            return;
+        }
+    }
+    toggleChatInputVisibility(true);
+
     try {
         const params = new URLSearchParams({
             chat_type: STATE.activeChat.type,
@@ -1192,8 +1561,19 @@ async function loadMessages() {
         }
 
         const res = await fetch(`/api/messages?${params.toString()}`);
+        if (res.status === 403) {
+            const errData = await res.json().catch(() => ({}));
+            if (STATE.activeChat.group) {
+                STATE.activeChat.group.is_member = false;
+                if (errData.request_status) {
+                    STATE.activeChat.group.request_status = errData.request_status;
+                }
+                renderGroupLockedView(STATE.activeChat.group);
+            }
+            return;
+        }
         const data = await res.json();
-        STATE.messages = data;
+        STATE.messages = Array.isArray(data) ? data : [];
         renderMessagesFeed();
         scrollToBottom();
     } catch (e) {
@@ -1409,6 +1789,11 @@ async function handleSendMessage(e) {
         return;
     }
 
+    if (STATE.activeChat.type === 'group' && STATE.activeChat.group && !STATE.activeChat.group.is_member) {
+        showNotification('🔒 هذا الجروب مغلق! لا يمكنك إرسال رسائل قبل قبول طلب انضمامك.');
+        return;
+    }
+
     const input = document.getElementById('messageInput');
     const content = input.value.trim();
     if (!content) return;
@@ -1419,6 +1804,11 @@ async function handleSendMessage(e) {
 
 function sendChatMessagePayload({ content = '', mediaUrl = null, mediaType = 'text', mediaName = null, mediaSize = 0 }) {
     if (!STATE.socket || !STATE.user) return;
+
+    if (STATE.activeChat.type === 'group' && STATE.activeChat.group && !STATE.activeChat.group.is_member) {
+        showNotification('🔒 هذا الجروب مغلق! لا يمكنك إرسال رسائل قبل قبول طلب انضمامك.');
+        return;
+    }
 
     let recipientId = null;
     if (STATE.activeChat.type === 'direct') {

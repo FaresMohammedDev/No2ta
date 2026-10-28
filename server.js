@@ -246,6 +246,19 @@ app.get('/api/messages', async (req, res) => {
             );
         } else if (chat_type === 'group' && (group_id || recipient_id)) {
             const targetGroupId = group_id || recipient_id;
+            
+            // SECURITY: Strict check - only members can view group messages!
+            if (!user_id) {
+                return res.status(403).json({ error: 'يجب تسجيل الدخول كعضو بالجروب لرؤية الرسائل!', is_member: false });
+            }
+            const membership = await get(
+                `SELECT id FROM group_members WHERE group_id = ? AND user_id = ?`,
+                [targetGroupId, user_id]
+            );
+            if (!membership) {
+                return res.status(403).json({ error: 'هذا الجروب خاص! لا يمكنك رؤية الرسائل إلا بعد قبول انضمامك من مؤسس الجروب.', is_member: false });
+            }
+
             messages = await all(
                 `SELECT m.*, u.nickname as sender_name, u.avatar as sender_avatar, u.role as sender_role
                  FROM messages m
@@ -550,40 +563,72 @@ app.post('/api/airdrop/download/:id', async (req, res) => {
 app.get('/api/groups', async (req, res) => {
     try {
         const userId = req.query.userId;
-        let groups = [];
-        if (userId) {
-            groups = await all(
-                `SELECT g.*, u.nickname as creator_name,
-                        (SELECT COUNT(*) FROM group_members gm2 WHERE gm2.group_id = g.id) as members_count
-                 FROM groups g
-                 JOIN group_members gm ON g.id = gm.group_id
-                 JOIN users u ON g.creator_id = u.id
-                 WHERE gm.user_id = ?
-                 GROUP BY g.id
-                 ORDER BY g.created_at DESC`,
-                [userId]
-            );
-        } else {
-            groups = await all(
-                `SELECT g.*, u.nickname as creator_name,
-                        (SELECT COUNT(*) FROM group_members gm2 WHERE gm2.group_id = g.id) as members_count
-                 FROM groups g
-                 JOIN users u ON g.creator_id = u.id
-                 GROUP BY g.id
-                 ORDER BY g.created_at DESC`
-            );
-        }
+        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientMac = await resolveMacAddress(clientIp);
+        const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
 
-        // Attach member previews for each group
+        // Fetch ALL groups in the classroom so all students can discover them
+        const groups = await all(
+            `SELECT g.*, u.nickname as creator_name, u.avatar as creator_avatar,
+                    (SELECT COUNT(*) FROM group_members gm2 WHERE gm2.group_id = g.id) as members_count
+             FROM groups g
+             JOIN users u ON g.creator_id = u.id
+             ORDER BY g.created_at DESC`
+        );
+
         for (let g of groups) {
-            const members = await all(
-                `SELECT u.id, u.nickname, u.avatar, gm.role as group_role
-                 FROM group_members gm
-                 JOIN users u ON gm.user_id = u.id
-                 WHERE gm.group_id = ?`,
-                [g.id]
-            );
-            g.members = members;
+            let isMember = false;
+            let myRole = null;
+            let requestStatus = 'none';
+
+            if (userId) {
+                const memberRow = await get(
+                    `SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`,
+                    [g.id, userId]
+                );
+                if (memberRow) {
+                    isMember = true;
+                    myRole = memberRow.role;
+                } else {
+                    const reqRow = await get(
+                        `SELECT status FROM group_join_requests WHERE group_id = ? AND user_id = ?`,
+                        [g.id, userId]
+                    );
+                    if (reqRow) {
+                        requestStatus = reqRow.status;
+                    }
+                }
+            }
+
+            g.is_member = isMember;
+            g.my_role = myRole;
+            g.request_status = requestStatus;
+
+            // Only members or admin get the full members list
+            if (isMember || isDeviceAdmin) {
+                const members = await all(
+                    `SELECT u.id, u.nickname, u.avatar, gm.role as group_role
+                     FROM group_members gm
+                     JOIN users u ON gm.user_id = u.id
+                     WHERE gm.group_id = ?`,
+                    [g.id]
+                );
+                g.members = members;
+
+                // Pending requests count for creator or admin
+                if (g.creator_id === userId || isDeviceAdmin) {
+                    const pendingRow = await get(
+                        `SELECT COUNT(*) as count FROM group_join_requests WHERE group_id = ? AND status = 'pending'`,
+                        [g.id]
+                    );
+                    g.pending_requests_count = pendingRow ? pendingRow.count : 0;
+                } else {
+                    g.pending_requests_count = 0;
+                }
+            } else {
+                g.members = [];
+                g.pending_requests_count = 0;
+            }
         }
 
         res.json({ success: true, groups });
@@ -596,6 +641,22 @@ app.get('/api/groups', async (req, res) => {
 app.get('/api/groups/:id/members', async (req, res) => {
     try {
         const { id } = req.params;
+        const userId = req.query.userId;
+        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientMac = await resolveMacAddress(clientIp);
+        const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
+
+        // Security check: non-members cannot inspect group members
+        if (!isDeviceAdmin) {
+            if (!userId) {
+                return res.status(403).json({ error: 'هذا الجروب خاص! لا يمكنك رؤية الأعضاء إلا بعد الانضمام.', members: [] });
+            }
+            const isMember = await get(`SELECT id FROM group_members WHERE group_id = ? AND user_id = ?`, [id, userId]);
+            if (!isMember) {
+                return res.status(403).json({ error: 'هذا الجروب خاص! لا يمكنك رؤية الأعضاء إلا بعد الانضمام.', members: [] });
+            }
+        }
+
         const members = await all(
             `SELECT u.id, u.nickname, u.avatar, u.role as user_role, gm.role as group_role, gm.joined_at
              FROM group_members gm
@@ -606,6 +667,150 @@ app.get('/api/groups/:id/members', async (req, res) => {
         );
         res.json({ success: true, members });
     } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Join Request: Send request to join private group
+app.post('/api/groups/:id/join-request', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId } = req.body;
+        if (!userId) return res.status(400).json({ error: 'معرّف المستخدم مطلوب!' });
+
+        const group = await get(`SELECT * FROM groups WHERE id = ?`, [id]);
+        if (!group) return res.status(404).json({ error: 'الجروب غير موجود!' });
+
+        // Check if already a member
+        const existingMember = await get(`SELECT id FROM group_members WHERE group_id = ? AND user_id = ?`, [id, userId]);
+        if (existingMember) {
+            return res.json({ success: true, is_member: true, message: 'أنت عضو بالفعل في هذا الجروب!' });
+        }
+
+        const reqId = 'req_' + crypto.randomUUID();
+        await run(
+            `INSERT INTO group_join_requests (id, group_id, user_id, status)
+             VALUES (?, ?, ?, 'pending')
+             ON CONFLICT(group_id, user_id) DO UPDATE SET status = 'pending', created_at = CURRENT_TIMESTAMP`,
+            [reqId, id, userId]
+        );
+
+        const requestingUser = await get(`SELECT id, nickname, avatar FROM users WHERE id = ?`, [userId]);
+
+        // Notify group creator live via socket
+        const creatorSockets = userSockets.get(group.creator_id);
+        if (creatorSockets) {
+            creatorSockets.forEach(s => {
+                io.to(s).emit('new_group_join_request', {
+                    groupId: group.id,
+                    groupName: group.name,
+                    user: requestingUser
+                });
+            });
+        }
+
+        res.json({ success: true, request_status: 'pending' });
+    } catch (err) {
+        console.error('Join request error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get pending join requests for group creator
+app.get('/api/groups/:id/join-requests', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.query.userId;
+        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientMac = await resolveMacAddress(clientIp);
+        const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
+
+        const group = await get(`SELECT * FROM groups WHERE id = ?`, [id]);
+        if (!group) return res.status(404).json({ error: 'الجروب غير موجود!' });
+
+        if (!isDeviceAdmin && group.creator_id !== userId) {
+            return res.status(403).json({ error: 'فقط مؤسس الجروب أو الأدمن يمكنه رؤية طلبات الانضمام!' });
+        }
+
+        const requests = await all(
+            `SELECT r.*, u.nickname, u.avatar, u.nickname as user_name, u.avatar as user_avatar
+             FROM group_join_requests r
+             JOIN users u ON r.user_id = u.id
+             WHERE r.group_id = ? AND r.status = 'pending'
+             ORDER BY r.created_at DESC`,
+            [id]
+        );
+
+        res.json({ success: true, requests });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Respond to join request: Accept or Reject
+app.post('/api/groups/:id/join-requests/:requestId/respond', async (req, res) => {
+    try {
+        const { id, requestId } = req.params;
+        const { action, userId } = req.body; // action: 'accept' | 'reject'
+        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientMac = await resolveMacAddress(clientIp);
+        const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
+
+        const group = await get(`SELECT * FROM groups WHERE id = ?`, [id]);
+        if (!group) return res.status(404).json({ error: 'الجروب غير موجود!' });
+
+        if (!isDeviceAdmin && group.creator_id !== userId) {
+            return res.status(403).json({ error: 'فقط مؤسس الجروب يمكنه قبول أو رفض الطلبات!' });
+        }
+
+        const requestRow = await get(`SELECT * FROM group_join_requests WHERE id = ? AND group_id = ?`, [requestId, id]);
+        if (!requestRow) return res.status(404).json({ error: 'الطلب غير موجود!' });
+
+        const targetUserId = requestRow.user_id;
+
+        if (action === 'accept') {
+            await run(`UPDATE group_join_requests SET status = 'accepted' WHERE id = ?`, [requestId]);
+            await run(
+                `INSERT OR IGNORE INTO group_members (id, group_id, user_id, role) VALUES (?, ?, ?, 'member')`,
+                [crypto.randomUUID(), id, targetUserId]
+            );
+
+            // Notify target user via socket
+            const targetSockets = userSockets.get(targetUserId);
+            if (targetSockets) {
+                targetSockets.forEach(s => {
+                    io.to(s).emit('group_join_request_accepted', {
+                        groupId: group.id,
+                        groupName: group.name
+                    });
+                });
+            }
+
+            // Broadcast refresh to all sockets
+            io.emit('groups_updated');
+
+            res.json({ success: true, action: 'accept', targetUserId });
+        } else {
+            await run(`UPDATE group_join_requests SET status = 'rejected' WHERE id = ?`, [requestId]);
+
+            // Notify rejected user
+            const targetSockets = userSockets.get(targetUserId);
+            if (targetSockets) {
+                targetSockets.forEach(s => {
+                    io.to(s).emit('group_join_request_rejected', {
+                        groupId: group.id,
+                        groupName: group.name
+                    });
+                });
+            }
+
+            // Broadcast refresh
+            io.emit('groups_updated');
+
+            res.json({ success: true, action: 'reject', targetUserId });
+        }
+    } catch (err) {
+        console.error('Respond join request error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -637,7 +842,7 @@ app.post('/api/groups', async (req, res) => {
             [crypto.randomUUID(), groupId, creatorId]
         );
 
-        // 3. Insert other unique members
+        // 3. Insert other initial members if chosen by creator
         const uniqueMemberIds = Array.from(new Set(memberIds)).filter(uid => uid && uid !== creatorId);
         for (const uid of uniqueMemberIds) {
             await run(
@@ -646,7 +851,7 @@ app.post('/api/groups', async (req, res) => {
             );
         }
 
-        // 4. Retrieve complete group with members
+        // 4. Retrieve complete group
         const createdGroup = await get(
             `SELECT g.*, u.nickname as creator_name,
                     (SELECT COUNT(*) FROM group_members gm2 WHERE gm2.group_id = g.id) as members_count
@@ -665,8 +870,9 @@ app.post('/api/groups', async (req, res) => {
         );
         createdGroup.members = allGroupMembers;
 
-        // Broadcast group_created to all connected clients
+        // Broadcast to all clients to refresh groups list
         io.emit('group_created', { group: createdGroup });
+        io.emit('groups_updated');
 
         res.json({ success: true, group: createdGroup });
     } catch (err) {
@@ -692,9 +898,11 @@ app.delete('/api/groups/:id', async (req, res) => {
 
         await run(`DELETE FROM groups WHERE id = ?`, [id]);
         await run(`DELETE FROM group_members WHERE group_id = ?`, [id]);
+        await run(`DELETE FROM group_join_requests WHERE group_id = ?`, [id]);
         await run(`DELETE FROM messages WHERE chat_type = 'group' AND recipient_id = ?`, [id]);
 
         io.emit('group_deleted', { groupId: id, groupName: group.name });
+        io.emit('groups_updated');
         res.json({ success: true, groupId: id });
     } catch (err) {
         res.status(500).json({ error: err.message });
