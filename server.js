@@ -306,9 +306,11 @@ function checkAndTriggerSalawatBroadcast() {
 setInterval(checkAndTriggerSalawatBroadcast, 5000);
 
 app.post('/api/salawat/trigger', (req, res) => {
+    const soundType = (req.body && req.body.soundType) ? req.body.soundType : 'salawat';
     io.emit('salawat_broadcast', {
         phrase: 'اللهم صلِّ على محمد',
         fullPhrase: '«اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ»',
+        soundType: soundType,
         timestamp: Date.now()
     });
     res.json({ success: true, message: 'تم إرسال تذكير صلِّ على محمد لجميع الأجهزة!' });
@@ -1960,10 +1962,11 @@ io.on('connection', async (socket) => {
         }
     });
 
-    socket.on('admin_trigger_salawat', () => {
+    socket.on('admin_trigger_salawat', (data = {}) => {
         io.emit('salawat_broadcast', {
             phrase: 'اللهم صلِّ على محمد',
             fullPhrase: '«اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ»',
+            soundType: (data && data.soundType) ? data.soundType : 'salawat',
             timestamp: Date.now()
         });
     });

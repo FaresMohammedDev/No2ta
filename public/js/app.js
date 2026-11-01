@@ -5250,10 +5250,10 @@ function updateTasbeehUI() {
 function incrementTasbeeh() {
     playTasbeehBeadClick();
 
-    // Speak the Dhikr sentence aloud (صوت التسبيح هو نطق الجملة)
+    // Speak the Dhikr sentence aloud using real native audio files (صوت التسبيح هو نطق الجملة)
     const currentDhikr = TASBEEH_AZKAR.find(d => d.id === tasbeehState.selectedDhikrId) || TASBEEH_AZKAR[0];
-    if (currentDhikr && currentDhikr.title) {
-        speakArabicPhrase(currentDhikr.title);
+    if (currentDhikr) {
+        playDhikrAudioPhrase(currentDhikr.id, currentDhikr.title);
     }
 
     if (navigator.vibrate) {
@@ -5638,8 +5638,91 @@ function updateSchoolScheduleUI(now = new Date()) {
 
 
 // ----------------------------------------------------
-// 18. Arabic TTS Speech & Synchronized Salawat Engine 🕋🔊
+// 18. Arabic Real Audio Voice & Synchronized Salawat Engine 🕋🔊
 // ----------------------------------------------------
+const DHIKR_AUDIO_MAP = {
+    'subhanallah': '/audio/subhanallah.mp3',
+    'alhamdulillah': '/audio/alhamdulillah.mp3',
+    'lailahaillallah': '/audio/lailahaillallah.mp3',
+    'allahuakbar': '/audio/allahuakbar.mp3',
+    'astaghfirullah': '/audio/astaghfirullah.mp3',
+    'lahawla': '/audio/lahawla.mp3',
+    'salawat': '/audio/salawat.mp3'
+};
+
+let activeDhikrAudio = null;
+let salawatSelectedSound = 'salawat'; // 'salawat', 'salawat_full', 'voice1'
+
+function selectSalawatVoice(type) {
+    salawatSelectedSound = type;
+    ['salawat', 'full', 'voice1'].forEach(vKey => {
+        const btn = document.getElementById('voiceOpt_' + vKey);
+        if (btn) {
+            const isMatch = (vKey === 'full' && type === 'salawat_full') || (vKey === type);
+            if (isMatch) {
+                btn.className = 'py-1 px-1.5 rounded-lg text-center transition bg-amber-500 text-slate-950 shadow-sm cursor-pointer border border-amber-400 font-bold';
+            } else {
+                btn.className = 'py-1 px-1.5 rounded-lg text-center transition bg-black/40 text-slate-300 hover:text-white cursor-pointer border border-white/5';
+            }
+        }
+    });
+    playSalawatVoice(type);
+}
+
+function testSalawatAudioVoice() {
+    playSalawatVoice(salawatSelectedSound);
+}
+
+function playDhikrAudioPhrase(dhikrId, fallbackText = '') {
+    if (!tasbeehState.soundEnabled) return;
+
+    const audioUrl = DHIKR_AUDIO_MAP[dhikrId] || '/audio/salawat.mp3';
+    try {
+        if (activeDhikrAudio) {
+            activeDhikrAudio.pause();
+            activeDhikrAudio.currentTime = 0;
+        }
+
+        const audio = new Audio(audioUrl);
+        audio.volume = 1.0;
+        activeDhikrAudio = audio;
+
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(err => {
+                console.warn('Audio play blocked, fallback to TTS:', err);
+                if (fallbackText) speakArabicPhrase(fallbackText);
+            });
+        }
+    } catch (e) {
+        if (fallbackText) speakArabicPhrase(fallbackText);
+    }
+}
+
+function playSalawatVoice(soundType = 'salawat') {
+    if (!tasbeehState.soundEnabled) return;
+
+    let soundPath = '/audio/salawat.mp3';
+    if (soundType === 'salawat_full') soundPath = '/audio/salawat_full.mp3';
+    else if (soundType === 'voice1') soundPath = '/audio/sali_ala_mohamed_voice1.mp3';
+
+    try {
+        const audio = new Audio(soundPath);
+        audio.volume = 1.0;
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(err => {
+                console.warn('Salawat voice blocked by autoplay, fallback to chime + TTS:', err);
+                playSalawatBellChime();
+                speakArabicPhrase('صَلِّ عَلَى مُحَمَّد');
+            });
+        }
+    } catch (e) {
+        playSalawatBellChime();
+        speakArabicPhrase('صَلِّ عَلَى مُحَمَّد');
+    }
+}
+
 function speakArabicPhrase(phrase, onEndCallback = null) {
     if (!tasbeehState.soundEnabled) return;
     if (!('speechSynthesis' in window)) return;
@@ -5691,15 +5774,11 @@ let salawatBannerTimer = null;
 function handleSalawatBroadcast(data = {}) {
     console.log('🕋 [SALAWAT] Received synchronized broadcast across lab devices:', data);
 
-    // 1. Harmonious bell chime
-    playSalawatBellChime();
+    // 1. Play real spoken audio voice "صَلِّ عَلَى مُحَمَّد" directly!
+    const soundToPlay = data.soundType || salawatSelectedSound || 'salawat';
+    playSalawatVoice(soundToPlay);
 
-    // 2. Speak Salawat aloud synchronously
-    setTimeout(() => {
-        speakArabicPhrase('اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ');
-    }, 450);
-
-    // 3. Show glowing banner across screen
+    // 2. Show glowing banner across screen
     const banner = document.getElementById('globalSalawatBanner');
     if (banner) {
         banner.classList.remove('hidden');
@@ -5717,11 +5796,12 @@ function handleSalawatBroadcast(data = {}) {
     }
 }
 
-function triggerClassroomSalawat() {
+function triggerClassroomSalawat(soundType = null) {
+    const selected = soundType || salawatSelectedSound || 'salawat';
     if (STATE.socket && STATE.socket.connected) {
-        STATE.socket.emit('admin_trigger_salawat');
-        showNotification('تم إرسال تذكير "صلِّ على محمد ﷺ" لجميع الأجهزة بالمعمل! 🕋✨');
+        STATE.socket.emit('admin_trigger_salawat', { soundType: selected });
+        showNotification('تم إطلاق صوت "صلِّ على محمد ﷺ" لجميع الأجهزة بالمعمل! 🕋🔊');
     } else {
-        handleSalawatBroadcast({ phrase: 'اللهم صلِّ على محمد' });
+        handleSalawatBroadcast({ soundType: selected });
     }
 }
