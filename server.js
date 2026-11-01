@@ -8,6 +8,7 @@ const cors = require('cors');
 const multer = require('multer');
 const QRCode = require('qrcode');
 const crypto = require('crypto');
+const CryptoJS = require('crypto-js');
 
 const { db, run, get, all, initDB } = require('./data/db');
 const { cleanIP, getServerLanIPs, resolveMacAddress } = require('./services/network');
@@ -67,8 +68,22 @@ app.use('/uploads/stories/:filename', (req, res, next) => {
     next();
 });
 
+// Audio static resolver ensuring correct Content-Type (audio/mp4 or audio/mpeg) for browser <audio> tags
+app.get('/uploads/music/:filename', (req, res, next) => {
+    const filePath = path.join(__dirname, 'uploads', 'music', req.params.filename);
+    if (!fs.existsSync(filePath)) return next();
+    const ext = path.extname(req.params.filename).toLowerCase();
+    if (ext === '.mp4' || ext === '.m4a' || ext === '.aac') {
+        res.setHeader('Content-Type', 'audio/mp4');
+    } else if (ext === '.mp3') {
+        res.setHeader('Content-Type', 'audio/mpeg');
+    }
+    res.setHeader('Accept-Ranges', 'bytes');
+    return res.sendFile(filePath);
+});
+
 // Ensure Upload directories exist
-const uploadDirs = ['uploads', 'uploads/media', 'uploads/audio', 'uploads/stories', 'uploads/airdrop', 'uploads/avatars'];
+const uploadDirs = ['uploads', 'uploads/media', 'uploads/audio', 'uploads/stories', 'uploads/airdrop', 'uploads/avatars', 'uploads/music'];
 uploadDirs.forEach(dir => {
     const full = path.join(__dirname, dir);
     if (!fs.existsSync(full)) fs.mkdirSync(full, { recursive: true });
@@ -984,6 +999,29 @@ async function downloadMediaViaProxy(targetUrl, destPath) {
     throw (lastErr || new Error('All music proxies failed'));
 }
 
+// Helper to decrypt Saavn encrypted media URLs via DES-ECB
+function decryptSaavnUrl(enc) {
+    if (!enc || typeof enc !== 'string') return null;
+    const trimmed = enc.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+    try {
+        const key = CryptoJS.enc.Utf8.parse('38346591');
+        const decrypted = CryptoJS.DES.decrypt(
+            { ciphertext: CryptoJS.enc.Base64.parse(trimmed) },
+            key,
+            { mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7 }
+        );
+        const url = decrypted.toString(CryptoJS.enc.Utf8);
+        if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+            // Upgrade quality to 160kbps for crystal-clear sound
+            return url.replace(/_(96|48|12)\.mp4$/i, '_160.mp4');
+        }
+        return null;
+    } catch (e) {
+        return null;
+    }
+}
+
 // Search online songs from unblocked endpoints
 async function searchOnlineSongs(query) {
     if (!query || !query.trim()) return [];
@@ -995,6 +1033,9 @@ async function searchOnlineSongs(query) {
         if (data && Array.isArray(data.songs) && data.songs.length > 0) {
             return data.songs.map(s => {
                 let streamUrl = s.streamUrl;
+                if (streamUrl && !streamUrl.startsWith('http')) {
+                    streamUrl = decryptSaavnUrl(streamUrl);
+                }
                 if (!streamUrl && Array.isArray(s.downloadUrl)) {
                     const high = s.downloadUrl.find(u => u.quality === '320kbps' || u.quality === '160kbps') || s.downloadUrl[s.downloadUrl.length - 1];
                     streamUrl = high ? (high.url || high.link) : null;
@@ -1025,6 +1066,9 @@ async function searchOnlineSongs(query) {
             if (Array.isArray(s.downloadUrl)) {
                 const high = s.downloadUrl.find(u => u.quality === '320kbps' || u.quality === '160kbps') || s.downloadUrl[s.downloadUrl.length - 1];
                 streamUrl = high ? (high.url || high.link) : null;
+            }
+            if (!streamUrl && s.encrypted_media_url) {
+                streamUrl = decryptSaavnUrl(s.encrypted_media_url);
             }
             const rawImg = Array.isArray(s.image) ? (s.image.find(i => i.quality === '150x150') || s.image[0])?.link : s.image;
             return {
@@ -1093,34 +1137,124 @@ app.get('/api/music/cover', async (req, res) => {
     }
 });
 
+// Instant Audio Streaming Endpoint with Range Requests & Background Cache
+app.get('/api/music/stream', async (req, res) => {
+    try {
+        let { songId, url: targetUrl } = req.query;
+        if (!songId && !targetUrl) return res.status(400).send('Missing audio source');
+
+        if (targetUrl && !targetUrl.startsWith('http')) {
+            targetUrl = decryptSaavnUrl(targetUrl);
+        }
+
+        const safeId = String(songId || '').replace(/[^a-zA-Z0-9_-]/g, '');
+        const filename = `online_${safeId}.m4a`;
+        const localPath = path.join(__dirname, 'uploads', 'music', filename);
+        const legacyMp4Path = path.join(__dirname, 'uploads', 'music', `online_${safeId}.mp4`);
+
+        // 1. If local cached file already exists, serve it with byte-ranges & audio/mp4
+        const existingPath = fs.existsSync(localPath) ? localPath : (fs.existsSync(legacyMp4Path) ? legacyMp4Path : null);
+        if (existingPath) {
+            const stat = fs.statSync(existingPath);
+            const fileSize = stat.size;
+            const range = req.headers.range;
+
+            if (range) {
+                const parts = range.replace(/bytes=/, "").split("-");
+                const start = parseInt(parts[0], 10);
+                const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+                const chunksize = (end - start) + 1;
+                const file = fs.createReadStream(existingPath, { start, end });
+                res.writeHead(206, {
+                    'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+                    'Accept-Ranges': 'bytes',
+                    'Content-Length': chunksize,
+                    'Content-Type': 'audio/mp4',
+                });
+                return file.pipe(res);
+            } else {
+                res.writeHead(200, {
+                    'Content-Length': fileSize,
+                    'Content-Type': 'audio/mp4',
+                    'Accept-Ranges': 'bytes'
+                });
+                return fs.createReadStream(existingPath).pipe(res);
+            }
+        }
+
+        // 2. Stream live from outside via unblocked proxy while piping directly to browser & disk
+        if (!targetUrl) return res.status(404).send('Track not found on disk');
+
+        const proxyUrl = VERCEL_PROXIES[0] + encodeURIComponent(targetUrl);
+        const proxyReq = https.get(proxyUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, rejectUnauthorized: false, timeout: 20000 }, (remoteRes) => {
+            if (remoteRes.statusCode === 200 || remoteRes.statusCode === 206) {
+                res.setHeader('Content-Type', 'audio/mp4');
+                res.setHeader('Accept-Ranges', 'bytes');
+                if (remoteRes.headers['content-length']) {
+                    res.setHeader('Content-Length', remoteRes.headers['content-length']);
+                }
+
+                // Pipe directly to browser for INSTANT playback (< 0.5s!)
+                remoteRes.pipe(res);
+
+                // Also stream into local cache file for LAN persistence
+                const fileStream = fs.createWriteStream(localPath);
+                remoteRes.pipe(fileStream);
+                fileStream.on('error', () => {
+                    try { fs.unlinkSync(localPath); } catch (e) {}
+                });
+            } else {
+                res.status(remoteRes.statusCode).end();
+            }
+        });
+        proxyReq.on('error', (err) => {
+            if (!res.headersSent) res.status(502).send('Streaming error: ' + err.message);
+        });
+    } catch (err) {
+        if (!res.headersSent) res.status(500).send(err.message);
+    }
+});
+
 // Online Song Play & Auto-Cache for the Classroom LAN
 app.post('/api/music/online/play', async (req, res) => {
     try {
-        const { songId, title, artist, rawCover, streamUrl, duration, djName, djId } = req.body;
+        let { songId, title, artist, rawCover, streamUrl, duration, djName, djId } = req.body;
         if (!songId || !streamUrl) {
             return res.status(400).json({ success: false, error: 'بيانات الأغنية غير مكتملة!' });
         }
 
+        if (streamUrl && !streamUrl.startsWith('http')) {
+            streamUrl = decryptSaavnUrl(streamUrl);
+        }
+
         const safeId = String(songId).replace(/[^a-zA-Z0-9_-]/g, '');
-        const filename = `online_${safeId}.mp4`;
+        const filename = `online_${safeId}.m4a`;
         const destPath = path.join(__dirname, 'uploads', 'music', filename);
-        const localAudioUrl = `/uploads/music/${filename}`;
+        const legacyMp4 = path.join(__dirname, 'uploads', 'music', `online_${safeId}.mp4`);
+
+        // Check if file already exists on local disk
+        const hasLocal = fs.existsSync(destPath) || fs.existsSync(legacyMp4);
+        const localAudioUrl = hasLocal 
+            ? (fs.existsSync(destPath) ? `/uploads/music/${filename}` : `/uploads/music/online_${safeId}.mp4`)
+            : `/api/music/stream?songId=${safeId}&url=${encodeURIComponent(streamUrl)}`;
 
         let localCoverUrl = '';
         if (rawCover) {
             const coverFilename = `cover_${safeId}.jpg`;
             const coverDest = path.join(__dirname, 'uploads', 'music', coverFilename);
-            if (!fs.existsSync(coverDest)) {
+            if (fs.existsSync(coverDest)) {
+                localCoverUrl = `/uploads/music/${coverFilename}`;
+            } else {
                 downloadMediaViaProxy(rawCover, coverDest).catch(e => console.warn('Cover download skipped:', e.message));
+                localCoverUrl = `/api/music/cover?url=${encodeURIComponent(rawCover)}`;
             }
-            localCoverUrl = `/uploads/music/${coverFilename}`;
         }
 
-        // Check if audio file already exists locally
-        if (!fs.existsSync(destPath)) {
-            console.log(`📥 [ONLINE MUSIC] Downloading "${title}" from outside via unblocked proxy...`);
-            await downloadMediaViaProxy(streamUrl, destPath);
-            console.log(`✅ [ONLINE MUSIC] Successfully downloaded "${title}" to ${destPath}`);
+        // Background caching to local disk (NON-BLOCKING - does NOT hold up playback!)
+        if (!hasLocal) {
+            downloadMediaViaProxy(streamUrl, destPath)
+                .then(() => console.log(`✅ [ONLINE MUSIC] Cached "${title}" to disk in background`))
+                .catch(e => console.warn('Background caching note:', e.message));
         }
 
         // Insert into music_library if not already exists
@@ -1136,7 +1270,7 @@ app.post('/api/music/online/play', async (req, res) => {
             io.emit('music_library_updated', { track: savedTrack, action: 'add' });
         }
 
-        // Broadcast to all sockets to play synchronously
+        // Broadcast to all sockets to play synchronously INSTANTLY
         activeRadioTrack = {
             track: {
                 id: trackDbId,
@@ -1157,6 +1291,7 @@ app.post('/api/music/online/play', async (req, res) => {
         console.log(`🎵 [RADIO SYNC PLAY] Broadcasting "${title}" across LAN to all devices`);
         io.emit('radio_sync_state', activeRadioTrack);
 
+        // Instant return (< 50ms) so browser client plays immediately!
         res.json({ success: true, track: activeRadioTrack.track });
     } catch (err) {
         console.error('Online play error:', err);
@@ -1380,6 +1515,257 @@ app.post('/api/admin/action', async (req, res) => {
         }
 
         res.json({ success: true, action, isChatFocusLocked, isStealthEngaged });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ---------------------- 13. NETSUPPORT CLASSROOM MONITOR & REMOTE CONTROL ----------------------
+const netSupportScreens = new Map(); // key: deviceId/ip -> { id, socketId, userId, nickname, avatar, role, ip, mac, lastFrame, lastFrameAt, isLocked, isStealth, currentApp }
+
+// Receive screen frame from student browser or Windows background agent (lab-agent.ps1)
+app.post('/api/netsupport/frame', async (req, res) => {
+    try {
+        const { deviceId, userId, nickname, avatar, role, ip, mac, frameBase64, currentApp } = req.body;
+        const clientIp = cleanIP(ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientMac = mac || await resolveMacAddress(clientIp);
+        const devKey = deviceId || `dev_${clientIp.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+        const existing = netSupportScreens.get(devKey) || {};
+        const updated = {
+            id: devKey,
+            socketId: existing.socketId || null,
+            userId: userId || existing.userId || null,
+            nickname: nickname || existing.nickname || `جهاز_${clientIp.split('.').pop()}`,
+            avatar: avatar || existing.avatar || '🖥️',
+            role: role || existing.role || 'student',
+            ip: clientIp,
+            mac: clientMac || existing.mac || '',
+            lastFrame: frameBase64 || existing.lastFrame || null,
+            lastFrameAt: Date.now(),
+            isLocked: existing.isLocked || false,
+            isStealth: existing.isStealth || false,
+            currentApp: currentApp || existing.currentApp || 'Windows Desktop (Agent)'
+        };
+
+        netSupportScreens.set(devKey, updated);
+
+        // Broadcast frame update to hardware admin sockets only
+        for (const [sId, u] of onlineUsers.entries()) {
+            if (u.role === 'admin') {
+                io.to(sId).emit('netsupport_device_frame_update', {
+                    deviceId: devKey,
+                    nickname: updated.nickname,
+                    ip: updated.ip,
+                    mac: updated.mac,
+                    lastFrame: updated.lastFrame,
+                    lastFrameAt: updated.lastFrameAt,
+                    currentApp: updated.currentApp,
+                    isLocked: updated.isLocked,
+                    isStealth: updated.isStealth
+                });
+            }
+        }
+
+        res.json({ success: true, isLocked: updated.isLocked, isStealth: updated.isStealth });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Admin fetches all devices and their screen frames for the NetSupport Live Grid
+app.get('/api/netsupport/devices', async (req, res) => {
+    try {
+        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientMac = await resolveMacAddress(clientIp);
+        const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
+
+        if (!isDeviceAdmin) {
+            return res.status(403).json({ error: 'ممنوع! شاشة مراقبة المعمل محصورة حصرياً بجهاز الأدمن الفيزيائي.' });
+        }
+
+        const devices = [];
+        // Combine onlineUsers with netSupportScreens
+        for (const [socketId, user] of onlineUsers.entries()) {
+            const devKey = `dev_${user.ip.replace(/[^a-zA-Z0-9]/g, '_')}`;
+            const screenInfo = netSupportScreens.get(devKey) || netSupportScreens.get(socketId) || {};
+
+            devices.push({
+                deviceId: devKey,
+                socketId: socketId,
+                userId: user.userId,
+                nickname: user.nickname,
+                avatar: user.avatar,
+                role: user.role,
+                ip: user.ip,
+                mac: user.mac || screenInfo.mac || '',
+                connectedAt: user.connectedAt,
+                lastFrame: screenInfo.lastFrame || null,
+                lastFrameAt: screenInfo.lastFrameAt || null,
+                isLocked: !!screenInfo.isLocked,
+                isStealth: !!screenInfo.isStealth,
+                currentApp: screenInfo.currentApp || (screenInfo.lastFrame ? 'Windows Desktop' : 'No2ta Classroom Web')
+            });
+        }
+
+        // Also add any agent devices reporting via background script that might not be on socket.io
+        for (const [devKey, screenInfo] of netSupportScreens.entries()) {
+            if (!devices.some(d => d.deviceId === devKey || d.ip === screenInfo.ip)) {
+                devices.push({
+                    deviceId: devKey,
+                    socketId: null,
+                    userId: screenInfo.userId,
+                    nickname: screenInfo.nickname,
+                    avatar: screenInfo.avatar,
+                    role: screenInfo.role,
+                    ip: screenInfo.ip,
+                    mac: screenInfo.mac,
+                    connectedAt: screenInfo.lastFrameAt,
+                    lastFrame: screenInfo.lastFrame,
+                    lastFrameAt: screenInfo.lastFrameAt,
+                    isLocked: !!screenInfo.isLocked,
+                    isStealth: !!screenInfo.isStealth,
+                    currentApp: screenInfo.currentApp || 'Windows Desktop (Agent)'
+                });
+            }
+        }
+
+        res.json({
+            success: true,
+            totalDevices: devices.length,
+            devices
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Admin executes remote control on student device (Lock screen, Stealth, Warning popup, Alarm, URL Navigate, Kick)
+app.post('/api/netsupport/control', async (req, res) => {
+    try {
+        const { action, targetSocketId, targetIp, payload = {} } = req.body;
+        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientMac = await resolveMacAddress(clientIp);
+        const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
+
+        if (!isDeviceAdmin) {
+            return res.status(403).json({ error: 'ممنوع! التحكم محصور حصرياً بجهاز الأدمن الفيزيائي.' });
+        }
+
+        const updateDeviceState = (ip, updates) => {
+            if (!ip) return;
+            const devKey = `dev_${ip.replace(/[^a-zA-Z0-9]/g, '_')}`;
+            const dev = netSupportScreens.get(devKey) || { ip, id: devKey };
+            Object.assign(dev, updates);
+            netSupportScreens.set(devKey, dev);
+        };
+
+        switch (action) {
+            case 'lock_screen': {
+                if (targetSocketId === 'all' || targetIp === 'all') {
+                    io.emit('netsupport_lock_screen', {
+                        reason: payload.reason || 'تم قفل شاشات المعمل بواسطة الأستاذ / الأدمن. انتبه للشرح على السبورة!',
+                        lockedBy: 'مشرف المعمل'
+                    });
+                    for (const [k, v] of netSupportScreens.entries()) {
+                        v.isLocked = true;
+                    }
+                } else if (targetSocketId) {
+                    io.to(targetSocketId).emit('netsupport_lock_screen', {
+                        reason: payload.reason || 'تم قفل شاشتك بواسطة الأستاذ. انتبه للشرح على السبورة!',
+                        lockedBy: 'مشرف المعمل'
+                    });
+                    updateDeviceState(targetIp, { isLocked: true });
+                }
+                break;
+            }
+
+            case 'unlock_screen': {
+                if (targetSocketId === 'all' || targetIp === 'all') {
+                    io.emit('netsupport_unlock_screen');
+                    for (const [k, v] of netSupportScreens.entries()) {
+                        v.isLocked = false;
+                    }
+                } else if (targetSocketId) {
+                    io.to(targetSocketId).emit('netsupport_unlock_screen');
+                    updateDeviceState(targetIp, { isLocked: false });
+                }
+                break;
+            }
+
+            case 'force_stealth': {
+                if (targetSocketId === 'all' || targetIp === 'all') {
+                    io.emit('GLOBAL_STEALTH_ENGAGED', { timestamp: Date.now() });
+                } else if (targetSocketId) {
+                    io.to(targetSocketId).emit('GLOBAL_STEALTH_ENGAGED', { timestamp: Date.now() });
+                    updateDeviceState(targetIp, { isStealth: true });
+                }
+                break;
+            }
+
+            case 'release_stealth': {
+                if (targetSocketId === 'all' || targetIp === 'all') {
+                    io.emit('GLOBAL_STEALTH_RELEASED', { message: 'تم إلغاء التمويه بواسطة الأستاذ' });
+                } else if (targetSocketId) {
+                    io.to(targetSocketId).emit('GLOBAL_STEALTH_RELEASED', { message: 'تم إلغاء التمويه بواسطة الأستاذ' });
+                    updateDeviceState(targetIp, { isStealth: false });
+                }
+                break;
+            }
+
+            case 'popup_message': {
+                const msg = payload.message || 'انتبه للشرح يا بطل وبلاش لعب!';
+                if (targetSocketId === 'all' || targetIp === 'all') {
+                    io.emit('netsupport_popup_message', {
+                        title: '⚠️ تنبيه مباشر من مشرف المعمل',
+                        message: msg,
+                        time: new Date().toLocaleTimeString('ar-EG')
+                    });
+                } else if (targetSocketId) {
+                    io.to(targetSocketId).emit('netsupport_popup_message', {
+                        title: '⚠️ تنبيه مباشر من مشرف المعمل',
+                        message: msg,
+                        time: new Date().toLocaleTimeString('ar-EG')
+                    });
+                }
+                break;
+            }
+
+            case 'play_alarm': {
+                if (targetSocketId === 'all' || targetIp === 'all') {
+                    io.emit('netsupport_play_alarm');
+                } else if (targetSocketId) {
+                    io.to(targetSocketId).emit('netsupport_play_alarm');
+                }
+                break;
+            }
+
+            case 'navigate_url': {
+                const targetUrl = payload.url || 'https://google.com';
+                if (targetSocketId === 'all' || targetIp === 'all') {
+                    io.emit('netsupport_navigate_url', { url: targetUrl });
+                } else if (targetSocketId) {
+                    io.to(targetSocketId).emit('netsupport_navigate_url', { url: targetUrl });
+                }
+                break;
+            }
+
+            case 'request_screen': {
+                if (targetSocketId) {
+                    io.to(targetSocketId).emit('netsupport_request_screen_share');
+                }
+                break;
+            }
+
+            case 'kick': {
+                if (targetSocketId) {
+                    io.to(targetSocketId).emit('user_kicked', { reason: payload.reason || 'تم قطع اتصالك بواسطة مشرف المعمل!' });
+                }
+                break;
+            }
+        }
+
+        res.json({ success: true, action, targetSocketId, targetIp });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -1715,6 +2101,44 @@ io.on('connection', async (socket) => {
     socket.on('radio_stop', () => {
         activeRadioTrack = null;
         io.emit('radio_sync_state', null);
+    });
+
+    // NetSupport client screen frame stream
+    socket.on('netsupport_client_frame', (data) => {
+        if (data && data.frame) {
+            const userInfo = onlineUsers.get(socket.id);
+            const clientIp = userInfo?.ip || cleanIP(socket.handshake.address);
+            const devKey = `dev_${clientIp.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+            const existing = netSupportScreens.get(devKey) || {};
+            netSupportScreens.set(devKey, {
+                id: devKey,
+                socketId: socket.id,
+                userId: userInfo?.userId || existing.userId || null,
+                nickname: userInfo?.nickname || existing.nickname || 'طالب',
+                avatar: userInfo?.avatar || existing.avatar || '🖥️',
+                ip: clientIp,
+                mac: userInfo?.mac || existing.mac || '',
+                lastFrame: data.frame,
+                lastFrameAt: Date.now(),
+                isLocked: existing.isLocked || false,
+                isStealth: existing.isStealth || false,
+                currentApp: data.currentApp || 'No2ta Screen Stream'
+            });
+
+            for (const [sId, u] of onlineUsers.entries()) {
+                if (u.role === 'admin') {
+                    io.to(sId).emit('netsupport_device_frame_update', {
+                        deviceId: devKey,
+                        nickname: userInfo?.nickname || 'طالب',
+                        ip: clientIp,
+                        lastFrame: data.frame,
+                        lastFrameAt: Date.now(),
+                        currentApp: data.currentApp || 'No2ta Screen Stream'
+                    });
+                }
+            }
+        }
     });
 
     // Disconnect Handling

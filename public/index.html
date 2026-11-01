@@ -81,6 +81,13 @@
 
             <!-- Right Controls: Profile & Panic -->
             <div class="flex items-center gap-2 shrink-0">
+                <!-- NetSupport Lab Monitor Button (Admin Only) -->
+                <button id="netSupportBtn" onclick="openNetSupportModal()" class="hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 text-xs font-black transition-all shadow-sm" title="مراقبة وتحكم معمل الفصل (NetSupport Live Show & Control)">
+                    <span class="text-sm">🖥️</span>
+                    <span class="hidden md:inline">مراقبة المعمل</span>
+                    <span class="text-[9px] px-1.5 py-0.2 rounded-full bg-cyan-500/30 text-cyan-200 font-mono" id="netSupportOnlineCount">0</span>
+                </button>
+
                 <!-- Admin Dashboard Button -->
                 <button id="adminDashboardBtn" onclick="openAdminDashboard()" class="hidden flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-400 text-xs font-bold transition-all">
                     <span>👑</span>
@@ -940,6 +947,17 @@
         <audio id="classroomAudioElement" preload="auto" class="hidden"></audio>
     </div>
 
+    <!-- 🎵 MUSIC AUTOPLAY UNLOCK BANNER (If browser blocked background audio) -->
+    <div id="musicAutoplayUnlockBanner" class="hidden fixed bottom-24 inset-x-4 max-w-sm mx-auto z-50 glass-panel-elevated rounded-2xl p-3 border border-pink-500/40 text-xs font-bold text-white shadow-2xl flex items-center justify-between gap-3 animate-bounce cursor-pointer" onclick="unlockAudioAutoplay()">
+        <div class="flex items-center gap-2 min-w-0">
+            <span class="w-2.5 h-2.5 rounded-full bg-pink-500 animate-ping shrink-0"></span>
+            <span id="musicAutoplayTrackTitle" class="truncate text-pink-200">أغنية الفصل شغالة!</span>
+        </div>
+        <button type="button" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-black text-xs shrink-0 shadow">
+            تشغيل الصوت 🔊
+        </button>
+    </div>
+
     <!-- 🎵 CLASSROOM LOCAL MUSIC LIBRARY & JUKEBOX MODAL (100% LAN & ONLINE STREAM) -->
     <div id="musicSearchModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
         <div class="glass-panel-elevated rounded-3xl p-5 max-w-lg w-full border border-pink-500/30 flex flex-col max-h-[88vh] shadow-2xl relative">
@@ -1172,6 +1190,170 @@
         </div>
     </div>
 
+    <!-- 🔒 STUDENT FULLSCREEN LOCK OVERLAY (When locked by Teacher via NetSupport) -->
+    <div id="studentLockScreenOverlay" class="hidden fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center select-none">
+        <div class="relative mb-6">
+            <div class="w-24 h-24 rounded-3xl bg-red-500/10 border-2 border-red-500/40 flex items-center justify-center text-5xl shadow-2xl shadow-red-500/20 animate-pulse">
+                🔒
+            </div>
+            <span class="absolute -top-1 -right-1 flex h-4 w-4">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-4 w-4 bg-red-500"></span>
+            </span>
+        </div>
+        <h2 class="text-2xl font-black text-white mb-2">تم قفل الشاشة بواسطة مشرف المعمل!</h2>
+        <p id="studentLockReasonText" class="text-xs sm:text-sm text-red-300 font-bold mb-6 max-w-md bg-red-500/10 p-3.5 rounded-2xl border border-red-500/20 leading-relaxed">
+            ⚠️ الأستاذ قفل الأجهزة حالياً للشرح. يرجى الانتباه للسبورة وعدم لمس الجهاز!
+        </p>
+        <div class="p-3 bg-slate-900/80 rounded-2xl border border-white/5 text-[11px] text-slate-400 font-mono">
+            DEVICE LOCKED BY TEACHER • NETSUPPORT SECURITY
+        </div>
+    </div>
+
+    <!-- ⚠️ STUDENT DIRECT WARNING MODAL -->
+    <div id="studentDirectWarningModal" class="hidden fixed inset-0 z-[95] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-panel-elevated rounded-3xl p-6 max-w-sm w-full border border-amber-500/50 text-center shadow-2xl relative">
+            <span class="text-4xl block mb-2 animate-bounce">⚠️</span>
+            <h3 id="studentDirectWarningTitle" class="text-base font-black text-amber-400 mb-2">تنبيه مباشر من الأستاذ!</h3>
+            <p id="studentDirectWarningMsg" class="text-xs text-white font-bold leading-relaxed mb-4 bg-slate-950 p-3.5 rounded-xl border border-white/10"></p>
+            <p id="studentDirectWarningTime" class="text-[10px] text-slate-400 mb-3"></p>
+            <button onclick="hideModal('studentDirectWarningModal')" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition">
+                علم، مفهوم يا أستاذ 🫡
+            </button>
+        </div>
+    </div>
+
+    <!-- 🖥️ NETSUPPORT CLASSROOM LAB MONITOR MODAL (Admin Only) -->
+    <div id="netSupportModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4">
+        <div class="glass-panel-elevated rounded-3xl p-4 sm:p-6 max-w-6xl w-full border border-cyan-500/40 flex flex-col h-[92vh] shadow-2xl relative">
+            <!-- Modal Header -->
+            <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/10 mb-3 shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-xl text-cyan-400 shadow-md">
+                        🖥️
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-sm sm:text-base font-black text-white">مراقبة وتحكم معمل الفصل (NetSupport Live)</h3>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30">تحكم كامل ⚡</span>
+                        </div>
+                        <p class="text-[10px] sm:text-xs text-slate-400">شاهد ما يدور على شاشة كل جهاز في المعمل وتحكم فيها كـ Show عادي!</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="openNetSupportAgentGuideModal()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 text-xs font-bold border border-slate-700 transition flex items-center gap-1.5" title="تشغيل برنامج مراقبة سطح مكتب الويندوز">
+                        <span>📥</span>
+                        <span class="hidden sm:inline">تشغيل عميل الويندوز (Agent)</span>
+                    </button>
+                    <button onclick="refreshNetSupportDevices()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition flex items-center gap-1" title="تحديث الأجهزة">
+                        <span>🔄</span>
+                        <span class="hidden sm:inline">تحديث</span>
+                    </button>
+                    <button onclick="hideModal('netSupportModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs">✕</button>
+                </div>
+            </div>
+
+            <!-- Lab Global Control Toolbar -->
+            <div class="bg-slate-950/80 p-2.5 rounded-2xl border border-white/5 mb-3 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                <div class="flex items-center gap-3 text-xs text-slate-300">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-slate-400">الأجهزة المتصلة:</span>
+                        <span id="netSupportStatsTotal" class="font-mono font-bold text-cyan-400">0</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-slate-400">شاشات حية:</span>
+                        <span id="netSupportStatsScreens" class="font-mono font-bold text-emerald-400">0</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <button onclick="adminNetSupportGlobalAction('lock_all')" class="px-2.5 py-1 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+                        <span>🔒 قفل كل المعمل</span>
+                    </button>
+                    <button onclick="adminNetSupportGlobalAction('unlock_all')" class="px-2.5 py-1 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+                        <span>🔓 فتح كل الشاشات</span>
+                    </button>
+                    <button onclick="adminNetSupportGlobalAction('stealth_all')" class="px-2.5 py-1 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+                        <span>📚 تمويه للكل</span>
+                    </button>
+                    <button onclick="adminNetSupportGlobalAction('message_all')" class="px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+                        <span>💬 رسالة للكل</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- NetSupport Devices Grid Container -->
+            <div id="netSupportGridContainer" class="flex-1 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-1 custom-scrollbar">
+                <!-- Dynamically populated student screen cards -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 🖥️ NETSUPPORT FULLSCREEN LIVE SHOW MODAL -->
+    <div id="netSupportShowModal" class="hidden fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-2 sm:p-4">
+        <div class="glass-panel-elevated rounded-3xl p-4 max-w-5xl w-full border border-cyan-500/40 flex flex-col h-[90vh] shadow-2xl relative">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-2 shrink-0">
+                <div class="flex items-center gap-3">
+                    <div id="netSupportShowAvatar" class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-sm overflow-hidden">🖥️</div>
+                    <div>
+                        <h4 id="netSupportShowTitle" class="text-sm font-bold text-white">شاشة الطالب</h4>
+                        <p id="netSupportShowSubtitle" class="text-[10px] text-slate-400 font-mono"></p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="netSupportShowLockBtn" onclick="toggleCurrentShowLock()" class="px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+                        <span>🔒</span>
+                        <span id="netSupportShowLockLabel">قفل الشاشة</span>
+                    </button>
+                    <button onclick="sendMsgToCurrentShowDevice()" class="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+                        <span>💬</span>
+                        <span>إرسال تنبيه</span>
+                    </button>
+                    <button onclick="triggerAlarmCurrentShowDevice()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+                        <span>🔔</span>
+                        <span>إنذار صوتي</span>
+                    </button>
+                    <button onclick="hideModal('netSupportShowModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs cursor-pointer">✕</button>
+                </div>
+            </div>
+
+            <!-- Fullscreen Live Screen Frame -->
+            <div class="flex-1 bg-black rounded-2xl overflow-hidden relative flex items-center justify-center border border-white/5">
+                <img id="netSupportShowImage" src="" class="w-full h-full object-contain" alt="Live Screen Stream">
+                <div id="netSupportShowPlaceholder" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-500 text-xs">
+                    <span class="text-4xl">🖥️</span>
+                    <span>في انتظار وصول لقطة الشاشة من هذا الجهاز...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📥 NETSUPPORT AGENT GUIDE MODAL -->
+    <div id="netSupportAgentGuideModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+        <div class="glass-panel-elevated rounded-3xl p-6 max-w-md w-full border border-cyan-500/40 shadow-2xl relative">
+            <button onclick="hideModal('netSupportAgentGuideModal')" class="absolute top-4 left-4 text-slate-400 hover:text-white">✕</button>
+            <div class="flex items-center gap-2.5 mb-3">
+                <span class="text-2xl">⚡</span>
+                <div>
+                    <h3 class="text-sm font-bold text-white">تشغيل عميل سطح المكتب (NetSupport Agent)</h3>
+                    <p class="text-[10px] text-slate-400">لمشاهدة سطح مكتب الويندوز الحقيقي للأجهزة بدون فتح المتصفح</p>
+                </div>
+            </div>
+            <div class="space-y-3 text-xs text-slate-300">
+                <div class="p-3 bg-slate-950/80 rounded-2xl border border-white/5 space-y-2">
+                    <p class="font-bold text-cyan-300">طريقة التشغيل على أي جهاز في المعمل:</p>
+                    <ol class="list-decimal list-inside space-y-1.5 text-slate-300 text-[11px]">
+                        <li>الملف موجود في مجلد المشروع باسم: <span class="text-white font-mono font-bold bg-slate-800 px-1 py-0.5 rounded">lab-agent.bat</span></li>
+                        <li>اضغط عليه مرتين (Double Click) وسيعمل تلقائياً في الخلفية.</li>
+                        <li>ستظهر شاشة الجهاز الحقيقية (الألعاب والبرامج وسطح المكتب) فوراً هنا في الشاشات!</li>
+                    </ol>
+                </div>
+                <div class="p-3 bg-cyan-500/10 rounded-2xl border border-cyan-500/20 text-[11px] text-cyan-200">
+                    💡 <strong>ملاحظة:</strong> إذا كان الطالب فاتح الموقع في المتصفح فقط بدون تشغيل الـ Agent، يمكنك أيضاً مراقبته أو طلب مشاركة الشاشة منه بضغطة زر!
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 9. FLOATING NOTIFICATION PILL -->
     <div id="globalNotificationPill" class="hidden fixed bottom-5 left-5 z-50 glass-panel-elevated rounded-2xl px-4 py-2.5 border border-cyan-500/40 text-xs font-bold text-white shadow-2xl flex items-center gap-2">
         <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
@@ -1179,6 +1361,6 @@
     </div>
 
     <!-- Main Application Scripts -->
-    <script src="/js/app.js?v=3.2.0"></script>
+    <script src="/js/app.js?v=3.3.0"></script>
 </body>
 </html>

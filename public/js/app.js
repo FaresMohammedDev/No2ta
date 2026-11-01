@@ -58,6 +58,13 @@ const STATE = {
         isSeeking: false,
         audioEl: null
     },
+    netSupport: {
+        devices: [],
+        currentShowDeviceId: null,
+        pollInterval: null,
+        studentStreamInterval: null,
+        studentMediaStream: null
+    },
     pendingEditAvatarUrl: null,
     pendingAuthAvatarUrl: null
 };
@@ -251,6 +258,15 @@ function updateProfileUI() {
             adminBtn.classList.remove('hidden');
         } else {
             adminBtn.classList.add('hidden');
+        }
+    }
+
+    const netSupportBtn = document.getElementById('netSupportBtn');
+    if (netSupportBtn) {
+        if (STATE.user.role === 'admin' || (STATE.networkInfo && STATE.networkInfo.isHostAdmin)) {
+            netSupportBtn.classList.remove('hidden');
+        } else {
+            netSupportBtn.classList.add('hidden');
         }
     }
 
@@ -520,6 +536,59 @@ function initSocket() {
         alert(data.reason || 'تم طردك بواسطة أدمن الفصل!');
         localStorage.removeItem('no2ta_user');
         window.location.reload();
+    });
+
+    // 🖥️ NETSUPPORT CLASSROOM MONITOR & REMOTE CONTROL EVENTS
+    STATE.socket.on('netsupport_lock_screen', (data) => {
+        const overlay = document.getElementById('studentLockScreenOverlay');
+        const reasonEl = document.getElementById('studentLockReasonText');
+        if (reasonEl && data && data.reason) {
+            reasonEl.textContent = data.reason;
+        }
+        if (overlay) overlay.classList.remove('hidden');
+        const audio = getRadioAudioElement();
+        if (audio) audio.pause();
+    });
+
+    STATE.socket.on('netsupport_unlock_screen', () => {
+        const overlay = document.getElementById('studentLockScreenOverlay');
+        if (overlay) overlay.classList.add('hidden');
+        showNotification('🔓 تم فك قفل الشاشة بواسطة الأستاذ.');
+    });
+
+    STATE.socket.on('netsupport_popup_message', (data) => {
+        const modal = document.getElementById('studentDirectWarningModal');
+        const titleEl = document.getElementById('studentDirectWarningTitle');
+        const msgEl = document.getElementById('studentDirectWarningMsg');
+        const timeEl = document.getElementById('studentDirectWarningTime');
+        if (titleEl && data.title) titleEl.textContent = data.title;
+        if (msgEl) msgEl.textContent = data.message;
+        if (timeEl) timeEl.textContent = data.time || '';
+        if (modal) modal.classList.remove('hidden');
+        if (window.soundEngine && typeof window.soundEngine.playAnnouncement === 'function') {
+            window.soundEngine.playAnnouncement();
+        }
+    });
+
+    STATE.socket.on('netsupport_play_alarm', () => {
+        if (window.soundEngine && typeof window.soundEngine.playAnnouncement === 'function') {
+            window.soundEngine.playAnnouncement();
+        }
+        showNotification('🔔 تنبيه صوتي عاجل من مشرف المعمل!');
+    });
+
+    STATE.socket.on('netsupport_navigate_url', (data) => {
+        if (data && data.url) {
+            window.location.href = data.url;
+        }
+    });
+
+    STATE.socket.on('netsupport_request_screen_share', () => {
+        promptStudentNetSupportScreenShare();
+    });
+
+    STATE.socket.on('netsupport_device_frame_update', (data) => {
+        handleNetSupportFrameUpdate(data);
     });
 }
 
@@ -3305,13 +3374,20 @@ async function playOnlineSongForEveryone(idx) {
     const song = window._lastOnlineSongs?.[idx];
     if (!song) return;
 
+    // Immediately prime and unblock local audio element inside user click gesture!
+    const audio = getRadioAudioElement();
+    if (audio) {
+        audio.muted = false;
+        audio.volume = 1.0;
+    }
+
     const btn = document.getElementById(`onlinePlayBtn_${idx}`);
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = `<span>جاري التجهيز... ⏳</span>`;
+        btn.innerHTML = `<span>جاري التشغيل... 🎵</span>`;
     }
 
-    showNotification(`جاري جلب وتوزيع "${song.title}" لجميع أجهزة المعمل... ⏳🎵`);
+    showNotification(`جاري تشغيل "${song.title}" لجميع أجهزة المعمل... ⏳🎵`);
 
     try {
         const res = await fetch('/api/music/online/play', {
@@ -3330,10 +3406,15 @@ async function playOnlineSongForEveryone(idx) {
         });
 
         const data = await res.json();
-        if (data.success) {
+        if (data.success && data.track) {
             hideModal('musicSearchModal');
             showNotification(`🎶 تم تشغيل "${song.title}" لجميع أجهزة المعمل!`);
             loadMusicLibraryCountOnly();
+            // Start local playback immediately with direct source
+            if (audio && (data.track.audioUrl || data.track.file_url)) {
+                audio.src = data.track.audioUrl || data.track.file_url;
+                audio.play().catch(e => console.warn('Instant play catch:', e));
+            }
         } else {
             showNotification(data.error || 'تعذر تشغيل الأغنية.');
             if (btn) {
@@ -3575,6 +3656,7 @@ function handleRadioSyncState(state) {
     const audio = getRadioAudioElement();
     const titleEl = document.getElementById('radioTrackTitle');
     const artistEl = document.getElementById('radioTrackArtist');
+    const coverWrapper = document.getElementById('radioCoverWrapper');
     const playIcon = document.getElementById('radioPlayIcon');
 
     if (!state || !state.track) {
@@ -3585,6 +3667,7 @@ function handleRadioSyncState(state) {
             audio.removeAttribute('src');
         }
         if (bar) bar.classList.add('hidden');
+        hideAutoplayUnlockBanner();
         return;
     }
 
@@ -3597,7 +3680,16 @@ function handleRadioSyncState(state) {
     if (artistEl) artistEl.textContent = `${state.track.artist || 'موسيقى'} • مشغل بواسطة: ${state.djName || 'دي جي الفصل 🎧'}`;
     if (playIcon) playIcon.textContent = state.isPlaying ? '⏸' : '▶';
 
+    if (coverWrapper) {
+        if (state.track.cover) {
+            coverWrapper.innerHTML = `<img src="${state.track.cover}" class="w-full h-full object-cover" onerror="this.outerHTML='<span class=\\'animate-spin\\'>📻</span>'">`;
+        } else {
+            coverWrapper.innerHTML = `<span class="animate-spin" style="animation-duration: 4s;">📻</span>`;
+        }
+    }
+
     if (audio) {
+        audio.muted = false;
         const targetSrc = state.track.file_url || state.track.audioUrl;
         if (targetSrc && audio.src !== targetSrc && !audio.src.endsWith(targetSrc)) {
             audio.src = targetSrc;
@@ -3613,10 +3705,43 @@ function handleRadioSyncState(state) {
         }
 
         if (state.isPlaying && !STATE.isStealthActive && targetSrc) {
-            audio.play().catch(e => console.warn('Radio autoplay error:', e));
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    hideAutoplayUnlockBanner();
+                }).catch(e => {
+                    console.warn('Radio autoplay error (user gesture needed):', e);
+                    showAutoplayUnlockBanner(state.track.title);
+                });
+            }
         } else {
             audio.pause();
+            hideAutoplayUnlockBanner();
         }
+    }
+}
+
+function showAutoplayUnlockBanner(title) {
+    const banner = document.getElementById('musicAutoplayUnlockBanner');
+    const titleEl = document.getElementById('musicAutoplayTrackTitle');
+    if (banner) {
+        if (titleEl && title) titleEl.textContent = `🎵 راديو الفصل: "${title}" • اضغط هنا للاستماع 🔊`;
+        banner.classList.remove('hidden');
+    }
+}
+
+function hideAutoplayUnlockBanner() {
+    const banner = document.getElementById('musicAutoplayUnlockBanner');
+    if (banner) banner.classList.add('hidden');
+}
+
+function unlockAudioAutoplay() {
+    hideAutoplayUnlockBanner();
+    const audio = getRadioAudioElement();
+    if (audio) {
+        audio.muted = false;
+        audio.volume = 1.0;
+        audio.play().catch(e => console.error('Unlock audio play error:', e));
     }
 }
 
@@ -3859,6 +3984,13 @@ function showModal(id) {
 function hideModal(id) {
     const m = document.getElementById(id);
     if (m) m.classList.add('hidden');
+    if (id === 'netSupportModal' && STATE.netSupport && STATE.netSupport.pollInterval) {
+        clearInterval(STATE.netSupport.pollInterval);
+        STATE.netSupport.pollInterval = null;
+    }
+    if (id === 'netSupportShowModal' && STATE.netSupport) {
+        STATE.netSupport.currentShowDeviceId = null;
+    }
 }
 
 function showNotification(text) {
@@ -4190,5 +4322,369 @@ function logoutCurrentUser() {
     if (confirm('هل تريد تسجيل الخروج من نؤطة؟')) {
         localStorage.removeItem('no2ta_user');
         window.location.reload();
+    }
+}
+
+// ====================================================
+// 14. NetSupport Classroom Monitor & Remote Control 🖥️⚡
+// ====================================================
+
+async function openNetSupportModal() {
+    const modal = document.getElementById('netSupportModal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    await refreshNetSupportDevices();
+
+    // Start auto-refresh interval while modal is open (every 3 seconds)
+    if (STATE.netSupport.pollInterval) clearInterval(STATE.netSupport.pollInterval);
+    STATE.netSupport.pollInterval = setInterval(refreshNetSupportDevices, 3000);
+}
+
+async function refreshNetSupportDevices() {
+    try {
+        const res = await fetch('/api/netsupport/devices');
+        if (!res.ok) {
+            if (res.status === 403) {
+                console.warn('NetSupport: Unauthorized device');
+            }
+            return;
+        }
+        const data = await res.json();
+        const devices = data.devices || [];
+        STATE.netSupport.devices = devices;
+
+        // Update stats
+        const totalEl = document.getElementById('netSupportStatsTotal');
+        const screensEl = document.getElementById('netSupportStatsScreens');
+        const headerCountEl = document.getElementById('netSupportOnlineCount');
+        
+        if (totalEl) totalEl.textContent = devices.length;
+        if (screensEl) screensEl.textContent = devices.filter(d => !!d.lastFrame).length;
+        if (headerCountEl) headerCountEl.textContent = devices.length;
+
+        renderNetSupportGrid(devices);
+    } catch (err) {
+        console.error('Failed to refresh NetSupport devices:', err);
+    }
+}
+
+function renderNetSupportGrid(devices) {
+    const container = document.getElementById('netSupportGridContainer');
+    if (!container) return;
+
+    if (!devices || devices.length === 0) {
+        container.innerHTML = `
+            <div class="col-span-full py-16 flex flex-col items-center justify-center text-center text-slate-500">
+                <span class="text-5xl mb-3">🖥️</span>
+                <p class="text-sm font-bold text-slate-300 mb-1">لا توجد أجهزة متصلة بالمعمل حالياً</p>
+                <p class="text-xs text-slate-500 max-w-sm mb-4">عندما يفتح الطلاب نؤطة أو يتم تشغيل lab-agent.bat ستظهر شاشاتهم هنا فوراً وبشكل حي!</p>
+                <button onclick="openNetSupportAgentGuideModal()" class="px-4 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold transition">
+                    📖 طريقة تشغيل عميل المعمل (lab-agent.bat)
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = devices.map(dev => {
+        const isLocked = !!dev.isLocked;
+        const isStealth = !!dev.isStealth;
+        const hasFrame = !!dev.lastFrame;
+        const lastSeenSec = dev.lastFrameAt ? Math.round((Date.now() - dev.lastFrameAt) / 1000) : null;
+        const timeAgoText = lastSeenSec !== null ? (lastSeenSec < 6 ? 'مباشر الآن 🟢' : `منذ ${lastSeenSec} ثانية`) : 'لا توجد لقطة';
+
+        const safeNick = escapeHtml(dev.nickname || 'طالب');
+        const safeIp = escapeHtml(dev.ip || '');
+        const safeApp = dev.currentApp ? escapeHtml(dev.currentApp) : 'سطح المكتب';
+
+        return `
+            <div class="glass-panel rounded-2xl p-3 border ${isLocked ? 'border-red-500/60 bg-red-950/20' : 'border-white/10 bg-slate-900/60'} flex flex-col justify-between transition-all hover:border-cyan-500/50 shadow-lg group">
+                <!-- Header -->
+                <div class="flex items-center justify-between gap-2 mb-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <div class="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-xs overflow-hidden shrink-0">
+                            ${renderAvatarHTML(dev.avatar, 'w-full h-full')}
+                        </div>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-1.5">
+                                <h4 class="text-xs font-bold text-white truncate max-w-[110px]" title="${safeNick}">${safeNick}</h4>
+                                ${dev.role === 'admin' ? '<span class="text-[9px] px-1 rounded bg-amber-500/20 text-amber-300 font-bold">معلم</span>' : ''}
+                            </div>
+                            <p class="text-[10px] text-slate-400 font-mono truncate">${safeIp}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        ${isLocked ? '<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-red-500/30 text-red-300 border border-red-500/40 font-bold animate-pulse">🔒 مقفول</span>' : ''}
+                        ${isStealth ? '<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 font-bold">📚 تمويه</span>' : ''}
+                    </div>
+                </div>
+
+                <!-- Screen Thumbnail / Preview -->
+                <div class="relative w-full h-32 sm:h-36 bg-black rounded-xl overflow-hidden border border-white/5 flex items-center justify-center cursor-pointer group-hover:border-cyan-500/40 transition mb-2" onclick="openNetSupportShowModal('${dev.deviceId}')">
+                    ${hasFrame ? `
+                        <img id="device_frame_${dev.deviceId}" src="${dev.lastFrame}" class="w-full h-full object-contain" alt="${safeNick} Screen" />
+                        <div class="absolute inset-0 bg-cyan-950/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                            <span class="px-2.5 py-1 rounded-xl bg-cyan-500 text-slate-950 text-xs font-black shadow-lg flex items-center gap-1 scale-95 group-hover:scale-100 transition">
+                                👁️ تكبير Show
+                            </span>
+                        </div>
+                    ` : `
+                        <div class="flex flex-col items-center justify-center gap-1.5 p-3 text-center text-slate-500">
+                            <span class="text-2xl">🖥️</span>
+                            <span class="text-[10px] text-slate-400">لا توجد صورة شاشة حالياً</span>
+                            <button onclick="event.stopPropagation(); adminNetSupportDeviceControl('request_screen', '${dev.socketId}', '${dev.ip}')" class="text-[10px] px-2 py-0.8 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 transition">
+                                📡 طلب بث
+                            </button>
+                        </div>
+                    `}
+                    <!-- Bottom Info Banner on Image -->
+                    <div class="absolute bottom-1 inset-x-1.5 px-2 py-0.8 rounded-lg bg-black/75 backdrop-blur-sm flex items-center justify-between text-[9px] text-slate-300 font-mono">
+                        <span class="truncate max-w-[120px] text-slate-400" title="${safeApp}">🪟 ${safeApp}</span>
+                        <span class="${hasFrame ? 'text-emerald-400' : 'text-slate-500'}">${timeAgoText}</span>
+                    </div>
+                </div>
+
+                <!-- Control Buttons -->
+                <div class="grid grid-cols-4 gap-1 pt-1 border-t border-white/5">
+                    <button onclick="openNetSupportShowModal('${dev.deviceId}')" class="py-1 px-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold transition flex items-center justify-center gap-1" title="عرض ملء الشاشة كـ Show">
+                        <span>👁️</span>
+                        <span class="hidden sm:inline">Show</span>
+                    </button>
+                    <button onclick="adminNetSupportDeviceControl('${isLocked ? 'unlock_screen' : 'lock_screen'}', '${dev.socketId}', '${dev.ip}')" class="py-1 px-1.5 rounded-lg ${isLocked ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40' : 'bg-red-500/15 hover:bg-red-500/30 text-red-300 border border-red-500/30'} text-[11px] font-bold transition flex items-center justify-center gap-1" title="${isLocked ? 'إلغاء القفل' : 'قفل شاشة الطالب'}">
+                        <span>${isLocked ? '🔓' : '🔒'}</span>
+                        <span class="hidden sm:inline">${isLocked ? 'فتح' : 'قفل'}</span>
+                    </button>
+                    <button onclick="promptMessageToNetSupportDevice('${dev.socketId}', '${dev.ip}', '${safeNick}')" class="py-1 px-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold transition flex items-center justify-center gap-1" title="إرسال رسالة تنبيه منبثقة للطالب">
+                        <span>💬</span>
+                        <span class="hidden sm:inline">تنبيه</span>
+                    </button>
+                    <button onclick="adminNetSupportDeviceControl('play_alarm', '${dev.socketId}', '${dev.ip}')" class="py-1 px-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-bold transition flex items-center justify-center gap-1" title="رنين جرس إنذار على جهاز الطالب">
+                        <span>🔔</span>
+                        <span class="hidden sm:inline">إنذار</span>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function promptMessageToNetSupportDevice(socketId, ip, nickname) {
+    const msg = prompt(`أدخل رسالة التنبيه التي ستظهر على شاشة ${nickname || 'الجهاز'}:`);
+    if (msg && msg.trim()) {
+        adminNetSupportDeviceControl('popup_message', socketId, ip, { message: msg.trim() });
+    }
+}
+
+function openNetSupportShowModal(deviceId) {
+    const dev = STATE.netSupport.devices.find(d => d.deviceId === deviceId);
+    if (!dev) return;
+
+    STATE.netSupport.currentShowDeviceId = deviceId;
+
+    const modal = document.getElementById('netSupportShowModal');
+    const avatarEl = document.getElementById('netSupportShowAvatar');
+    const titleEl = document.getElementById('netSupportShowTitle');
+    const subtitleEl = document.getElementById('netSupportShowSubtitle');
+    const lockBtn = document.getElementById('netSupportShowLockBtn');
+    const lockLabel = document.getElementById('netSupportShowLockLabel');
+    const imgEl = document.getElementById('netSupportShowImage');
+    const placeholderEl = document.getElementById('netSupportShowPlaceholder');
+
+    if (avatarEl) avatarEl.innerHTML = renderAvatarHTML(dev.avatar, 'w-full h-full');
+    if (titleEl) titleEl.textContent = `شاشة: ${dev.nickname || 'جهاز طالب'}`;
+    if (subtitleEl) subtitleEl.textContent = `IP: ${dev.ip || ''} | MAC: ${dev.mac || 'N/A'} | التطبيق: ${dev.currentApp || 'Desktop'}`;
+
+    if (lockBtn && lockLabel) {
+        if (dev.isLocked) {
+            lockBtn.className = 'px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer';
+            lockLabel.textContent = 'إلغاء القفل 🔓';
+        } else {
+            lockBtn.className = 'px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer';
+            lockLabel.textContent = 'قفل الشاشة 🔒';
+        }
+    }
+
+    if (dev.lastFrame) {
+        if (imgEl) {
+            imgEl.src = dev.lastFrame;
+            imgEl.classList.remove('hidden');
+        }
+        if (placeholderEl) placeholderEl.classList.add('hidden');
+    } else {
+        if (imgEl) imgEl.classList.add('hidden');
+        if (placeholderEl) placeholderEl.classList.remove('hidden');
+    }
+
+    if (modal) modal.classList.remove('hidden');
+}
+
+function toggleCurrentShowLock() {
+    if (!STATE.netSupport.currentShowDeviceId) return;
+    const dev = STATE.netSupport.devices.find(d => d.deviceId === STATE.netSupport.currentShowDeviceId);
+    if (!dev) return;
+
+    const newLockState = !dev.isLocked;
+    dev.isLocked = newLockState;
+
+    const lockBtn = document.getElementById('netSupportShowLockBtn');
+    const lockLabel = document.getElementById('netSupportShowLockLabel');
+    if (lockBtn && lockLabel) {
+        if (newLockState) {
+            lockBtn.className = 'px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer';
+            lockLabel.textContent = 'إلغاء القفل 🔓';
+        } else {
+            lockBtn.className = 'px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer';
+            lockLabel.textContent = 'قفل الشاشة 🔒';
+        }
+    }
+
+    adminNetSupportDeviceControl(newLockState ? 'lock_screen' : 'unlock_screen', dev.socketId, dev.ip);
+}
+
+function sendMsgToCurrentShowDevice() {
+    if (!STATE.netSupport.currentShowDeviceId) return;
+    const dev = STATE.netSupport.devices.find(d => d.deviceId === STATE.netSupport.currentShowDeviceId);
+    if (!dev) return;
+    promptMessageToNetSupportDevice(dev.socketId, dev.ip, dev.nickname);
+}
+
+function triggerAlarmCurrentShowDevice() {
+    if (!STATE.netSupport.currentShowDeviceId) return;
+    const dev = STATE.netSupport.devices.find(d => d.deviceId === STATE.netSupport.currentShowDeviceId);
+    if (!dev) return;
+    adminNetSupportDeviceControl('play_alarm', dev.socketId, dev.ip);
+    showNotification(`تم إرسال إنذار صوتي لجهاز ${dev.nickname}! 🔔`);
+}
+
+async function adminNetSupportDeviceControl(action, targetSocketId, targetIp, payload = {}) {
+    try {
+        const res = await fetch('/api/netsupport/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action, targetSocketId, targetIp, payload })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showNotification(`تم تنفيذ الأمر بنجاح! ⚡`);
+            await refreshNetSupportDevices();
+        } else {
+            alert(data.error || 'فشل إرسال أمر التحكم!');
+        }
+    } catch (err) {
+        console.error('NetSupport control error:', err);
+        showNotification('حدث خطأ أثناء إرسال أمر التحكم ⚠️');
+    }
+}
+
+async function adminNetSupportGlobalAction(action) {
+    if (action === 'lock_all') {
+        if (confirm('هل أنت متأكد من قفل شاشات جميع الأجهزة في المعمل فوراً؟ 🔒')) {
+            await adminNetSupportDeviceControl('lock_screen', 'all', 'all');
+        }
+    } else if (action === 'unlock_all') {
+        await adminNetSupportDeviceControl('unlock_screen', 'all', 'all');
+    } else if (action === 'stealth_all') {
+        if (confirm('هل تريد تحويل جميع أجهزة المعمل لشاشة التمويه (مسألة فيزياء) فوراً؟ 📚')) {
+            await adminNetSupportDeviceControl('force_stealth', 'all', 'all');
+        }
+    } else if (action === 'message_all') {
+        const msg = prompt('اكتب رسالة التنبيه التي ستظهر لجميع الطلاب بالمعمل:');
+        if (msg && msg.trim()) {
+            await adminNetSupportDeviceControl('popup_message', 'all', 'all', { message: msg.trim() });
+        }
+    }
+}
+
+function openNetSupportAgentGuideModal() {
+    const modal = document.getElementById('netSupportAgentGuideModal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function handleNetSupportFrameUpdate(data) {
+    if (!data || !data.deviceId) return;
+
+    let dev = STATE.netSupport.devices.find(d => d.deviceId === data.deviceId);
+    if (dev) {
+        dev.lastFrame = data.lastFrame;
+        dev.lastFrameAt = data.lastFrameAt || Date.now();
+        if (data.currentApp) dev.currentApp = data.currentApp;
+        if (typeof data.isLocked !== 'undefined') dev.isLocked = data.isLocked;
+        if (typeof data.isStealth !== 'undefined') dev.isStealth = data.isStealth;
+    }
+
+    if (STATE.netSupport.currentShowDeviceId === data.deviceId) {
+        const imgEl = document.getElementById('netSupportShowImage');
+        const placeholderEl = document.getElementById('netSupportShowPlaceholder');
+        if (imgEl && data.lastFrame) {
+            imgEl.src = data.lastFrame;
+            imgEl.classList.remove('hidden');
+        }
+        if (placeholderEl && data.lastFrame) {
+            placeholderEl.classList.add('hidden');
+        }
+    }
+
+    const thumbImg = document.getElementById(`device_frame_${data.deviceId}`);
+    if (thumbImg && data.lastFrame) {
+        thumbImg.src = data.lastFrame;
+    }
+}
+
+async function promptStudentNetSupportScreenShare() {
+    if (STATE.netSupport.studentStreamInterval) return;
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        console.warn('Screen capture not supported in this browser');
+        return;
+    }
+
+    try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+            video: { frameRate: { ideal: 2, max: 5 }, width: { max: 1280 }, height: { max: 720 } },
+            audio: false
+        });
+
+        STATE.netSupport.studentMediaStream = stream;
+
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        video.muted = true;
+        await video.play();
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        STATE.netSupport.studentStreamInterval = setInterval(() => {
+            if (!stream.active) {
+                clearInterval(STATE.netSupport.studentStreamInterval);
+                STATE.netSupport.studentStreamInterval = null;
+                return;
+            }
+            if (video.videoWidth > 0 && video.videoHeight > 0) {
+                canvas.width = 480;
+                canvas.height = Math.round((480 / video.videoWidth) * video.videoHeight);
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const frameBase64 = canvas.toDataURL('image/jpeg', 0.55);
+
+                if (STATE.socket && STATE.socket.connected) {
+                    STATE.socket.emit('netsupport_client_frame', {
+                        frame: frameBase64,
+                        currentApp: document.title || 'Browser Tab'
+                    });
+                }
+            }
+        }, 2000);
+
+        stream.getVideoTracks()[0].onended = () => {
+            if (STATE.netSupport.studentStreamInterval) {
+                clearInterval(STATE.netSupport.studentStreamInterval);
+                STATE.netSupport.studentStreamInterval = null;
+            }
+        };
+
+        showNotification('تم بدء مشاركة الشاشة مع المعلم للمتابعة بنجاح! 🖥️');
+    } catch (err) {
+        console.warn('Student screen stream declined or failed:', err);
     }
 }
