@@ -81,6 +81,9 @@ function renderAvatarHTML(avatar, extraClasses = 'w-full h-full') {
 
 // DOM Ready Init
 document.addEventListener('DOMContentLoaded', async () => {
+    // Alexandria Live Clock & Prayer Times Engine
+    initAlexandriaPrayerEngine();
+
     // 1. Fetch Network Info & Check Login
     await fetchNetworkInfo();
     checkExistingAuth();
@@ -4771,4 +4774,258 @@ function startStudentAutoScreenStream() {
 async function promptStudentNetSupportScreenShare() {
     // Immediate fallback trigger
     captureStudentLiveSnapshot();
+}
+
+
+// ----------------------------------------------------
+// 15. Alexandria Live Clock & Prayer Times Engine 🕌🕒
+// ----------------------------------------------------
+function calculateAlexandriaPrayersClient(date = new Date()) {
+    const lat = 31.2001;
+    const lng = 29.9187;
+
+    let tzOffset = 2;
+    try {
+        const formatter = new Intl.DateTimeFormat('en-US', { timeZone: 'Africa/Cairo', timeZoneName: 'shortOffset' });
+        const parts = formatter.formatToParts(date);
+        const tzPart = parts.find(p => p.type === 'timeZoneName')?.value || 'GMT+2';
+        const match = tzPart.match(/([+-])(\d+)/);
+        if (match) {
+            tzOffset = match[1] === '-' ? -parseInt(match[2], 10) : parseInt(match[2], 10);
+        }
+    } catch (e) {
+        tzOffset = 2;
+    }
+
+    const d = (date.getTime() / 86400000) - (date.getTimezoneOffset() / 1440) + 2440587.5;
+    const D = d - 2451545.0;
+
+    const g = (357.529 + 0.98560028 * D) % 360;
+    const q = (280.459 + 0.98564736 * D) % 360;
+    const L = (q + 1.915 * Math.sin(g * Math.PI / 180) + 0.020 * Math.sin(2 * g * Math.PI / 180)) % 360;
+
+    const e = 23.439 - 0.00000036 * D;
+    const RA = (Math.atan2(Math.cos(e * Math.PI / 180) * Math.sin(L * Math.PI / 180), Math.cos(L * Math.PI / 180)) * 180 / Math.PI + 360) % 360;
+
+    let EqT = (q - RA) / 15;
+    while (EqT > 12) EqT -= 24;
+    while (EqT < -12) EqT += 24;
+
+    const sinDec = Math.sin(e * Math.PI / 180) * Math.sin(L * Math.PI / 180);
+    const Dec = Math.asin(sinDec);
+    const latRad = lat * Math.PI / 180;
+
+    const noonLocal = 12 - (lng / 15) - EqT + tzOffset;
+
+    function getHA(angle) {
+        const angleRad = angle * Math.PI / 180;
+        const cosHA = (Math.sin(angleRad) - Math.sin(latRad) * Math.sin(Dec)) / (Math.cos(latRad) * Math.cos(Dec));
+        if (cosHA > 1) return 0;
+        if (cosHA < -1) return 180;
+        return (Math.acos(cosHA) * 180 / Math.PI) / 15;
+    }
+
+    const haFajr = getHA(-19.5);
+    const haSunrise = getHA(-0.8333);
+    const asrAlt = Math.atan(1 / (1 + Math.tan(Math.abs(latRad - Dec)))) * 180 / Math.PI;
+    const haAsr = getHA(asrAlt);
+    const haSunset = getHA(-0.8333);
+    const haIsha = getHA(-17.5);
+
+    function fmt(hrs) {
+        let totalMin = Math.round(hrs * 60);
+        let h = Math.floor(totalMin / 60) % 24;
+        let m = totalMin % 60;
+        let p = h >= 12 ? 'م' : 'ص';
+        let h12 = h % 12 === 0 ? 12 : h % 12;
+        let padM = m < 10 ? '0' + m : '' + m;
+        let padH = h < 10 ? '0' + h : '' + h;
+        return {
+            time24: `${padH}:${padM}`,
+            time12: `${h12}:${padM} ${p}`,
+            h,
+            m,
+            totalSec: h * 3600 + m * 60
+        };
+    }
+
+    return {
+        city: 'الإسكندرية',
+        fajr: fmt(noonLocal - haFajr),
+        sunrise: fmt(noonLocal - haSunrise),
+        dhuhr: fmt(noonLocal + 0.02),
+        asr: fmt(noonLocal + haAsr),
+        maghrib: fmt(noonLocal + haSunset + 0.03),
+        isha: fmt(noonLocal + haIsha)
+    };
+}
+
+let alexandriaPrayersData = null;
+
+function tickAlexandriaClockAndPrayers() {
+    const now = new Date();
+
+    // 1. Alexandria live clock
+    let alexTimeStr = '--:--:--';
+    let alexDateStr = '';
+    try {
+        alexTimeStr = new Intl.DateTimeFormat('ar-EG-u-nu-latn', {
+            timeZone: 'Africa/Cairo',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        }).format(now);
+
+        alexDateStr = new Intl.DateTimeFormat('ar-EG-u-nu-latn', {
+            timeZone: 'Africa/Cairo',
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        }).format(now);
+    } catch (e) {
+        alexTimeStr = now.toLocaleTimeString('ar-EG');
+    }
+
+    // 2. Ensure prayer calculations for today
+    if (!alexandriaPrayersData) {
+        alexandriaPrayersData = calculateAlexandriaPrayersClient(now);
+    }
+
+    const p = alexandriaPrayersData;
+
+    // 3. Compute current Alexandria seconds from midnight
+    let h = 0, m = 0, s = 0;
+    try {
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Africa/Cairo',
+            hour: 'numeric',
+            minute: 'numeric',
+            second: 'numeric',
+            hour12: false
+        }).formatToParts(now);
+        h = parseInt(parts.find(x => x.type === 'hour')?.value || '0', 10);
+        m = parseInt(parts.find(x => x.type === 'minute')?.value || '0', 10);
+        s = parseInt(parts.find(x => x.type === 'second')?.value || '0', 10);
+    } catch (e) {
+        h = now.getHours();
+        m = now.getMinutes();
+        s = now.getSeconds();
+    }
+    const currentSec = h * 3600 + m * 60 + s;
+
+    // 4. Find next prayer
+    const prayerList = [
+        { key: 'fajr', name: 'الفجر', sec: p.fajr.totalSec },
+        { key: 'dhuhr', name: 'الظهر', sec: p.dhuhr.totalSec },
+        { key: 'asr', name: 'العصر', sec: p.asr.totalSec },
+        { key: 'maghrib', name: 'المغرب', sec: p.maghrib.totalSec },
+        { key: 'isha', name: 'العشاء', sec: p.isha.totalSec }
+    ];
+
+    let nextPrayer = null;
+    let diffSec = 0;
+
+    for (const item of prayerList) {
+        if (currentSec < item.sec) {
+            nextPrayer = item;
+            diffSec = item.sec - currentSec;
+            break;
+        }
+    }
+
+    if (!nextPrayer) {
+        nextPrayer = prayerList[0];
+        diffSec = (86400 - currentSec) + p.fajr.totalSec;
+    }
+
+    const remHours = Math.floor(diffSec / 3600);
+    const remMins = Math.floor((diffSec % 3600) / 60);
+    const remSecs = diffSec % 60;
+    const shortCountdown = `${remHours > 0 ? remHours + ':' : ''}${remMins < 10 ? '0' + remMins : remMins}:${remSecs < 10 ? '0' + remSecs : remSecs}`;
+    const detailedCountdown = `${remHours > 0 ? remHours + 'س و ' : ''}${remMins}د و ${remSecs}ث`;
+
+    // 5. Update Header Pill
+    const headerClock = document.getElementById('headerAlexandriaClock');
+    const headerNextName = document.getElementById('headerNextPrayerName');
+    const headerNextCountdown = document.getElementById('headerNextPrayerCountdown');
+    if (headerClock) headerClock.textContent = alexTimeStr;
+    if (headerNextName) headerNextName.textContent = nextPrayer.name;
+    if (headerNextCountdown) headerNextCountdown.textContent = (remHours > 0 ? remHours + 'س و ' : '') + remMins + 'د';
+
+    // 6. Update Sidebar Widget
+    const sideClock = document.getElementById('sidebarAlexandriaClock');
+    const sideDate = document.getElementById('sidebarAlexandriaDate');
+    const sideNext = document.getElementById('sidebarAlexandriaNextCountdown');
+    if (sideClock) sideClock.textContent = alexTimeStr;
+    if (sideDate) sideDate.textContent = alexDateStr;
+    if (sideNext) sideNext.textContent = `${nextPrayer.name} بعد ${shortCountdown}`;
+
+    const prayerKeys = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+    for (const key of prayerKeys) {
+        const valEl = document.getElementById(`prayer_time_${key}`);
+        const cardEl = document.getElementById(`prayer_card_${key}`);
+        if (valEl && p[key]) valEl.textContent = p[key].time12;
+        if (cardEl) {
+            if (key === nextPrayer.key) {
+                cardEl.className = 'p-1 rounded-lg bg-emerald-500/25 border border-emerald-400/60 ring-1 ring-emerald-400/50 shadow-sm transition-all';
+                if (valEl) valEl.className = 'text-[10px] font-black text-emerald-200 mt-0.5';
+            } else {
+                cardEl.className = 'p-1 rounded-lg bg-black/40 border border-white/5 transition-all';
+                if (valEl) valEl.className = 'text-[10px] font-bold text-slate-300 mt-0.5';
+            }
+        }
+    }
+
+    // 7. Update Modal
+    const modalClock = document.getElementById('modalAlexandriaLiveClock');
+    const modalDate = document.getElementById('modalAlexandriaFullDate');
+    const modalNextName = document.getElementById('modalNextPrayerName');
+    const modalNextCountdown = document.getElementById('modalNextPrayerCountdown');
+    if (modalClock) modalClock.textContent = alexTimeStr;
+    if (modalDate) modalDate.textContent = alexDateStr;
+    if (modalNextName) modalNextName.textContent = nextPrayer.name;
+    if (modalNextCountdown) modalNextCountdown.textContent = `باقي: ${detailedCountdown}`;
+
+    const modalKeys = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha'];
+    for (const key of modalKeys) {
+        const mVal = document.getElementById(`modal_time_${key}`);
+        const mRow = document.getElementById(`modal_row_${key}`);
+        if (mVal && p[key]) mVal.textContent = p[key].time12;
+        if (mRow) {
+            if (key === nextPrayer.key) {
+                mRow.className = 'p-2.5 rounded-xl bg-gradient-to-r from-emerald-950/60 to-slate-900/90 border border-emerald-400/60 ring-1 ring-emerald-400/50 flex items-center justify-between transition-all shadow-md';
+            } else if (key === 'sunrise') {
+                mRow.className = 'p-2.5 rounded-xl bg-slate-900/40 border border-white/5 flex items-center justify-between text-slate-400 transition-all';
+            } else {
+                mRow.className = 'p-2.5 rounded-xl bg-slate-900/60 border border-white/5 flex items-center justify-between transition-all';
+            }
+        }
+    }
+}
+
+async function initAlexandriaPrayerEngine() {
+    alexandriaPrayersData = calculateAlexandriaPrayersClient(new Date());
+    tickAlexandriaClockAndPrayers();
+
+    try {
+        const res = await fetch('/api/alexandria-prayers');
+        if (res.ok) {
+            const data = await res.json();
+            if (data && data.prayers) {
+                alexandriaPrayersData = data.prayers;
+                tickAlexandriaClockAndPrayers();
+            }
+        }
+    } catch (err) {
+        // Local calculation fallback is active
+    }
+
+    setInterval(tickAlexandriaClockAndPrayers, 1000);
+}
+
+function openPrayerTimesModal() {
+    tickAlexandriaClockAndPrayers();
+    showModal('prayerTimesModal');
 }

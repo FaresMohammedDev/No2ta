@@ -148,6 +148,122 @@ app.get('/api/network-info', async (req, res) => {
     }
 });
 
+// Alexandria, Egypt Prayer Times Engine (Egyptian General Authority of Survey)
+// Latitude: 31.2001° N, Longitude: 29.9187° E
+function getAlexandriaPrayers(date = new Date()) {
+    const lat = 31.2001;
+    const lng = 29.9187;
+
+    let tzOffset = 2;
+    try {
+        const formatter = new Intl.DateTimeFormat('en-US', { timeZone: 'Africa/Cairo', timeZoneName: 'shortOffset' });
+        const parts = formatter.formatToParts(date);
+        const tzPart = parts.find(p => p.type === 'timeZoneName')?.value || 'GMT+2';
+        const match = tzPart.match(/([+-])(\d+)/);
+        if (match) {
+            tzOffset = match[1] === '-' ? -parseInt(match[2], 10) : parseInt(match[2], 10);
+        }
+    } catch (e) {
+        tzOffset = 2;
+    }
+
+    const d = (date.getTime() / 86400000) - (date.getTimezoneOffset() / 1440) + 2440587.5;
+    const D = d - 2451545.0;
+
+    const g = (357.529 + 0.98560028 * D) % 360;
+    const q = (280.459 + 0.98564736 * D) % 360;
+    const L = (q + 1.915 * Math.sin(g * Math.PI / 180) + 0.020 * Math.sin(2 * g * Math.PI / 180)) % 360;
+
+    const e = 23.439 - 0.00000036 * D;
+    const RA = (Math.atan2(Math.cos(e * Math.PI / 180) * Math.sin(L * Math.PI / 180), Math.cos(L * Math.PI / 180)) * 180 / Math.PI + 360) % 360;
+
+    let EqT = (q - RA) / 15;
+    while (EqT > 12) EqT -= 24;
+    while (EqT < -12) EqT += 24;
+
+    const sinDec = Math.sin(e * Math.PI / 180) * Math.sin(L * Math.PI / 180);
+    const Dec = Math.asin(sinDec);
+    const latRad = lat * Math.PI / 180;
+
+    const noonLocal = 12 - (lng / 15) - EqT + tzOffset;
+
+    function getHA(angle) {
+        const angleRad = angle * Math.PI / 180;
+        const cosHA = (Math.sin(angleRad) - Math.sin(latRad) * Math.sin(Dec)) / (Math.cos(latRad) * Math.cos(Dec));
+        if (cosHA > 1) return 0;
+        if (cosHA < -1) return 180;
+        return (Math.acos(cosHA) * 180 / Math.PI) / 15;
+    }
+
+    const haFajr = getHA(-19.5);
+    const haSunrise = getHA(-0.8333);
+    const asrAlt = Math.atan(1 / (1 + Math.tan(Math.abs(latRad - Dec)))) * 180 / Math.PI;
+    const haAsr = getHA(asrAlt);
+    const haSunset = getHA(-0.8333);
+    const haIsha = getHA(-17.5);
+
+    function fmt(hrs) {
+        let totalMin = Math.round(hrs * 60);
+        let h = Math.floor(totalMin / 60) % 24;
+        let m = totalMin % 60;
+        let p = h >= 12 ? 'م' : 'ص';
+        let h12 = h % 12 === 0 ? 12 : h % 12;
+        let padM = m < 10 ? '0' + m : '' + m;
+        let padH = h < 10 ? '0' + h : '' + h;
+        return {
+            time24: `${padH}:${padM}`,
+            time12: `${h12}:${padM} ${p}`,
+            h,
+            m,
+            totalSec: h * 3600 + m * 60
+        };
+    }
+
+    return {
+        city: 'الإسكندرية',
+        country: 'مصر',
+        tzOffset,
+        fajr: fmt(noonLocal - haFajr),
+        sunrise: fmt(noonLocal - haSunrise),
+        dhuhr: fmt(noonLocal + 0.02),
+        asr: fmt(noonLocal + haAsr),
+        maghrib: fmt(noonLocal + haSunset + 0.03),
+        isha: fmt(noonLocal + haIsha)
+    };
+}
+
+// Alexandria Live Time & Prayer Times API
+app.get('/api/alexandria-prayers', (req, res) => {
+    try {
+        const now = new Date();
+        const prayers = getAlexandriaPrayers(now);
+        const alexTimeStr = new Intl.DateTimeFormat('ar-EG-u-nu-latn', {
+            timeZone: 'Africa/Cairo',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        }).format(now);
+        const alexDateStr = new Intl.DateTimeFormat('ar-EG-u-nu-latn', {
+            timeZone: 'Africa/Cairo',
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        }).format(now);
+
+        res.json({
+            success: true,
+            city: 'الإسكندرية',
+            alexandriaTime: alexTimeStr,
+            alexandriaDate: alexDateStr,
+            prayers
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // 2. Authentication & Auto-Login
 app.post('/api/auth/login', async (req, res) => {
     try {

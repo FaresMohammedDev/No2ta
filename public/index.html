@@ -81,6 +81,18 @@
 
             <!-- Right Controls: Profile & Panic -->
             <div class="flex items-center gap-2 shrink-0">
+                <!-- Alexandria Time & Prayer Quick Pill -->
+                <div id="alexandriaHeaderPill" onclick="openPrayerTimesModal()" class="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-950/40 via-teal-950/30 to-slate-900/60 border border-emerald-500/30 hover:border-emerald-400/60 cursor-pointer transition-all shadow-sm group shrink-0" title="توقيت الإسكندرية ومواقيت الصلاة - اضغط للتفاصيل 🕌">
+                    <span class="text-sm">🕌</span>
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:gap-1.5 leading-none">
+                        <span class="text-[10px] font-bold text-emerald-300 hidden md:inline">الإسكندرية</span>
+                        <span id="headerAlexandriaClock" class="text-xs font-mono font-bold text-white tracking-wide">--:--:--</span>
+                    </div>
+                    <div class="hidden lg:flex items-center gap-1.5 pl-1 border-r border-white/10 pr-2">
+                        <span id="headerNextPrayerName" class="text-[10px] text-amber-300 font-bold">الظهر</span>
+                        <span id="headerNextPrayerCountdown" class="text-[10px] font-mono text-slate-300">--:--</span>
+                    </div>
+                </div>
                 <!-- NetSupport Lab Monitor Button (Admin Only) -->
                 <button id="netSupportBtn" onclick="openNetSupportModal()" class="hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 text-xs font-black transition-all shadow-sm" title="مراقبة وتحكم معمل الفصل (NetSupport Live Show & Control)">
                     <span class="text-sm">🖥️</span>
@@ -149,6 +161,50 @@
                     <button id="tabDirectBtn" onclick="switchSidebarTab('direct')" class="flex-1 py-1.5 text-[11px] font-semibold rounded-lg text-slate-400 hover:text-white transition-all">
                         👤 الزملاء
                     </button>
+                </div>
+            </div>
+
+            <!-- Alexandria Prayer Times & Live Clock Sidebar Widget -->
+            <div id="sidebarAlexandriaWidget" class="p-2.5 border-b border-white/10 bg-gradient-to-b from-slate-900/90 via-slate-900/60 to-emerald-950/20 shrink-0">
+                <div class="flex items-center justify-between gap-1.5 mb-2 cursor-pointer group" onclick="openPrayerTimesModal()" title="اضغط لعرض جدول مواقيت الصلاة الكامل في الإسكندرية 🕌">
+                    <div class="flex items-center gap-1.5 min-w-0">
+                        <span class="text-sm">🕌</span>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-1">
+                                <span class="text-[11px] font-bold text-white group-hover:text-emerald-300 transition">مواقيت الصلاة</span>
+                                <span class="text-[9px] px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">الإسكندرية</span>
+                            </div>
+                            <p id="sidebarAlexandriaDate" class="text-[9px] text-slate-400 truncate">--</p>
+                        </div>
+                    </div>
+                    <div class="text-left font-mono shrink-0">
+                        <div id="sidebarAlexandriaClock" class="text-xs font-black text-cyan-300 tracking-tight">--:--:--</div>
+                        <div id="sidebarAlexandriaNextCountdown" class="text-[9px] text-amber-300 font-bold">باقي: --:--</div>
+                    </div>
+                </div>
+
+                <!-- 5 Prayers Grid -->
+                <div class="grid grid-cols-5 gap-1 text-center font-mono">
+                    <div id="prayer_card_fajr" class="p-1 rounded-lg bg-black/40 border border-white/5 transition-all">
+                        <div class="text-[9px] text-slate-400">الفجر</div>
+                        <div id="prayer_time_fajr" class="text-[10px] font-bold text-slate-200 mt-0.5">--:--</div>
+                    </div>
+                    <div id="prayer_card_dhuhr" class="p-1 rounded-lg bg-black/40 border border-white/5 transition-all">
+                        <div class="text-[9px] text-slate-400">الظهر</div>
+                        <div id="prayer_time_dhuhr" class="text-[10px] font-bold text-slate-200 mt-0.5">--:--</div>
+                    </div>
+                    <div id="prayer_card_asr" class="p-1 rounded-lg bg-black/40 border border-white/5 transition-all">
+                        <div class="text-[9px] text-slate-400">العصر</div>
+                        <div id="prayer_time_asr" class="text-[10px] font-bold text-slate-200 mt-0.5">--:--</div>
+                    </div>
+                    <div id="prayer_card_maghrib" class="p-1 rounded-lg bg-black/40 border border-white/5 transition-all">
+                        <div class="text-[9px] text-slate-400">المغرب</div>
+                        <div id="prayer_time_maghrib" class="text-[10px] font-bold text-slate-200 mt-0.5">--:--</div>
+                    </div>
+                    <div id="prayer_card_isha" class="p-1 rounded-lg bg-black/40 border border-white/5 transition-all">
+                        <div class="text-[9px] text-slate-400">العشاء</div>
+                        <div id="prayer_time_isha" class="text-[10px] font-bold text-slate-200 mt-0.5">--:--</div>
+                    </div>
                 </div>
             </div>
 
@@ -1354,6 +1410,101 @@
         </div>
     </div>
 
+    <!-- 🕌 ALEXANDRIA PRAYER TIMES & CLOCK MODAL -->
+    <div id="prayerTimesModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+        <div class="glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-md w-full border border-emerald-500/40 shadow-2xl relative overflow-hidden bg-gradient-to-b from-slate-950 via-[#0a141c] to-emerald-950/30">
+            <!-- Background Islamic Glow -->
+            <div class="absolute -top-16 -right-16 w-44 h-44 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-16 -left-16 w-44 h-44 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none"></div>
+
+            <!-- Close Button -->
+            <button onclick="hideModal('prayerTimesModal')" class="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition cursor-pointer">✕</button>
+
+            <!-- Modal Header -->
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-2xl shadow-inner">
+                    🕌
+                </div>
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <h3 class="text-base font-black text-white">مواقيت الصلاة في الإسكندرية</h3>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">مصر 🇪🇬</span>
+                    </div>
+                    <p id="modalAlexandriaFullDate" class="text-xs text-slate-400 mt-0.5">--</p>
+                </div>
+            </div>
+
+            <!-- Live Clock & Next Prayer Hero Box -->
+            <div class="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/60 to-slate-900/80 border border-emerald-500/30 mb-4 text-center relative overflow-hidden">
+                <div class="text-[11px] font-bold text-emerald-300 mb-1 flex items-center justify-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    <span>توقيت الإسكندرية الحي</span>
+                </div>
+                <div id="modalAlexandriaLiveClock" class="text-3xl sm:text-4xl font-mono font-black text-white tracking-wider my-1 drop-shadow">
+                    --:--:--
+                </div>
+                <div class="flex items-center justify-center gap-2 mt-2 pt-2 border-t border-white/10">
+                    <span class="text-xs text-slate-300">الصلاة القادمة:</span>
+                    <span id="modalNextPrayerName" class="text-xs font-bold text-amber-400 px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30">--</span>
+                    <span id="modalNextPrayerCountdown" class="text-xs font-mono font-bold text-cyan-300">باقي: --</span>
+                </div>
+            </div>
+
+            <!-- 6 Timings Table (Fajr, Sunrise, Dhuhr, Asr, Maghrib, Isha) -->
+            <div class="space-y-1.5 mb-4 text-xs">
+                <div id="modal_row_fajr" class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5 flex items-center justify-between transition-all">
+                    <div class="flex items-center gap-2">
+                        <span class="text-base">🌅</span>
+                        <span class="font-bold text-white">صلاة الفجر</span>
+                    </div>
+                    <span id="modal_time_fajr" class="font-mono font-bold text-slate-200">--:--</span>
+                </div>
+                <div id="modal_row_sunrise" class="p-2.5 rounded-xl bg-slate-900/40 border border-white/5 flex items-center justify-between text-slate-400 transition-all">
+                    <div class="flex items-center gap-2">
+                        <span class="text-base">☀️</span>
+                        <span>الشروق</span>
+                    </div>
+                    <span id="modal_time_sunrise" class="font-mono font-bold text-slate-400">--:--</span>
+                </div>
+                <div id="modal_row_dhuhr" class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5 flex items-center justify-between transition-all">
+                    <div class="flex items-center gap-2">
+                        <span class="text-base">☀️</span>
+                        <span class="font-bold text-white">صلاة الظهر</span>
+                    </div>
+                    <span id="modal_time_dhuhr" class="font-mono font-bold text-slate-200">--:--</span>
+                </div>
+                <div id="modal_row_asr" class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5 flex items-center justify-between transition-all">
+                    <div class="flex items-center gap-2">
+                        <span class="text-base">🌤️</span>
+                        <span class="font-bold text-white">صلاة العصر</span>
+                    </div>
+                    <span id="modal_time_asr" class="font-mono font-bold text-slate-200">--:--</span>
+                </div>
+                <div id="modal_row_maghrib" class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5 flex items-center justify-between transition-all">
+                    <div class="flex items-center gap-2">
+                        <span class="text-base">🌇</span>
+                        <span class="font-bold text-white">صلاة المغرب</span>
+                    </div>
+                    <span id="modal_time_maghrib" class="font-mono font-bold text-slate-200">--:--</span>
+                </div>
+                <div id="modal_row_isha" class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5 flex items-center justify-between transition-all">
+                    <div class="flex items-center gap-2">
+                        <span class="text-base">🌙</span>
+                        <span class="font-bold text-white">صلاة العشاء</span>
+                    </div>
+                    <span id="modal_time_isha" class="font-mono font-bold text-slate-200">--:--</span>
+                </div>
+            </div>
+
+            <!-- Adhan Du'a Footer Card -->
+            <div class="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+                <p class="text-[11px] text-emerald-200 leading-relaxed font-serif">
+                    «اللَّهُمَّ رَبَّ هَذِهِ الدَّعْوَةِ التَّامَّةِ، وَالصَّلَاةِ القَائِمَةِ، آتِ مُحَمَّداً الوَسِيلَةَ وَالفَضِيلَةَ، وَابْعَثْهُ مَقَاماً مَحْمُوداً الَّذِي وَعَدْتَهُ»
+                </p>
+            </div>
+        </div>
+    </div>
+
     <!-- 9. FLOATING NOTIFICATION PILL -->
     <div id="globalNotificationPill" class="hidden fixed bottom-5 left-5 z-50 glass-panel-elevated rounded-2xl px-4 py-2.5 border border-cyan-500/40 text-xs font-bold text-white shadow-2xl flex items-center gap-2">
         <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
@@ -1362,6 +1513,6 @@
 
     <!-- Main Application Scripts -->
     <script src="/js/html2canvas.min.js"></script>
-    <script src="/js/app.js?v=3.5.0"></script>
+    <script src="/js/app.js?v=3.6.0"></script>
 </body>
 </html>
