@@ -71,6 +71,12 @@
                     <span id="radioPlayingIndicator" class="hidden w-2 h-2 rounded-full bg-pink-500 animate-ping"></span>
                 </button>
 
+                <!-- Electronic Tasbeeh Button 📿 -->
+                <button onclick="openTasbeehModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold transition-all shadow-sm shrink-0" title="السبحة الإلكترونية وعداد الأذكار">
+                    <span class="text-sm">📿</span>
+                    <span>السبحة</span>
+                </button>
+
                 <!-- Weekend Freeze Badge (Hidden unless active) -->
                 <span id="weekendFreezeBadge" class="hidden px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shrink-0">
                     ❄️🔥 الويك إند مجمّد
@@ -1517,6 +1523,103 @@
                     «اللَّهُمَّ رَبَّ هَذِهِ الدَّعْوَةِ التَّامَّةِ، وَالصَّلَاةِ القَائِمَةِ، آتِ مُحَمَّداً الوَسِيلَةَ وَالفَضِيلَةَ، وَابْعَثْهُ مَقَاماً مَحْمُوداً الَّذِي وَعَدْتَهُ»
                 </p>
             </div>
+
+            <!-- Tasbeeh Quick Button in Prayer Modal -->
+            <button onclick="hideModal('prayerTimesModal'); openTasbeehModal();" class="w-full mt-3 py-2.5 px-3 rounded-2xl bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-amber-500/20 hover:from-amber-500/30 hover:to-emerald-500/30 border border-amber-500/40 text-amber-300 font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-amber-500/10">
+                <span>📿</span>
+                <span>فتح السبحة الإلكترونية للأذكار</span>
+                <span>✨</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 📿 DIGITAL TASBEEH MODAL -->
+    <div id="tasbeehModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+        <div class="glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-md w-full border border-amber-500/40 shadow-2xl relative overflow-hidden bg-gradient-to-b from-slate-950 via-[#10141e] to-amber-950/25">
+            <!-- Glow background -->
+            <div class="absolute -top-16 -right-16 w-44 h-44 rounded-full bg-amber-500/10 blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-16 -left-16 w-44 h-44 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none"></div>
+
+            <!-- Top bar -->
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">📿</span>
+                    <div>
+                        <h3 class="text-sm font-black text-white">السبحة الإلكترونية</h3>
+                        <p class="text-[10px] text-amber-300/80">أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="tasbeehSoundToggleBtn" onclick="toggleTasbeehSound()" class="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs text-slate-300 transition" title="تشغيل / كتم صوت خرزات السبحة">
+                        <span id="tasbeehSoundIcon">🔊</span>
+                    </button>
+                    <button onclick="hideModal('tasbeehModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition cursor-pointer">✕</button>
+                </div>
+            </div>
+
+            <!-- Classroom Collective Banner -->
+            <div class="p-2.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-emerald-500/15 to-amber-500/15 border border-amber-500/30 flex items-center justify-between text-xs mb-3 shadow-inner">
+                <span class="text-[11px] text-amber-200 font-bold flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                    <span>تسبيحات الفصل معاً:</span>
+                </span>
+                <span id="tasbeehClassroomTotal" class="font-mono font-black text-amber-300 text-sm">0</span>
+            </div>
+
+            <!-- Dhikr Selector Pills (Scrollable horizontally) -->
+            <div id="tasbeehDhikrList" class="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-2 mb-3">
+                <!-- Dynamically populated pills -->
+            </div>
+
+            <!-- Big Circular Counter -->
+            <div class="flex flex-col items-center justify-center my-2">
+                <div id="tasbeehCounterCircle" onclick="incrementTasbeeh()" class="relative w-48 h-48 sm:w-52 sm:h-52 rounded-full cursor-pointer select-none group flex items-center justify-center transition-transform active:scale-95 shadow-2xl shadow-amber-500/10 bg-slate-950/60 border border-white/5">
+                    <!-- SVG Progress Ring -->
+                    <svg class="w-full h-full transform -rotate-90 pointer-events-none" viewBox="0 0 160 160">
+                        <circle cx="80" cy="80" r="70" stroke="currentColor" stroke-width="8" class="text-slate-800/80" fill="transparent" />
+                        <circle id="tasbeehProgressCircle" cx="80" cy="80" r="70" stroke="currentColor" stroke-width="8" stroke-linecap="round" class="text-amber-400 transition-all duration-150" fill="transparent" stroke-dasharray="440" stroke-dashoffset="440" />
+                    </svg>
+
+                    <!-- Inside Circle Content -->
+                    <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-4 pointer-events-none">
+                        <span id="tasbeehCurrentDhikrTitle" class="text-xs sm:text-sm font-bold text-amber-200 mb-1 leading-snug line-clamp-2 px-2">سُبْحَانَ اللَّهِ</span>
+                        <span id="tasbeehCountDisplay" class="text-4xl sm:text-5xl font-black font-mono text-white tracking-wider my-1 drop-shadow-lg">0</span>
+                        <div class="flex items-center gap-1 text-[10px] text-slate-400 font-mono">
+                            <span>الهدف:</span>
+                            <span id="tasbeehTargetDisplay" class="text-amber-300 font-bold">33</span>
+                        </div>
+                        <span class="text-[9px] text-slate-500 mt-1 opacity-70 group-hover:opacity-100 transition">اضغط هنا أو زر المسافة (Space)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Target Selector & Controls -->
+            <div class="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-white/10 text-xs">
+                <!-- Target buttons -->
+                <div class="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-white/5">
+                    <button onclick="setTasbeehTarget(33)" id="targetBtn_33" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500 text-slate-950 transition">33</button>
+                    <button onclick="setTasbeehTarget(100)" id="targetBtn_100" class="px-2.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition">100</button>
+                    <button onclick="setTasbeehTarget(0)" id="targetBtn_0" class="px-2 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition" title="عداد حر مفتوح">∞</button>
+                </div>
+
+                <!-- Cycle indicator -->
+                <div class="text-[11px] text-slate-300 font-bold flex items-center gap-1">
+                    <span>الدورة:</span>
+                    <span id="tasbeehCycleCount" class="font-mono text-emerald-400 font-black">1</span>
+                </div>
+
+                <!-- Reset Button -->
+                <button onclick="resetCurrentTasbeeh()" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-red-500/20 hover:text-red-300 border border-white/10 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+                    <span>🔄</span>
+                    <span>تصفير</span>
+                </button>
+            </div>
+
+            <!-- User Lifetime Stats Bar -->
+            <div class="flex items-center justify-between text-[10px] text-slate-400 mt-2 px-1 font-mono">
+                <span>اليوم: <strong id="tasbeehTodayCount" class="text-white">0</strong></span>
+                <span>إجمالي تسبيحاتك: <strong id="tasbeehLifetimeCount" class="text-amber-300">0</strong></span>
+            </div>
         </div>
     </div>
 
@@ -1528,6 +1631,6 @@
 
     <!-- Main Application Scripts -->
     <script src="/js/html2canvas.min.js"></script>
-    <script src="/js/app.js?v=3.6.0"></script>
+    <script src="/js/app.js?v=3.7.0"></script>
 </body>
 </html>

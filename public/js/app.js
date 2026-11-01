@@ -83,6 +83,7 @@ function renderAvatarHTML(avatar, extraClasses = 'w-full h-full') {
 document.addEventListener('DOMContentLoaded', async () => {
     // Alexandria Live Clock & Prayer Times Engine
     initAlexandriaPrayerEngine();
+    initTasbeehEngine();
 
     // 1. Fetch Network Info & Check Login
     await fetchNetworkInfo();
@@ -296,6 +297,14 @@ function initSocket() {
         STATE.socket.emit('register_presence', STATE.user);
         if (STATE.user && STATE.user.role !== 'admin') {
             setTimeout(captureStudentLiveSnapshot, 800);
+        }
+    });
+
+    STATE.socket.on('tasbeeh_global_update', (data) => {
+        if (data && typeof data.total !== 'undefined') {
+            tasbeehState.classroomTotal = data.total;
+            const el = document.getElementById('tasbeehClassroomTotal');
+            if (el) el.textContent = data.total.toLocaleString('ar-EG');
         }
     });
 
@@ -5028,4 +5037,291 @@ async function initAlexandriaPrayerEngine() {
 function openPrayerTimesModal() {
     tickAlexandriaClockAndPrayers();
     showModal('prayerTimesModal');
+}
+
+
+// ----------------------------------------------------
+// 16. Digital Tasbeeh & Classroom Barakah Engine 📿✨
+// ----------------------------------------------------
+const TASBEEH_AZKAR = [
+    { id: 'subhanallah', title: 'سُبْحَانَ اللَّهِ', defaultTarget: 33 },
+    { id: 'alhamdulillah', title: 'الْحَمْدُ لِلَّهِ', defaultTarget: 33 },
+    { id: 'lailahaillallah', title: 'لَا إِلَهَ إِلَّا اللَّهُ', defaultTarget: 33 },
+    { id: 'allahuakbar', title: 'اللَّهُ أَكْبَرُ', defaultTarget: 33 },
+    { id: 'astaghfirullah', title: 'أَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ', defaultTarget: 100 },
+    { id: 'lahawla', title: 'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ', defaultTarget: 100 },
+    { id: 'salawat', title: 'اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ', defaultTarget: 100 },
+    { id: 'subhan_wabihamdih', title: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ ، سُبْحَانَ اللَّهِ الْعَظِيمِ', defaultTarget: 100 },
+    { id: 'hasbiyallah', title: 'حَسْبِيَ اللَّهُ لَا إِلَهَ إِلَّا هُوَ عَلَيْهِ تَوَكَّلْتُ', defaultTarget: 7 },
+    { id: 'custom', title: 'ذِكْرٌ حُرٌّ', defaultTarget: 0 }
+];
+
+let tasbeehState = {
+    selectedDhikrId: 'subhanallah',
+    currentCount: 0,
+    targetCount: 33,
+    cycleCount: 1,
+    soundEnabled: true,
+    todayCount: 0,
+    lifetimeCount: 0,
+    classroomTotal: 0
+};
+
+// Web Audio API Sound Synthesizers for Offline Realistic Bead Click and Chime
+function playTasbeehBeadClick() {
+    if (!tasbeehState.soundEnabled) return;
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        // Wooden bead click pitch
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(650 + Math.random() * 50, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(250, ctx.currentTime + 0.035);
+
+        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.035);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.035);
+    } catch (e) {}
+}
+
+function playTasbeehGoalChime() {
+    if (!tasbeehState.soundEnabled) return;
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const now = ctx.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+            gain.gain.setValueAtTime(0.2, now + idx * 0.07);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.25);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + idx * 0.07);
+            osc.stop(now + idx * 0.07 + 0.25);
+        });
+    } catch (e) {}
+}
+
+function loadTasbeehStats() {
+    try {
+        const saved = JSON.parse(localStorage.getItem('no2ta_tasbeeh_stats') || '{}');
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (saved.date === todayStr) {
+            tasbeehState.todayCount = saved.today || 0;
+        } else {
+            tasbeehState.todayCount = 0;
+        }
+        tasbeehState.lifetimeCount = saved.lifetime || 0;
+        tasbeehState.soundEnabled = saved.sound !== false;
+    } catch (e) {}
+}
+
+function saveTasbeehStats() {
+    try {
+        const todayStr = new Date().toISOString().split('T')[0];
+        localStorage.setItem('no2ta_tasbeeh_stats', JSON.stringify({
+            date: todayStr,
+            today: tasbeehState.todayCount,
+            lifetime: tasbeehState.lifetimeCount,
+            sound: tasbeehState.soundEnabled
+        }));
+    } catch (e) {}
+}
+
+function renderTasbeehDhikrList() {
+    const listEl = document.getElementById('tasbeehDhikrList');
+    if (!listEl) return;
+
+    listEl.innerHTML = TASBEEH_AZKAR.map(item => {
+        const isSelected = item.id === tasbeehState.selectedDhikrId;
+        return `
+            <button onclick="selectTasbeehDhikr('${item.id}')" class="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+                isSelected
+                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 font-black'
+                    : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-white/5'
+            }">
+                ${item.title}
+            </button>
+        `;
+    }).join('');
+}
+
+function updateTasbeehUI() {
+    const currentDhikr = TASBEEH_AZKAR.find(d => d.id === tasbeehState.selectedDhikrId) || TASBEEH_AZKAR[0];
+
+    const titleEl = document.getElementById('tasbeehCurrentDhikrTitle');
+    const countEl = document.getElementById('tasbeehCountDisplay');
+    const targetEl = document.getElementById('tasbeehTargetDisplay');
+    const cycleEl = document.getElementById('tasbeehCycleCount');
+    const todayEl = document.getElementById('tasbeehTodayCount');
+    const lifetimeEl = document.getElementById('tasbeehLifetimeCount');
+    const classroomEl = document.getElementById('tasbeehClassroomTotal');
+    const circleRing = document.getElementById('tasbeehProgressCircle');
+    const soundIcon = document.getElementById('tasbeehSoundIcon');
+
+    if (titleEl) titleEl.textContent = currentDhikr.title;
+    if (countEl) countEl.textContent = tasbeehState.currentCount;
+    if (targetEl) targetEl.textContent = tasbeehState.targetCount > 0 ? tasbeehState.targetCount : '∞';
+    if (cycleEl) cycleEl.textContent = tasbeehState.cycleCount;
+    if (todayEl) todayEl.textContent = tasbeehState.todayCount.toLocaleString('ar-EG');
+    if (lifetimeEl) lifetimeEl.textContent = tasbeehState.lifetimeCount.toLocaleString('ar-EG');
+    if (classroomEl) classroomEl.textContent = tasbeehState.classroomTotal.toLocaleString('ar-EG');
+    if (soundIcon) soundIcon.textContent = tasbeehState.soundEnabled ? '🔊' : '🔇';
+
+    [33, 100, 0].forEach(val => {
+        const btn = document.getElementById(`targetBtn_${val}`);
+        if (btn) {
+            if (tasbeehState.targetCount === val) {
+                btn.className = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500 text-slate-950 transition';
+            } else {
+                btn.className = 'px-2.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition';
+            }
+        }
+    });
+
+    if (circleRing) {
+        if (tasbeehState.targetCount > 0) {
+            const fraction = Math.min(tasbeehState.currentCount / tasbeehState.targetCount, 1);
+            const offset = 440 - (440 * fraction);
+            circleRing.style.strokeDashoffset = offset;
+            if (fraction >= 1) {
+                circleRing.classList.remove('text-amber-400');
+                circleRing.classList.add('text-emerald-400');
+            } else {
+                circleRing.classList.remove('text-emerald-400');
+                circleRing.classList.add('text-amber-400');
+            }
+        } else {
+            circleRing.style.strokeDashoffset = 0;
+            circleRing.classList.remove('text-emerald-400');
+            circleRing.classList.add('text-amber-400');
+        }
+    }
+}
+
+function incrementTasbeeh() {
+    playTasbeehBeadClick();
+
+    if (navigator.vibrate) {
+        try { navigator.vibrate(25); } catch (e) {}
+    }
+
+    const circle = document.getElementById('tasbeehCounterCircle');
+    if (circle) {
+        circle.classList.add('scale-95');
+        setTimeout(() => circle.classList.remove('scale-95'), 120);
+    }
+
+    tasbeehState.currentCount++;
+    tasbeehState.todayCount++;
+    tasbeehState.lifetimeCount++;
+    tasbeehState.classroomTotal++;
+
+    if (tasbeehState.targetCount > 0 && tasbeehState.currentCount >= tasbeehState.targetCount) {
+        playTasbeehGoalChime();
+        tasbeehState.cycleCount++;
+
+        if (circle) {
+            circle.classList.add('ring-4', 'ring-emerald-400', 'bg-emerald-950/40');
+            setTimeout(() => {
+                circle.classList.remove('ring-4', 'ring-emerald-400', 'bg-emerald-950/40');
+            }, 600);
+        }
+
+        const currentIdx = TASBEEH_AZKAR.findIndex(d => d.id === tasbeehState.selectedDhikrId);
+        if (tasbeehState.targetCount === 33 && currentIdx >= 0 && currentIdx < 3) {
+            tasbeehState.selectedDhikrId = TASBEEH_AZKAR[currentIdx + 1].id;
+            tasbeehState.currentCount = 0;
+            renderTasbeehDhikrList();
+            showNotification(`ما شاء الله! تمت الدورة بنجاح. الذكر التالي: ${TASBEEH_AZKAR[currentIdx + 1].title} 🌟`);
+        } else {
+            tasbeehState.currentCount = 0;
+        }
+    }
+
+    saveTasbeehStats();
+    updateTasbeehUI();
+
+    if (STATE.socket && STATE.socket.connected) {
+        STATE.socket.emit('tasbeeh_increment', 1);
+    }
+}
+
+function resetCurrentTasbeeh() {
+    if (confirm('هل تريد تصفير عداد الذكر الحالي والبدء من جديد؟ 🔄')) {
+        tasbeehState.currentCount = 0;
+        tasbeehState.cycleCount = 1;
+        updateTasbeehUI();
+    }
+}
+
+function setTasbeehTarget(target) {
+    tasbeehState.targetCount = target;
+    tasbeehState.currentCount = 0;
+    updateTasbeehUI();
+}
+
+function selectTasbeehDhikr(dhikrId) {
+    const item = TASBEEH_AZKAR.find(d => d.id === dhikrId);
+    if (!item) return;
+
+    tasbeehState.selectedDhikrId = dhikrId;
+    tasbeehState.targetCount = item.defaultTarget;
+    tasbeehState.currentCount = 0;
+    tasbeehState.cycleCount = 1;
+
+    renderTasbeehDhikrList();
+    updateTasbeehUI();
+}
+
+function toggleTasbeehSound() {
+    tasbeehState.soundEnabled = !tasbeehState.soundEnabled;
+    saveTasbeehStats();
+    updateTasbeehUI();
+}
+
+function openTasbeehModal() {
+    loadTasbeehStats();
+    renderTasbeehDhikrList();
+    updateTasbeehUI();
+    showModal('tasbeehModal');
+}
+
+function initTasbeehEngine() {
+    loadTasbeehStats();
+
+    fetch('/api/tasbeeh')
+        .then(r => r.json())
+        .then(d => {
+            if (d && typeof d.total !== 'undefined') {
+                tasbeehState.classroomTotal = d.total;
+                const el = document.getElementById('tasbeehClassroomTotal');
+                if (el) el.textContent = d.total.toLocaleString('ar-EG');
+            }
+        })
+        .catch(() => {});
+
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' || e.key === ' ') {
+            const modal = document.getElementById('tasbeehModal');
+            if (modal && !modal.classList.contains('hidden')) {
+                if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+                e.preventDefault();
+                incrementTasbeeh();
+            }
+        }
+    });
 }

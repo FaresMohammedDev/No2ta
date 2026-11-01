@@ -125,6 +125,17 @@ app.get('/api/network-info', async (req, res) => {
     try {
         const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
         const clientMac = await resolveMacAddress(clientIp);
+
+    // Send current classroom tasbeeh total
+    socket.emit('tasbeeh_global_update', { total: classroomTotalTasbeeh });
+
+    socket.on('tasbeeh_increment', (count = 1) => {
+        classroomTotalTasbeeh += Math.min(Math.max(1, count), 10);
+        io.emit('tasbeeh_global_update', { total: classroomTotalTasbeeh });
+        if (classroomTotalTasbeeh % 5 === 0) {
+            saveTasbeehCount();
+        }
+    });
         const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
         const lanIps = getServerLanIPs();
         const primaryLan = lanIps.find(i => i.address.startsWith('192.168.')) || lanIps[0] || { address: '127.0.0.1' };
@@ -262,6 +273,28 @@ app.get('/api/alexandria-prayers', (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+});
+
+// Classroom Collective Tasbeeh Engine 📿
+const tasbeehFilePath = path.join(__dirname, 'data', 'tasbeeh.json');
+let classroomTotalTasbeeh = 0;
+try {
+    if (fs.existsSync(tasbeehFilePath)) {
+        const tData = JSON.parse(fs.readFileSync(tasbeehFilePath, 'utf8'));
+        classroomTotalTasbeeh = tData.total || 0;
+    }
+} catch (e) {
+    classroomTotalTasbeeh = 0;
+}
+
+function saveTasbeehCount() {
+    try {
+        fs.writeFileSync(tasbeehFilePath, JSON.stringify({ total: classroomTotalTasbeeh }), 'utf8');
+    } catch (e) {}
+}
+
+app.get('/api/tasbeeh', (req, res) => {
+    res.json({ success: true, total: classroomTotalTasbeeh });
 });
 
 // 2. Authentication & Auto-Login
