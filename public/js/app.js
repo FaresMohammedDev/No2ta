@@ -5041,7 +5041,35 @@ async function initAlexandriaPrayerEngine() {
     setInterval(tickAlexandriaClockAndPrayers, 1000);
 }
 
-function openPrayerTimesModal() {
+function switchTimetableTab(tabName) {
+    const tabBtnSchedule = document.getElementById('tabBtnSchoolSchedule');
+    const tabBtnPrayers = document.getElementById('tabBtnPrayerTimes');
+    const contentSchedule = document.getElementById('tabContentSchoolSchedule');
+    const contentPrayers = document.getElementById('tabContentPrayerTimes');
+
+    if (!tabBtnSchedule || !tabBtnPrayers || !contentSchedule || !contentPrayers) return;
+
+    if (tabName === 'schedule') {
+        tabBtnSchedule.className = 'flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-500/25 to-blue-500/25 text-cyan-300 border border-cyan-500/40 shadow-sm cursor-pointer';
+        tabBtnPrayers.className = 'flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer';
+        contentSchedule.classList.remove('hidden');
+        contentPrayers.classList.add('hidden');
+    } else {
+        tabBtnPrayers.className = 'flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 bg-gradient-to-r from-emerald-500/25 to-teal-500/25 text-emerald-300 border border-emerald-500/40 shadow-sm cursor-pointer';
+        tabBtnSchedule.className = 'flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer';
+        contentPrayers.classList.remove('hidden');
+        contentSchedule.classList.add('hidden');
+    }
+}
+
+function openSchoolScheduleModal() {
+    switchTimetableTab('schedule');
+    tickAlexandriaClockAndPrayers();
+    showModal('prayerTimesModal');
+}
+
+function openPrayerTimesModal(tab = 'prayers') {
+    switchTimetableTab(tab);
     tickAlexandriaClockAndPrayers();
     showModal('prayerTimesModal');
 }
@@ -5478,8 +5506,23 @@ function calculateSchoolSchedule(now = new Date()) {
         sessionTimer = 'وقت المرواح 🏠 نراك غداً';
     }
 
+    const timetableRows = [
+        { num: 1, name: 'الحصة الأولى', time: '07:30 ص - 08:25 ص', duration: '55 دقيقة', icon: '1️⃣', startSec: (7 * 60 + 30) * 60, endSec: (8 * 60 + 25) * 60, type: 'session' },
+        { num: 2, name: 'الحصة الثانية', time: '08:25 ص - 09:20 ص', duration: '55 دقيقة', icon: '2️⃣', startSec: (8 * 60 + 25) * 60, endSec: (9 * 60 + 20) * 60, type: 'session' },
+        { num: 3, name: 'الحصة الثالثة', time: '09:20 ص - 10:15 ص', duration: '55 دقيقة', icon: '3️⃣', startSec: (9 * 60 + 20) * 60, endSec: (10 * 60 + 15) * 60, type: 'session' },
+        { num: 4, name: 'الحصة الرابعة', time: '10:15 ص - 11:10 ص', duration: '55 دقيقة', icon: '4️⃣', startSec: (10 * 60 + 15) * 60, endSec: (11 * 60 + 10) * 60, type: 'session' },
+        { num: 0, name: 'البريك / الفسحة المدرسية', time: '11:10 ص - 11:50 ص', duration: '40 دقيقة', icon: '☕', startSec: (11 * 60 + 10) * 60, endSec: (11 * 60 + 50) * 60, type: 'break' },
+        { num: 5, name: 'الحصة الخامسة', time: '11:50 ص - 12:45 م', duration: '55 دقيقة', icon: '5️⃣', startSec: (11 * 60 + 50) * 60, endSec: (12 * 60 + 45) * 60, type: 'session' },
+        { num: 6, name: 'الحصة السادسة', time: '12:45 م - 01:40 م', duration: '55 دقيقة', icon: '6️⃣', startSec: (12 * 60 + 45) * 60, endSec: (13 * 60 + 40) * 60, type: 'session' },
+        { num: 7, name: 'الحصة السابعة', time: '01:40 م - 02:35 م', duration: '55 دقيقة', icon: '7️⃣', startSec: (13 * 60 + 40) * 60, endSec: (14 * 60 + 35) * 60, type: 'session' },
+        { num: 8, name: 'الحصة الثامنة', time: '02:35 م - 03:30 م', duration: '55 دقيقة', icon: '8️⃣', startSec: (14 * 60 + 35) * 60, endSec: (15 * 60 + 30) * 60, type: 'session' },
+        { num: 0, name: 'فترة البايونيك (Bionic)', time: '03:30 م - 04:00 م', duration: '30 دقيقة', icon: '🔬', startSec: (15 * 60 + 30) * 60, endSec: (16 * 60) * 60, type: 'bionic' },
+        { num: 0, name: 'المرواح ونهاية اليوم الدراسي', time: isThursday ? '03:30 م فوراً' : '04:00 م', duration: 'نهاية اليوم', icon: '🏠', startSec: (isThursday ? 15.5 : 16) * 3600, endSec: 24 * 3600, type: 'dismissal' }
+    ];
+
     return {
-        isWeekend, isThursday,
+        isWeekend, isThursday, curSec, fmtRemaining,
+        schedule, timetableRows,
         statusBadge, sessionShortBadge, sessionTimer,
         breakText, breakShortText,
         bionicText, dismissalText
@@ -5512,7 +5555,7 @@ function updateSchoolScheduleUI(now = new Date()) {
     if (sideDismissalLabel) sideDismissalLabel.textContent = school.isThursday ? '🏠 المرواح (3:30)' : '🏠 المرواح (4:00)';
     if (sideBionicLabel) sideBionicLabel.textContent = school.isThursday ? '🔬 مفيش بايونيك' : '🔬 البايونيك (3:30)';
 
-    // Update Modal
+    // Update Modal Hero
     const mStatus = document.getElementById('modalSchoolCurrentStatus');
     const mTimer = document.getElementById('modalSchoolSessionTimer');
     const mBreak = document.getElementById('modalSchoolBreakTimer');
@@ -5528,6 +5571,69 @@ function updateSchoolScheduleUI(now = new Date()) {
     if (mDismissal) mDismissal.textContent = school.dismissalText;
     if (mBionicHeader) mBionicHeader.textContent = school.isThursday ? '🔬 مفيش بايونيك' : '🔬 البايونيك (3:30)';
     if (mDismissalHeader) mDismissalHeader.textContent = school.isThursday ? '🏠 المرواح (3:30)' : '🏠 المرواح (4:00)';
+
+    // Render Full Timetable Table Rows
+    const container = document.getElementById('modalScheduleRowsContainer');
+    if (container && school.timetableRows) {
+        let rowsHtml = '';
+        school.timetableRows.forEach(item => {
+            const isBionicOnThu = (school.isThursday && item.type === 'bionic');
+            const isActive = !school.isWeekend && !isBionicOnThu && (school.curSec >= item.startSec && school.curSec < item.endSec);
+            const isPassed = !school.isWeekend && (school.curSec >= item.endSec) && !isBionicOnThu;
+            
+            let statusBadge = '';
+            let rowBgClass = 'hover:bg-white/5 transition';
+
+            if (school.isWeekend) {
+                statusBadge = '<span class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 text-[10px]">ويك إند 🏖️</span>';
+            } else if (isBionicOnThu) {
+                statusBadge = '<span class="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-300 text-[10px] border border-purple-500/20">❌ مفيش بايونيك الخميس</span>';
+                rowBgClass = 'opacity-40 line-through bg-black/20';
+            } else if (isActive) {
+                const rem = school.fmtRemaining(item.endSec - school.curSec);
+                statusBadge = `<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40 text-[10px] animate-pulse">🟢 جارية الآن (باقي ${rem})</span>`;
+                rowBgClass = 'bg-cyan-500/15 border-r-4 border-r-cyan-400 font-bold shadow-inner';
+            } else if (isPassed) {
+                statusBadge = '<span class="px-2 py-0.5 rounded-full bg-white/5 text-slate-400 text-[10px]">✓ انتهت</span>';
+                rowBgClass = 'opacity-60';
+            } else {
+                const until = school.fmtRemaining(item.startSec - school.curSec);
+                statusBadge = `<span class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 text-[10px] border border-white/5">⏳ قادمة (بعد ${until})</span>`;
+            }
+
+            const nameColor = item.type === 'break' ? 'text-amber-300 font-bold' : (item.type === 'bionic' ? 'text-purple-300 font-bold' : (item.type === 'dismissal' ? 'text-emerald-300 font-bold' : 'text-white font-medium'));
+
+            rowsHtml += `
+                <div class="p-2.5 flex items-center justify-between gap-2 ${rowBgClass}">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="text-base shrink-0">${item.icon}</span>
+                        <div class="truncate">
+                            <span class="${nameColor} block truncate text-xs">${item.name}</span>
+                            <span class="text-[10px] text-slate-400 font-mono block mt-0.5">${item.time} • <span class="text-slate-500">${item.duration}</span></span>
+                        </div>
+                    </div>
+                    <div class="shrink-0 text-left">
+                        ${statusBadge}
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = rowsHtml;
+    }
+
+    const dayBadge = document.getElementById('modalScheduleDayBadge');
+    if (dayBadge) {
+        if (school.isWeekend) {
+            dayBadge.textContent = 'إجازة الويك إند 🏖️';
+            dayBadge.className = 'text-[10px] px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-white/10 font-bold';
+        } else if (school.isThursday) {
+            dayBadge.textContent = 'يوم الخميس • المرواح 3:30 م (بدون بايونيك)';
+            dayBadge.className = 'text-[10px] px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold';
+        } else {
+            dayBadge.textContent = '8 حصص + بريك + بايونيك (المرواح 4:00)';
+            dayBadge.className = 'text-[10px] px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold';
+        }
+    }
 }
 
 
