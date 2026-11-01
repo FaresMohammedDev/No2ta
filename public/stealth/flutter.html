@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة التقييم والتدريب التفاعلي — مراجعة كفاءة وتطوير تطبيقات فلاتر (Flutter Competency)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #030712; }
+        .en-font { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .mono-font { font-family: 'JetBrains Mono', monospace; }
+        .quiz-card { transition: all 0.25s ease-in-out; }
+        .quiz-card:hover { border-color: rgba(6, 182, 212, 0.4); }
+        .pulse-subtle { animation: pulseSlow 3s infinite; }
+        @keyframes pulseSlow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.75; }
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-slate-100 min-h-screen selection:bg-cyan-500 selection:text-black pb-28">
+
+    <!-- Sticky Live Score & Control Header -->
+    <header class="sticky top-0 z-50 bg-gray-900/95 backdrop-blur-md border-b border-gray-800 px-4 md:px-6 py-3 shadow-xl">
+        <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-500 flex items-center justify-center text-white text-xl shadow-lg shadow-cyan-500/20 font-black">
+                    💙
+                </div>
+                <div>
+                    <h1 class="text-sm md:text-base font-extrabold text-white leading-tight flex items-center gap-2">
+                        <span>اختبار وتقييم مهارات فلاتر التفاعلي</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono font-bold">Q121 - Q202</span>
+                    </h1>
+                    <span class="text-[11px] text-gray-400 en-font">Flutter Competency & Mobile App Development • Interactive Assessment</span>
+                </div>
+            </div>
+
+            <!-- Live Score Badges -->
+            <div class="flex items-center gap-2 en-font text-xs">
+                <div class="px-3 py-1.5 rounded-xl bg-gray-950 border border-gray-800 flex items-center gap-1.5 shadow-inner">
+                    <span class="text-gray-400">Score:</span>
+                    <span id="score-display" class="font-black text-cyan-400 text-sm">0</span>
+                    <span class="text-gray-600">/</span>
+                    <span id="total-questions-display" class="text-gray-400">71</span>
+                </div>
+                <div class="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold flex items-center gap-1">
+                    <span>✓</span>
+                    <span id="correct-count">0</span>
+                </div>
+                <div class="px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 font-bold flex items-center gap-1">
+                    <span>✗</span>
+                    <span id="wrong-count">0</span>
+                </div>
+                <div class="px-3 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-black" id="percentage-badge">
+                    0%
+                </div>
+                <button onclick="toggleAllAnswers()" id="toggle-answers-btn" class="px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 transition text-xs font-bold flex items-center gap-1 cursor-pointer">
+                    👁️ <span class="hidden sm:inline">إظهار الإجابات</span>
+                </button>
+                <button onclick="resetQuiz()" title="إعادة الاختبار بالكامل" class="px-2.5 py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition text-xs font-bold flex items-center gap-1 cursor-pointer">
+                    🔄 <span class="hidden sm:inline">إعادة</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="max-w-6xl mx-auto mt-2.5 w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
+            <div id="quiz-progress-bar" class="bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 h-full w-0 transition-all duration-300"></div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 md:px-6 py-6 space-y-8">
+
+        <!-- Welcome Banner & Quick Jump Nav -->
+        <div class="bg-gradient-to-r from-slate-900 via-gray-900 to-slate-950 border border-cyan-500/30 rounded-3xl p-6 relative overflow-hidden shadow-2xl">
+            <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
+                <div class="space-y-2">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/15 text-cyan-300 text-xs font-bold border border-cyan-500/30">
+                        <span>🚀</span> بنك أسئلة ونموذج إجابة مادة تطبيقات الهاتف (Flutter Competency)
+                    </div>
+                    <h2 class="text-xl md:text-2xl font-black text-white">
+                        وضع الاختبار والتقييم الفوري الذكي ⚡
+                    </h2>
+                    <p class="text-gray-300 text-xs md:text-sm leading-relaxed max-w-3xl">
+                        جميع الأسئلة من <strong>Q121 إلى Q202</strong> مصممة تفاعلياً: جاوب بنفسك وتحقق من إجابتك فوراً، أو اعرض نموذج الإجابة الرسمي في أي وقت مع احتساب درجاتك لحظياً!
+                    </p>
+                </div>
+
+                <div class="flex flex-wrap gap-1.5 items-center">
+                    <a href="#section-complete" class="px-2.5 py-1.5 rounded-xl bg-gray-800 hover:bg-cyan-500/20 hover:text-cyan-300 border border-gray-700 text-xs font-bold transition">1. أكمل (121-130)</a>
+                    <a href="#section-correct" class="px-2.5 py-1.5 rounded-xl bg-gray-800 hover:bg-cyan-500/20 hover:text-cyan-300 border border-gray-700 text-xs font-bold transition">2. التصويب (131-140)</a>
+                    <a href="#section-terms" class="px-2.5 py-1.5 rounded-xl bg-gray-800 hover:bg-cyan-500/20 hover:text-cyan-300 border border-gray-700 text-xs font-bold transition">3. مصطلحات (141-150)</a>
+                    <a href="#section-explain" class="px-2.5 py-1.5 rounded-xl bg-gray-800 hover:bg-cyan-500/20 hover:text-cyan-300 border border-gray-700 text-xs font-bold transition">4. التعليلات (151-172)</a>
+                    <a href="#section-tf" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30 text-xs font-bold transition">5. صح وغلط (173-192)</a>
+                    <a href="#section-mcq" class="px-2.5 py-1.5 rounded-xl bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25 border border-cyan-500/30 text-xs font-bold transition">6. اختيارات (193-202)</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             SECTION 1: COMPLETE THE FOLLOWING SENTENCES (121 - 130)
+             ========================================== -->
+        <section id="section-complete" class="bg-gray-900/90 border border-gray-800 rounded-3xl p-5 md:p-7 space-y-4 shadow-lg">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs font-black">Q1</span>
+                    <div>
+                        <h2 class="text-base md:text-lg font-bold text-white">Complete the Following sentences</h2>
+                        <span class="text-xs text-gray-400 en-font">Questions 121 to 130 (10 Questions)</span>
+                    </div>
+                </div>
+                <span id="complete-score-badge" class="text-xs px-2.5 py-1 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono font-bold">0 / 10 المحلول</span>
+            </div>
+
+            <div id="complete-container" class="space-y-3">
+                <!-- Populated dynamically via JS -->
+            </div>
+        </section>
+
+
+        <!-- ==========================================
+             SECTION 2: CORRECT THE UNDERLINED WORD (131 - 140)
+             ========================================== -->
+        <section id="section-correct" class="bg-gray-900/90 border border-gray-800 rounded-3xl p-5 md:p-7 space-y-4 shadow-lg">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs font-black">Q2</span>
+                    <div>
+                        <h2 class="text-base md:text-lg font-bold text-white">Correct the underlined word for the following sentences</h2>
+                        <span class="text-xs text-gray-400 en-font">Questions 131 to 140 (10 Questions)</span>
+                    </div>
+                </div>
+                <span id="correct-score-badge" class="text-xs px-2.5 py-1 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono font-bold">0 / 10 المحلول</span>
+            </div>
+
+            <div id="correct-container" class="space-y-3">
+                <!-- Populated dynamically via JS -->
+            </div>
+        </section>
+
+
+        <!-- ==========================================
+             SECTION 3: WRITE THE TECHNICAL TERM (141 - 150)
+             ========================================== -->
+        <section id="section-terms" class="bg-gray-900/90 border border-gray-800 rounded-3xl p-5 md:p-7 space-y-4 shadow-lg">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-8 h-8 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center text-xs font-black">Q3</span>
+                    <div>
+                        <h2 class="text-base md:text-lg font-bold text-white">Write the Technical term which fits this description</h2>
+                        <span class="text-xs text-gray-400 en-font">Questions 141 to 150 (10 Questions)</span>
+                    </div>
+                </div>
+                <span id="terms-score-badge" class="text-xs px-2.5 py-1 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20 font-mono font-bold">0 / 10 المحلول</span>
+            </div>
+
+            <div id="terms-container" class="space-y-3">
+                <!-- Populated dynamically via JS -->
+            </div>
+        </section>
+
+
+        <!-- ==========================================
+             SECTION 4: EXPLAIN THE FOLLOWING (151 - 172)
+             ========================================== -->
+        <section id="section-explain" class="bg-gray-900/90 border border-gray-800 rounded-3xl p-5 md:p-7 space-y-4 shadow-lg">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-black">Q4</span>
+                    <div>
+                        <h2 class="text-base md:text-lg font-bold text-white">Explain the following sentences & Concepts</h2>
+                        <span class="text-xs text-gray-400 en-font">Questions 151 to 172 (11 Core Concepts & Explanations)</span>
+                    </div>
+                </div>
+                <span class="text-xs px-2.5 py-1 rounded-xl bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono font-bold">11 مفاهيم نموذجية</span>
+            </div>
+
+            <div id="explain-container" class="space-y-3">
+                <!-- Populated dynamically via JS -->
+            </div>
+        </section>
+
+
+        <!-- ==========================================
+             SECTION 5: WRITE TRUE OR FALSE (173 - 192)
+             ========================================== -->
+        <section id="section-tf" class="bg-gray-900/90 border border-emerald-500/30 rounded-3xl p-5 md:p-7 space-y-4 shadow-lg">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-black">Q5</span>
+                    <div>
+                        <h2 class="text-base md:text-lg font-bold text-white">Write True/False for the following Sentences</h2>
+                        <span class="text-xs text-gray-400 en-font">Questions 173 to 192 (20 Questions — Interactive Click)</span>
+                    </div>
+                </div>
+                <span id="tf-score-badge" class="text-xs px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-bold">0 / 20 المحلول</span>
+            </div>
+
+            <div id="tf-container" class="space-y-3">
+                <!-- Populated dynamically via JS -->
+            </div>
+        </section>
+
+
+        <!-- ==========================================
+             SECTION 6: MULTIPLE CHOICE QUESTIONS (193 - 202)
+             ========================================== -->
+        <section id="section-mcq" class="bg-gray-900/90 border border-cyan-500/30 rounded-3xl p-5 md:p-7 space-y-4 shadow-lg">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs font-black">Q6</span>
+                    <div>
+                        <h2 class="text-base md:text-lg font-bold text-white">Multiple Choice Questions (MCQ)</h2>
+                        <span class="text-xs text-gray-400 en-font">Questions 193 to 202 (10 Questions — Real-time Grading)</span>
+                    </div>
+                </div>
+                <span id="mcq-score-badge" class="text-xs px-2.5 py-1 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono font-bold">0 / 10 المحلول</span>
+            </div>
+
+            <div id="mcq-container" class="space-y-4">
+                <!-- Populated dynamically via JS -->
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="border-t border-gray-800 py-6 text-center text-xs text-gray-500 en-font">
+        Flutter Competency & Mobile Development Exam Engine • Senior Review • Real-time Interactive Grading
+    </footer>
+
+    <!-- ========================================================
+         FLUTTER QUIZ DATA & EVALUATION ENGINE SCRIPT
+         ======================================================== -->
+    <script>
+        // Global State
+        const state = {
+            totalQuestions: 71,
+            score: 0,
+            answered: 0,
+            correct: 0,
+            wrong: 0,
+            userAnswers: {},
+            showAllAnswers: false
+        };
+
+        // 1. DATA: Complete Section (121 - 130)
+        const COMPLETE_QUESTIONS = [
+            { id: 121, q: "A mobile app runs on devices like __________ and tablets.", ans: "Smartphones OR Mobiles OR Mobile phones", match: ["smartphones", "smart phones", "smartphone", "mobiles", "mobile", "mobile phones", "phone", "phones", "smart phone"] },
+            { id: 122, q: "Flutter was created by __________ the company.", ans: "Google", match: ["google", "google inc", "alphabet"] },
+            { id: 123, q: "Instagram is an example of a __________ media app.", ans: "social", match: ["social", "social media"] },
+            { id: 124, q: "A __________ is a small part of the screen in Flutter like a button or text.", ans: "widget", match: ["widget", "widgets"] },
+            { id: 125, q: "The language used in Flutter is called __________.", ans: "Dart", match: ["dart"] },
+            { id: 126, q: "Facebook and Instagram are __________ media applications.", ans: "social", match: ["social", "social media"] },
+            { id: 127, q: "Health apps help users track __________ and fitness.", ans: "health", match: ["health", "healthy"] },
+            { id: 128, q: "The first stage of app development is __________ and conceptualization.", ans: "planning", match: ["planning", "plan"] },
+            { id: 129, q: "UI stands for __________ Interface.", ans: "User", match: ["user", "user's"] },
+            { id: 130, q: "iOS is developed by __________.", ans: "Apple", match: ["apple", "apple inc"] }
+        ];
+
+        // 2. DATA: Correct Underlined Word (131 - 140)
+        const CORRECT_QUESTIONS = [
+            { id: 131, sentence: "Swift is mainly used for <span class='underline decoration-rose-400 font-bold text-rose-300'>Android</span> application development.", wrong: "Android", ans: "Java or Kotlin (iOS/Apple)", match: ["java", "kotlin", "java or kotlin", "ios", "apple"] },
+            { id: 132, sentence: "<span class='underline decoration-rose-400 font-bold text-rose-300'>Google Play Store</span> is used for publishing iOS applications.", wrong: "Google Play Store", ans: "Apple App Store", match: ["apple app store", "app store", "apple store", "apple app"] },
+            { id: 133, sentence: "Google Play Store is used for publishing <span class='underline decoration-rose-400 font-bold text-rose-300'>iOS</span> applications.", wrong: "iOS", ans: "Android", match: ["android"] },
+            { id: 134, sentence: "Swift is used for <span class='underline decoration-rose-400 font-bold text-rose-300'>Android</span> app development.", wrong: "Android", ans: "iOS", match: ["ios", "apple"] },
+            { id: 135, sentence: "<span class='underline decoration-rose-400 font-bold text-rose-300'>iOS</span> apps are published on the Play store.", wrong: "iOS", ans: "Android", match: ["android"] },
+            { id: 136, sentence: "iOS is developed by <span class='underline decoration-rose-400 font-bold text-rose-300'>Google</span>.", wrong: "Google", ans: "Apple", match: ["apple", "apple inc"] },
+            { id: 137, sentence: "<span class='underline decoration-rose-400 font-bold text-rose-300'>UX</span> design focuses specifically on the buttons, colors, and layout of the app screens.", wrong: "UX", ans: "UI (User Interface)", match: ["ui", "user interface"] },
+            { id: 138, sentence: "Flutter uses the <span class='underline decoration-rose-400 font-bold text-rose-300'>Java</span> programming language to create high-performance mobile apps.", wrong: "Java", ans: "Dart", match: ["dart"] },
+            { id: 139, sentence: "A widget that can change state is called <span class='underline decoration-rose-400 font-bold text-rose-300'>StatelessWidget</span>.", wrong: "StatelessWidget", ans: "StatefulWidget", match: ["statefulwidget", "stateful"] },
+            { id: 140, sentence: "A widget that can’t change state is called <span class='underline decoration-rose-400 font-bold text-rose-300'>StatefulWidget</span>.", wrong: "StatefulWidget", ans: "StatelessWidget", match: ["statelesswidget", "stateless"] }
+        ];
+
+        // 3. DATA: Technical Terms (141 - 150)
+        const TERMS_QUESTIONS = [
+            { id: 141, desc: "It is a program that works on phones and tablets to help users do different tasks.", ans: "Mobile application (Mobile App)", match: ["mobile application", "mobile app", "app", "mobile applications"] },
+            { id: 142, desc: "It is a tool made by Google that helps developers create apps for phones, computers, and websites using one code.", ans: "Flutter", match: ["flutter"] },
+            { id: 143, desc: "It is a small building block in Flutter, like a button, text, or image that you see on the screen.", ans: "Widget", match: ["widget", "widgets"] },
+            { id: 144, desc: "It means creating one app that can work on different systems like Android and iOS at the same time.", ans: "Cross-platform development", match: ["cross-platform development", "cross platform development", "cross-platform", "cross platform"] },
+            { id: 145, desc: "It is checking if the app works correctly and finding any problems or bugs before giving it to users.", ans: "Testing (Software Testing)", match: ["testing", "software testing", "qa", "quality assurance"] },
+            { id: 146, desc: "It is a widget that does not change its UI.", ans: "StatelessWidget", match: ["statelesswidget", "stateless"] },
+            { id: 147, desc: "It is a widget that can change its UI during runtime.", ans: "StatefulWidget", match: ["statefulwidget", "stateful"] },
+            { id: 148, desc: "It provides app structure (AppBar, Drawer, Body).", ans: "Scaffold", match: ["scaffold"] },
+            { id: 149, desc: "It shows title, actions, and navigation.", ans: "AppBar", match: ["appbar", "app bar"] },
+            { id: 150, desc: "It is the programming language powering Flutter.", ans: "Dart", match: ["dart"] }
+        ];
+
+        // 4. DATA: Explain Questions (151 - 172)
+        const EXPLAIN_QUESTIONS = [
+            { id: '151-152', title: "Planning phase", ans: "It is the first step in mobile app development where the idea, target audience, requirements, and feasibility are defined." },
+            { id: '153-154', title: "Maintenance and Updates phase", ans: "It is an important stage after launching the mobile app to fix bugs, improve performance, add new features, and adapt to OS updates." },
+            { id: '155-156', title: "Productivity Apps", ans: "Apps that help users manage their time, tasks, and work efficiently, such as to-do lists, calendars, and note-taking apps." },
+            { id: '157-158', title: "Why do people use mobile apps?", ans: "People use mobile apps to make their daily lives easier, communicate, work, learn, and entertain themselves like playing games." },
+            { id: '159-160', title: "Why is Flutter popular?", ans: "It is popular because it's easy to learn, fast to develop with, and allows building high-performance apps for Android, iOS, web, and desktop from a single codebase." },
+            { id: '161-162', title: "What makes a good mobile app?", ans: "A good mobile app is easy to use, responsive, fast, secure, and has an intuitive, simple user interface (UI)." },
+            { id: '163-164', title: "Why is documentation important in programming?", ans: "Documentation helps developers understand how the code works, maintain the project, collaborate effectively, and onboard new team members." },
+            { id: '165-166', title: "Why is user interface (UI) important?", ans: "UI makes the app easy, visually appealing, and enjoyable to use, ensuring smooth user adoption." },
+            { id: '167-168', title: "Explain git pull command in git", ans: "Downloads and integrates updates FROM the remote repository TO your local repository." },
+            { id: '169-170', title: "Explain git push command in git", ans: "Uploads your local commits and changes FROM your local repository TO the remote repository." },
+            { id: '171-172', title: "Why do we use the Navigator in apps?", ans: "To manage routes and navigate between different screens and pages in the app (pushing and popping routes)." }
+        ];
+
+        // 5. DATA: True/False Questions (173 - 192)
+        const TF_QUESTIONS = [
+            { id: 173, q: "Kotlin is used for iOS development.", correct: false, reason: "False: Kotlin is primarily used for Android; Swift and Objective-C are used for iOS." },
+            { id: 174, q: "Native apps are typically faster than hybrid apps.", correct: true, reason: "True: Native apps are compiled directly to machine code for that specific OS." },
+            { id: 175, q: "Flutter uses Dart as its programming language.", correct: true, reason: "True: Dart is the client-optimized language powering Flutter." },
+            { id: 176, q: "User feedback is not important after launching an app.", correct: false, reason: "False: User feedback is vital for identifying bugs and improving user experience." },
+            { id: 177, q: "A mobile app can be distributed through app stores.", correct: true, reason: "True: Google Play, Apple App Store, and Huawei AppGallery are main distribution channels." },
+            { id: 178, q: "Developers must pay to publish apps on the Huawei App Gallery (Harmony OS).", correct: false, reason: "False: Huawei AppGallery does not charge individual developers annual fees like Apple." },
+            { id: 179, q: "Identifying the target audience is the last step in the mobile app development process.", correct: false, reason: "False: Target audience identification is done in the earliest Planning phase." },
+            { id: 180, q: "Considering cross-platform development means creating an app for one specific OS only.", correct: false, reason: "False: Cross-platform means targeting multiple operating systems with one codebase." },
+            { id: 181, q: "Software Testing is the first step for developing apps.", correct: false, reason: "False: Planning & Conceptualization is the first step; testing comes later." },
+            { id: 182, q: "Considering development expertise is not important when building a team.", correct: false, reason: "False: Technical expertise directly impacts code quality, timeline, and success." },
+            { id: 183, q: "User Interface (UI) focuses on design.", correct: true, reason: "True: UI focuses on visual elements, layouts, typography, and styling." },
+            { id: 184, q: "UX stands for “Universal Experience.”", correct: false, reason: "False: UX stands for 'User Experience'." },
+            { id: 185, q: "Apple uses the Play Store to publish apps.", correct: false, reason: "False: Apple uses the Apple App Store." },
+            { id: 186, q: "Android Studio is used for iOS development.", correct: false, reason: "False: Xcode is the official IDE used for native iOS development." },
+            { id: 187, q: "Mobile apps can only run online.", correct: false, reason: "False: Many mobile apps have local databases and function fully offline." },
+            { id: 188, q: "Planning is an important step before coding.", correct: true, reason: "True: Proper planning prevents architectural mistakes and saves development time." },
+            { id: 189, q: "The UI should be simple and user-friendly.", correct: true, reason: "True: A clean, intuitive UI increases usability and user retention." },
+            { id: 190, q: "Android apps are written only in C++.", correct: false, reason: "False: Android apps are predominantly written in Kotlin, Java, and Dart." },
+            { id: 191, q: "A layout controls how elements are displayed on screen.", correct: true, reason: "True: Layout widgets (Row, Column, Stack) govern position and size." },
+            { id: 192, q: "Testing is optional in app development.", correct: false, reason: "False: Rigorous testing is mandatory to ensure reliability and security." }
+        ];
+
+        // 6. DATA: Multiple Choice Questions (193 - 202)
+        const MCQ_QUESTIONS = [
+            {
+                id: 193,
+                q: "Which language is used with Flutter?",
+                options: [
+                    { label: "A) Java", val: "A" },
+                    { label: "B) Dart", val: "B" },
+                    { label: "C) C++", val: "C" },
+                    { label: "D) Kotlin", val: "D" }
+                ],
+                correct: "B",
+                exp: "Dart is the programming language created by Google that powers Flutter."
+            },
+            {
+                id: 194,
+                q: "Which app store is used for Android apps?",
+                options: [
+                    { label: "A) Apple App Store", val: "A" },
+                    { label: "B) Microsoft Store", val: "B" },
+                    { label: "C) Google Play Store", val: "C" },
+                    { label: "D) Galaxy Store", val: "D" }
+                ],
+                correct: "C",
+                exp: "Google Play Store is the primary official app store for Android."
+            },
+            {
+                id: 195,
+                q: "Which language is used with React Native?",
+                options: [
+                    { label: "A) Java", val: "A" },
+                    { label: "B) Swift", val: "B" },
+                    { label: "C) JavaScript", val: "C" },
+                    { label: "D) C++", val: "D" }
+                ],
+                correct: "C",
+                exp: "React Native utilizes JavaScript (and TypeScript) to build mobile apps."
+            },
+            {
+                id: 196,
+                q: "Which stage ensures the app works correctly on different devices?",
+                options: [
+                    { label: "A) Planning", val: "A" },
+                    { label: "B) Design", val: "B" },
+                    { label: "C) Testing and Quality Assurance", val: "C" },
+                    { label: "D) Deployment", val: "D" }
+                ],
+                correct: "C",
+                exp: "Testing & Quality Assurance verifies functionality, performance, and screen responsiveness across devices."
+            },
+            {
+                id: 197,
+                q: "What does the term 'API' stand for?",
+                options: [
+                    { label: "A) Application Programming Interface", val: "A" },
+                    { label: "B) Advanced Programming Interface", val: "B" },
+                    { label: "C) Application Process Interface", val: "C" },
+                    { label: "D) Automated Program Integration", val: "D" }
+                ],
+                correct: "A",
+                exp: "API stands for Application Programming Interface."
+            },
+            {
+                id: 198,
+                q: "Which stage involves creating the app’s visual design and layout?",
+                options: [
+                    { label: "A) Testing", val: "A" },
+                    { label: "B) UI Development", val: "B" },
+                    { label: "C) Deployment", val: "C" },
+                    { label: "D) Maintenance", val: "D" }
+                ],
+                correct: "B",
+                exp: "UI Development creates the actual visual components, widgets, and layouts users interact with."
+            },
+            {
+                id: 199,
+                q: "iOS is exclusive to ________ devices?",
+                options: [
+                    { label: "A) Samsung", val: "A" },
+                    { label: "B) Google", val: "B" },
+                    { label: "C) Microsoft", val: "C" },
+                    { label: "D) Apple", val: "D" }
+                ],
+                correct: "D",
+                exp: "iOS is the proprietary operating system developed exclusively for Apple hardware (iPhone, iPod Touch)."
+            },
+            {
+                id: 200,
+                q: "What is the primary goal of identifying a target market?",
+                options: [
+                    { label: "a) To reduce app development time", val: "A" },
+                    { label: "b) To understand user needs and preferences", val: "B" },
+                    { label: "c) To increase app size", val: "C" },
+                    { label: "d) To choose programming languages", val: "D" }
+                ],
+                correct: "B",
+                exp: "Target market research helps tailor the app to the specific problems and preferences of users."
+            },
+            {
+                id: 201,
+                q: "Which of these is a productivity app?",
+                options: [
+                    { label: "a) Spotify", val: "A" },
+                    { label: "b) Evernote", val: "B" },
+                    { label: "c) Google Maps", val: "C" },
+                    { label: "d) MyFitnessPal", val: "D" }
+                ],
+                correct: "B",
+                exp: "Evernote is a note-taking and task organization productivity application."
+            },
+            {
+                id: 202,
+                q: "Which step comes first in the mobile app development lifecycle?",
+                options: [
+                    { label: "a) Testing", val: "A" },
+                    { label: "b) Deployment", val: "B" },
+                    { label: "c) Planning and Conceptualization", val: "C" },
+                    { label: "d) Maintenance", val: "D" }
+                ],
+                correct: "C",
+                exp: "Planning and Conceptualization establishes the foundation, scope, and direction of the app."
+            }
+        ];
+
+        // RENDER FUNCTIONS
+        function renderCompleteSection() {
+            const container = document.getElementById('complete-container');
+            if (!container) return;
+            container.innerHTML = COMPLETE_QUESTIONS.map(item => `
+                <div class="quiz-card p-4 rounded-2xl bg-gray-950 border border-gray-800 space-y-2.5">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="px-2.5 py-0.5 rounded-lg bg-cyan-500/10 text-cyan-400 font-mono text-xs font-bold">Q${item.id}</span>
+                        <span id="complete-status-${item.id}" class="text-xs font-bold"></span>
+                    </div>
+                    <p class="text-sm md:text-base font-medium text-white en-font leading-relaxed">${item.q}</p>
+                    <div class="flex flex-wrap items-center gap-2 pt-1">
+                        <input type="text" id="complete-input-${item.id}" placeholder="اكتب الكلمة الناقصة..." class="flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-gray-900 border border-gray-700 text-white text-xs en-font focus:outline-none focus:border-cyan-500 transition" onkeydown="if(event.key==='Enter') checkComplete(${item.id})">
+                        <button onclick="checkComplete(${item.id})" class="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition cursor-pointer">تحقق</button>
+                        <button onclick="revealComplete(${item.id})" class="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold transition cursor-pointer">نموذج الإجابة</button>
+                    </div>
+                    <div id="complete-answer-${item.id}" class="hidden p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 font-bold en-font">
+                        ✓ الإجابة النموذجية: <span class="text-white font-mono">${item.ans}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderCorrectSection() {
+            const container = document.getElementById('correct-container');
+            if (!container) return;
+            container.innerHTML = CORRECT_QUESTIONS.map(item => `
+                <div class="quiz-card p-4 rounded-2xl bg-gray-950 border border-gray-800 space-y-2.5">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="px-2.5 py-0.5 rounded-lg bg-amber-500/10 text-amber-400 font-mono text-xs font-bold">Q${item.id}</span>
+                        <span id="correct-status-${item.id}" class="text-xs font-bold"></span>
+                    </div>
+                    <p class="text-sm md:text-base font-medium text-white en-font leading-relaxed">${item.sentence}</p>
+                    <div class="flex flex-wrap items-center gap-2 pt-1">
+                        <input type="text" id="correct-input-${item.id}" placeholder="اكتب التصويب الصحيح..." class="flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-gray-900 border border-gray-700 text-white text-xs en-font focus:outline-none focus:border-amber-500 transition" onkeydown="if(event.key==='Enter') checkCorrection(${item.id})">
+                        <button onclick="checkCorrection(${item.id})" class="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-slate-950 text-xs font-black transition cursor-pointer">تصويب</button>
+                        <button onclick="revealCorrection(${item.id})" class="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold transition cursor-pointer">نموذج الإجابة</button>
+                    </div>
+                    <div id="correct-answer-${item.id}" class="hidden p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 font-bold en-font">
+                        ✓ التصويب النموذجي: <span class="text-white font-mono">${item.ans}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderTermsSection() {
+            const container = document.getElementById('terms-container');
+            if (!container) return;
+            container.innerHTML = TERMS_QUESTIONS.map(item => `
+                <div class="quiz-card p-4 rounded-2xl bg-gray-950 border border-gray-800 space-y-2.5">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="px-2.5 py-0.5 rounded-lg bg-teal-500/10 text-teal-400 font-mono text-xs font-bold">Q${item.id}</span>
+                        <span id="terms-status-${item.id}" class="text-xs font-bold"></span>
+                    </div>
+                    <p class="text-sm md:text-base font-medium text-white en-font leading-relaxed">${item.desc}</p>
+                    <div class="flex flex-wrap items-center gap-2 pt-1">
+                        <input type="text" id="terms-input-${item.id}" placeholder="اكتب المصطلح الفني (Technical Term)..." class="flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-gray-900 border border-gray-700 text-white text-xs en-font focus:outline-none focus:border-teal-500 transition" onkeydown="if(event.key==='Enter') checkTerm(${item.id})">
+                        <button onclick="checkTerm(${item.id})" class="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition cursor-pointer">تحقق</button>
+                        <button onclick="revealTerm(${item.id})" class="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold transition cursor-pointer">نموذج المصطلح</button>
+                    </div>
+                    <div id="terms-answer-${item.id}" class="hidden p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 font-bold en-font">
+                        ✓ المصطلح النموذجي: <span class="text-white font-mono">${item.ans}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderExplainSection() {
+            const container = document.getElementById('explain-container');
+            if (!container) return;
+            container.innerHTML = EXPLAIN_QUESTIONS.map(item => `
+                <div class="quiz-card p-4 rounded-2xl bg-gray-950 border border-gray-800 space-y-2">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="px-2.5 py-0.5 rounded-lg bg-indigo-500/15 text-indigo-300 font-mono text-xs font-bold">Q${item.id}</span>
+                        <button onclick="toggleExplain('${item.id}')" class="text-xs px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-indigo-500/20 hover:text-indigo-300 text-gray-300 transition font-bold cursor-pointer">
+                            👁️ عرض الشرح النموذجي
+                        </button>
+                    </div>
+                    <h3 class="text-sm md:text-base font-bold text-white en-font">${item.title}</h3>
+                    <div id="explain-ans-${item.id}" class="hidden p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-xs md:text-sm text-indigo-200 leading-relaxed en-font">
+                        <span class="font-bold text-white block mb-0.5">💡 Model Answer:</span>
+                        ${item.ans}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderTFSection() {
+            const container = document.getElementById('tf-container');
+            if (!container) return;
+            container.innerHTML = TF_QUESTIONS.map(item => `
+                <div class="quiz-card p-4 rounded-2xl bg-gray-950 border border-gray-800 space-y-2.5">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="px-2.5 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 font-mono text-xs font-bold">Q${item.id}</span>
+                        <span id="tf-status-${item.id}" class="text-xs font-bold"></span>
+                    </div>
+                    <p class="text-sm md:text-base font-medium text-white en-font leading-relaxed">${item.q}</p>
+                    <div class="flex items-center gap-3 pt-1">
+                        <button onclick="answerTF(${item.id}, true)" id="tf-btn-true-${item.id}" class="flex-1 py-2 px-3 rounded-xl bg-gray-900 hover:bg-emerald-500/20 hover:text-emerald-300 border border-gray-700 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <span>✓</span>
+                            <span>True (صحيح)</span>
+                        </button>
+                        <button onclick="answerTF(${item.id}, false)" id="tf-btn-false-${item.id}" class="flex-1 py-2 px-3 rounded-xl bg-gray-900 hover:bg-rose-500/20 hover:text-rose-300 border border-gray-700 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <span>✗</span>
+                            <span>False (خطأ)</span>
+                        </button>
+                    </div>
+                    <div id="tf-reason-${item.id}" class="hidden p-2.5 rounded-xl bg-gray-900 border border-gray-800 text-xs text-gray-300 en-font">
+                        ${item.reason}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderMCQSection() {
+            const container = document.getElementById('mcq-container');
+            if (!container) return;
+            container.innerHTML = MCQ_QUESTIONS.map(item => `
+                <div class="quiz-card p-4 md:p-5 rounded-2xl bg-gray-950 border border-gray-800 space-y-3">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="px-2.5 py-0.5 rounded-lg bg-cyan-500/10 text-cyan-400 font-mono text-xs font-bold">Q${item.id}</span>
+                        <span id="mcq-status-${item.id}" class="text-xs font-bold"></span>
+                    </div>
+                    <p class="text-sm md:text-base font-bold text-white en-font leading-relaxed">${item.q}</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                        ${item.options.map(opt => `
+                            <button onclick="answerMCQ(${item.id}, '${opt.val}')" id="mcq-btn-${item.id}-${opt.val}" class="text-right py-2.5 px-3.5 rounded-xl bg-gray-900 hover:bg-cyan-500/15 hover:border-cyan-500/30 border border-gray-800 text-xs md:text-sm font-medium text-gray-200 transition flex items-center justify-between cursor-pointer">
+                                <span>${opt.label}</span>
+                                <span id="mcq-icon-${item.id}-${opt.val}" class="opacity-0 font-bold">✓</span>
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div id="mcq-exp-${item.id}" class="hidden p-3 rounded-xl bg-gray-900 border border-gray-800 text-xs text-gray-300 en-font">
+                        💡 <strong class="text-white">Explanation:</strong> ${item.exp}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // EVALUATION LOGIC
+        function updateScoreHeader() {
+            document.getElementById('score-display').textContent = state.score;
+            document.getElementById('correct-count').textContent = state.correct;
+            document.getElementById('wrong-count').textContent = state.wrong;
+            const pct = state.totalQuestions > 0 ? Math.round((state.score / state.totalQuestions) * 100) : 0;
+            document.getElementById('percentage-badge').textContent = pct + '%';
+            document.getElementById('quiz-progress-bar').style.width = Math.min(100, Math.round((state.answered / state.totalQuestions) * 100)) + '%';
+        }
+
+        function checkComplete(id) {
+            const item = COMPLETE_QUESTIONS.find(i => i.id === id);
+            const input = document.getElementById(`complete-input-${id}`);
+            const status = document.getElementById(`complete-status-${id}`);
+            const ansBox = document.getElementById(`complete-answer-${id}`);
+            if (!input || !item) return;
+
+            const val = input.value.trim().toLowerCase();
+            if (!val) return;
+
+            const isCorrect = item.match.some(m => val.includes(m) || m.includes(val));
+            if (!state.userAnswers['complete_' + id]) {
+                state.answered++;
+                if (isCorrect) {
+                    state.score++;
+                    state.correct++;
+                } else {
+                    state.wrong++;
+                }
+                state.userAnswers['complete_' + id] = true;
+            }
+
+            if (isCorrect) {
+                input.className = 'flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-emerald-950/40 border border-emerald-500 text-emerald-300 text-xs en-font';
+                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ إجابة صحيحة ممتاز!</span>';
+                ansBox.classList.remove('hidden');
+            } else {
+                input.className = 'flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-rose-950/40 border border-rose-500 text-rose-300 text-xs en-font';
+                status.innerHTML = '<span class="text-rose-400 font-bold">✗ خطأ، راجع النموذج</span>';
+                ansBox.classList.remove('hidden');
+            }
+            updateScoreHeader();
+        }
+
+        function revealComplete(id) {
+            const box = document.getElementById(`complete-answer-${id}`);
+            if (box) box.classList.toggle('hidden');
+        }
+
+        function checkCorrection(id) {
+            const item = CORRECT_QUESTIONS.find(i => i.id === id);
+            const input = document.getElementById(`correct-input-${id}`);
+            const status = document.getElementById(`correct-status-${id}`);
+            const ansBox = document.getElementById(`correct-answer-${id}`);
+            if (!input || !item) return;
+
+            const val = input.value.trim().toLowerCase();
+            if (!val) return;
+
+            const isCorrect = item.match.some(m => val.includes(m) || m.includes(val));
+            if (!state.userAnswers['correct_' + id]) {
+                state.answered++;
+                if (isCorrect) {
+                    state.score++;
+                    state.correct++;
+                } else {
+                    state.wrong++;
+                }
+                state.userAnswers['correct_' + id] = true;
+            }
+
+            if (isCorrect) {
+                input.className = 'flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-emerald-950/40 border border-emerald-500 text-emerald-300 text-xs en-font';
+                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ تصويب صحيح!</span>';
+                ansBox.classList.remove('hidden');
+            } else {
+                input.className = 'flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-rose-950/40 border border-rose-500 text-rose-300 text-xs en-font';
+                status.innerHTML = '<span class="text-rose-400 font-bold">✗ خطأ</span>';
+                ansBox.classList.remove('hidden');
+            }
+            updateScoreHeader();
+        }
+
+        function revealCorrection(id) {
+            const box = document.getElementById(`correct-answer-${id}`);
+            if (box) box.classList.toggle('hidden');
+        }
+
+        function checkTerm(id) {
+            const item = TERMS_QUESTIONS.find(i => i.id === id);
+            const input = document.getElementById(`terms-input-${id}`);
+            const status = document.getElementById(`terms-status-${id}`);
+            const ansBox = document.getElementById(`terms-answer-${id}`);
+            if (!input || !item) return;
+
+            const val = input.value.trim().toLowerCase();
+            if (!val) return;
+
+            const isCorrect = item.match.some(m => val.includes(m) || m.includes(val));
+            if (!state.userAnswers['term_' + id]) {
+                state.answered++;
+                if (isCorrect) {
+                    state.score++;
+                    state.correct++;
+                } else {
+                    state.wrong++;
+                }
+                state.userAnswers['term_' + id] = true;
+            }
+
+            if (isCorrect) {
+                input.className = 'flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-emerald-950/40 border border-emerald-500 text-emerald-300 text-xs en-font';
+                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ مصطلح صحيح!</span>';
+                ansBox.classList.remove('hidden');
+            } else {
+                input.className = 'flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-rose-950/40 border border-rose-500 text-rose-300 text-xs en-font';
+                status.innerHTML = '<span class="text-rose-400 font-bold">✗ مصطلح غير دقيق</span>';
+                ansBox.classList.remove('hidden');
+            }
+            updateScoreHeader();
+        }
+
+        function revealTerm(id) {
+            const box = document.getElementById(`terms-answer-${id}`);
+            if (box) box.classList.toggle('hidden');
+        }
+
+        function toggleExplain(id) {
+            const box = document.getElementById(`explain-ans-${id}`);
+            if (box) box.classList.toggle('hidden');
+        }
+
+        function answerTF(id, userChoice) {
+            const item = TF_QUESTIONS.find(i => i.id === id);
+            const btnTrue = document.getElementById(`tf-btn-true-${id}`);
+            const btnFalse = document.getElementById(`tf-btn-false-${id}`);
+            const status = document.getElementById(`tf-status-${id}`);
+            const reason = document.getElementById(`tf-reason-${id}`);
+            if (!item || !btnTrue || !btnFalse) return;
+
+            const isCorrect = (userChoice === item.correct);
+
+            if (!state.userAnswers['tf_' + id]) {
+                state.answered++;
+                if (isCorrect) {
+                    state.score++;
+                    state.correct++;
+                } else {
+                    state.wrong++;
+                }
+                state.userAnswers['tf_' + id] = true;
+            }
+
+            if (item.correct === true) {
+                btnTrue.className = 'flex-1 py-2 px-3 rounded-xl bg-emerald-600 text-white border border-emerald-400 text-xs font-black shadow-lg shadow-emerald-500/20';
+                btnFalse.className = 'flex-1 py-2 px-3 rounded-xl bg-gray-900 border border-gray-800 text-gray-500 text-xs opacity-50';
+            } else {
+                btnFalse.className = 'flex-1 py-2 px-3 rounded-xl bg-rose-600 text-white border border-rose-400 text-xs font-black shadow-lg shadow-rose-500/20';
+                btnTrue.className = 'flex-1 py-2 px-3 rounded-xl bg-gray-900 border border-gray-800 text-gray-500 text-xs opacity-50';
+            }
+
+            if (isCorrect) {
+                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ إجابة صحيحة</span>';
+            } else {
+                status.innerHTML = '<span class="text-rose-400 font-bold">✗ إجابة خاطئة</span>';
+            }
+
+            if (reason) reason.classList.remove('hidden');
+            updateScoreHeader();
+        }
+
+        function answerMCQ(id, chosenVal) {
+            const item = MCQ_QUESTIONS.find(i => i.id === id);
+            const status = document.getElementById(`mcq-status-${id}`);
+            const exp = document.getElementById(`mcq-exp-${id}`);
+            if (!item) return;
+
+            const isCorrect = (chosenVal === item.correct);
+
+            if (!state.userAnswers['mcq_' + id]) {
+                state.answered++;
+                if (isCorrect) {
+                    state.score++;
+                    state.correct++;
+                } else {
+                    state.wrong++;
+                }
+                state.userAnswers['mcq_' + id] = true;
+            }
+
+            item.options.forEach(opt => {
+                const btn = document.getElementById(`mcq-btn-${id}-${opt.val}`);
+                const icon = document.getElementById(`mcq-icon-${id}-${opt.val}`);
+                if (!btn) return;
+
+                if (opt.val === item.correct) {
+                    btn.className = 'text-right py-2.5 px-3.5 rounded-xl bg-emerald-950/50 border-2 border-emerald-500 text-emerald-200 text-xs md:text-sm font-bold shadow-lg shadow-emerald-500/10 flex items-center justify-between';
+                    if (icon) {
+                        icon.textContent = '✓ صح';
+                        icon.className = 'opacity-100 text-emerald-400 font-black';
+                    }
+                } else if (opt.val === chosenVal && !isCorrect) {
+                    btn.className = 'text-right py-2.5 px-3.5 rounded-xl bg-rose-950/50 border-2 border-rose-500 text-rose-200 text-xs md:text-sm font-bold flex items-center justify-between';
+                    if (icon) {
+                        icon.textContent = '✗ خطأ';
+                        icon.className = 'opacity-100 text-rose-400 font-black';
+                    }
+                } else {
+                    btn.className = 'text-right py-2.5 px-3.5 rounded-xl bg-gray-900 border border-gray-800 text-gray-500 text-xs md:text-sm opacity-50 flex items-center justify-between';
+                    if (icon) icon.className = 'opacity-0';
+                }
+            });
+
+            if (isCorrect) {
+                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ إجابة ممتازة</span>';
+            } else {
+                status.innerHTML = '<span class="text-rose-400 font-bold">✗ خطأ</span>';
+            }
+
+            if (exp) exp.classList.remove('hidden');
+            updateScoreHeader();
+        }
+
+        function toggleAllAnswers() {
+            state.showAllAnswers = !state.showAllAnswers;
+            const btn = document.getElementById('toggle-answers-btn');
+            if (btn) btn.innerHTML = state.showAllAnswers ? '🙈 <span class="hidden sm:inline">إخفاء الإجابات</span>' : '👁️ <span class="hidden sm:inline">إظهار الإجابات</span>';
+
+            COMPLETE_QUESTIONS.forEach(i => {
+                const b = document.getElementById('complete-answer-' + i.id);
+                if (b) { if (state.showAllAnswers) b.classList.remove('hidden'); else b.classList.add('hidden'); }
+            });
+            CORRECT_QUESTIONS.forEach(i => {
+                const b = document.getElementById('correct-answer-' + i.id);
+                if (b) { if (state.showAllAnswers) b.classList.remove('hidden'); else b.classList.add('hidden'); }
+            });
+            TERMS_QUESTIONS.forEach(i => {
+                const b = document.getElementById('terms-answer-' + i.id);
+                if (b) { if (state.showAllAnswers) b.classList.remove('hidden'); else b.classList.add('hidden'); }
+            });
+            EXPLAIN_QUESTIONS.forEach(i => {
+                const b = document.getElementById('explain-ans-' + i.id);
+                if (b) { if (state.showAllAnswers) b.classList.remove('hidden'); else b.classList.add('hidden'); }
+            });
+            TF_QUESTIONS.forEach(i => {
+                const b = document.getElementById('tf-reason-' + i.id);
+                if (b) { if (state.showAllAnswers) b.classList.remove('hidden'); else b.classList.add('hidden'); }
+            });
+            MCQ_QUESTIONS.forEach(i => {
+                const b = document.getElementById('mcq-exp-' + i.id);
+                if (b) { if (state.showAllAnswers) b.classList.remove('hidden'); else b.classList.add('hidden'); }
+            });
+        }
+
+        function resetQuiz() {
+            if (confirm('هل تريد تصفير درجات الاختبار والبدء من جديد؟ 🔄')) {
+                state.score = 0;
+                state.answered = 0;
+                state.correct = 0;
+                state.wrong = 0;
+                state.userAnswers = {};
+                renderAllSections();
+                updateScoreHeader();
+            }
+        }
+
+        function renderAllSections() {
+            renderCompleteSection();
+            renderCorrectSection();
+            renderTermsSection();
+            renderExplainSection();
+            renderTFSection();
+            renderMCQSection();
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            renderAllSections();
+            updateScoreHeader();
+        });
+
+        // Stealth Return Hotkey Listener
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'F3') {
+                e.preventDefault();
+                unlockStealthLocal();
+                return;
+            }
+            if (e.key === 'F2') {
+                e.preventDefault();
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'NO2TA_TRIGGER_PANIC' }, '*');
+                }
+                return;
+            }
+            if (e.ctrlKey && e.shiftKey && (e.key === 'S' || e.key === 's')) {
+                e.preventDefault();
+                unlockStealthLocal();
+            }
+        });
+
+        function unlockStealthLocal() {
+            const pass = prompt('🔐 أدخل كلمة السر لإغلاق شاشة التمويه والعودة إلى نؤطة:');
+            if (pass === null) return;
+            if (pass && pass.trim() === 'SdSdSdSd') {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'NO2TA_LOCAL_STEALTH_CLOSE' }, '*');
+                } else {
+                    window.location.href = '/';
+                }
+            } else {
+                alert('❌ كلمة المرور غير صحيحة!');
+            }
+        }
+    </script>
+</body>
+</html>

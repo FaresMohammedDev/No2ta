@@ -692,7 +692,7 @@ function engageStealthMode(info) {
     }
 
     // 1. Change Document Title & Favicon to Physics Exam
-    document.title = 'نموذج إجابة ومراجعة الفيزياء - الوحدة الأولى (التأثير المغناطيسي)';
+    document.title = 'نموذج إجابة واختبار مهارات فلاتر - Flutter Competency Exam & Model Answers';
     const favicon = document.getElementById('appFavicon');
     if (favicon) {
         favicon.href = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>';
