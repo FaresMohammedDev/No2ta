@@ -300,6 +300,10 @@ function initSocket() {
         }
     });
 
+    STATE.socket.on('salawat_broadcast', (data) => {
+        handleSalawatBroadcast(data);
+    });
+
     STATE.socket.on('tasbeeh_global_update', (data) => {
         if (data && typeof data.total !== 'undefined') {
             tasbeehState.classroomTotal = data.total;
@@ -5218,6 +5222,12 @@ function updateTasbeehUI() {
 function incrementTasbeeh() {
     playTasbeehBeadClick();
 
+    // Speak the Dhikr sentence aloud (صوت التسبيح هو نطق الجملة)
+    const currentDhikr = TASBEEH_AZKAR.find(d => d.id === tasbeehState.selectedDhikrId) || TASBEEH_AZKAR[0];
+    if (currentDhikr && currentDhikr.title) {
+        speakArabicPhrase(currentDhikr.title);
+    }
+
     if (navigator.vibrate) {
         try { navigator.vibrate(25); } catch (e) {}
     }
@@ -5518,4 +5528,94 @@ function updateSchoolScheduleUI(now = new Date()) {
     if (mDismissal) mDismissal.textContent = school.dismissalText;
     if (mBionicHeader) mBionicHeader.textContent = school.isThursday ? '🔬 مفيش بايونيك' : '🔬 البايونيك (3:30)';
     if (mDismissalHeader) mDismissalHeader.textContent = school.isThursday ? '🏠 المرواح (3:30)' : '🏠 المرواح (4:00)';
+}
+
+
+// ----------------------------------------------------
+// 18. Arabic TTS Speech & Synchronized Salawat Engine 🕋🔊
+// ----------------------------------------------------
+function speakArabicPhrase(phrase, onEndCallback = null) {
+    if (!tasbeehState.soundEnabled) return;
+    if (!('speechSynthesis' in window)) return;
+
+    try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(phrase);
+        utterance.lang = 'ar-SA';
+        utterance.rate = 1.05;
+        utterance.pitch = 1.0;
+
+        const voices = window.speechSynthesis.getVoices();
+        const arabicVoice = voices.find(v => v.lang.startsWith('ar') || v.name.toLowerCase().includes('arabic') || v.name.includes('Hoda') || v.name.includes('Naayf'));
+        if (arabicVoice) {
+            utterance.voice = arabicVoice;
+        }
+
+        if (onEndCallback) utterance.onend = onEndCallback;
+        window.speechSynthesis.speak(utterance);
+    } catch (e) {
+        console.debug('Speech synthesis error:', e);
+    }
+}
+
+function playSalawatBellChime() {
+    if (!tasbeehState.soundEnabled) return;
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const now = ctx.currentTime;
+        [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.1);
+            gain.gain.setValueAtTime(0.25, now + idx * 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.85);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + idx * 0.1);
+            osc.stop(now + idx * 0.1 + 0.85);
+        });
+    } catch (e) {}
+}
+
+let salawatBannerTimer = null;
+
+function handleSalawatBroadcast(data = {}) {
+    console.log('🕋 [SALAWAT] Received synchronized broadcast across lab devices:', data);
+
+    // 1. Harmonious bell chime
+    playSalawatBellChime();
+
+    // 2. Speak Salawat aloud synchronously
+    setTimeout(() => {
+        speakArabicPhrase('اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ');
+    }, 450);
+
+    // 3. Show glowing banner across screen
+    const banner = document.getElementById('globalSalawatBanner');
+    if (banner) {
+        banner.classList.remove('hidden');
+        setTimeout(() => {
+            banner.classList.remove('-translate-y-6', 'opacity-0');
+            banner.classList.add('translate-y-0', 'opacity-100');
+        }, 50);
+
+        if (salawatBannerTimer) clearTimeout(salawatBannerTimer);
+        salawatBannerTimer = setTimeout(() => {
+            banner.classList.remove('translate-y-0', 'opacity-100');
+            banner.classList.add('-translate-y-6', 'opacity-0');
+            setTimeout(() => banner.classList.add('hidden'), 500);
+        }, 7000);
+    }
+}
+
+function triggerClassroomSalawat() {
+    if (STATE.socket && STATE.socket.connected) {
+        STATE.socket.emit('admin_trigger_salawat');
+        showNotification('تم إرسال تذكير "صلِّ على محمد ﷺ" لجميع الأجهزة بالمعمل! 🕋✨');
+    } else {
+        handleSalawatBroadcast({ phrase: 'اللهم صلِّ على محمد' });
+    }
 }

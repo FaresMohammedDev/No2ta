@@ -287,6 +287,33 @@ app.get('/api/tasbeeh', (req, res) => {
     res.json({ success: true, total: classroomTotalTasbeeh });
 });
 
+// 10-Minute Synchronized Salawat API & Background Timer 🕋
+let lastSalawatTriggerMinute = -1;
+
+function checkAndTriggerSalawatBroadcast() {
+    const now = new Date();
+    let minutes = now.getMinutes();
+    if (minutes % 10 === 0 && minutes !== lastSalawatTriggerMinute) {
+        lastSalawatTriggerMinute = minutes;
+        console.log(`🕋 [SALAWAT BROADCAST] Synchronized Salawat across all devices at :${minutes < 10 ? '0' + minutes : minutes}`);
+        io.emit('salawat_broadcast', {
+            phrase: 'اللهم صلِّ على محمد',
+            fullPhrase: '«اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ»',
+            timestamp: Date.now()
+        });
+    }
+}
+setInterval(checkAndTriggerSalawatBroadcast, 5000);
+
+app.post('/api/salawat/trigger', (req, res) => {
+    io.emit('salawat_broadcast', {
+        phrase: 'اللهم صلِّ على محمد',
+        fullPhrase: '«اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ»',
+        timestamp: Date.now()
+    });
+    res.json({ success: true, message: 'تم إرسال تذكير صلِّ على محمد لجميع الأجهزة!' });
+});
+
 // 2. Authentication & Auto-Login
 app.post('/api/auth/login', async (req, res) => {
     try {
@@ -1931,6 +1958,14 @@ io.on('connection', async (socket) => {
         if (classroomTotalTasbeeh % 5 === 0) {
             saveTasbeehCount();
         }
+    });
+
+    socket.on('admin_trigger_salawat', () => {
+        io.emit('salawat_broadcast', {
+            phrase: 'اللهم صلِّ على محمد',
+            fullPhrase: '«اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ»',
+            timestamp: Date.now()
+        });
     });
 
     // Initial Registration
