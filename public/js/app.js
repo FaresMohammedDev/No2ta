@@ -5248,9 +5248,7 @@ function updateTasbeehUI() {
 }
 
 function incrementTasbeeh() {
-    playTasbeehBeadClick();
-
-    // Speak the Dhikr sentence aloud using real native audio files (صوت التسبيح هو نطق الجملة)
+    // Spoken Dhikr pronunciation is the sound of the Tasbeeh (ساوند التسبيح هو نطق الجملة المكتوبة)
     const currentDhikr = TASBEEH_AZKAR.find(d => d.id === tasbeehState.selectedDhikrId) || TASBEEH_AZKAR[0];
     if (currentDhikr) {
         playDhikrAudioPhrase(currentDhikr.id, currentDhikr.title);
@@ -5647,8 +5645,20 @@ const DHIKR_AUDIO_MAP = {
     'allahuakbar': '/audio/allahuakbar.mp3',
     'astaghfirullah': '/audio/astaghfirullah.mp3',
     'lahawla': '/audio/lahawla.mp3',
-    'salawat': '/audio/salawat.mp3'
+    'salawat': '/audio/salawat.mp3',
+    'subhan_wabihamdih': '/audio/subhan_wabihamdih.mp3',
+    'hasbiyallah': '/audio/hasbiyallah.mp3'
 };
+
+// Pre-created HTML5 Audio elements for zero-delay instant pronunciation
+const PRELOADED_DHIKR_AUDIO = {};
+Object.keys(DHIKR_AUDIO_MAP).forEach(key => {
+    try {
+        const aud = new Audio(DHIKR_AUDIO_MAP[key]);
+        aud.preload = 'auto';
+        PRELOADED_DHIKR_AUDIO[key] = aud;
+    } catch (e) {}
+});
 
 let activeDhikrAudio = null;
 let salawatSelectedSound = 'salawat'; // 'salawat', 'salawat_full', 'voice1'
@@ -5676,26 +5686,30 @@ function testSalawatAudioVoice() {
 function playDhikrAudioPhrase(dhikrId, fallbackText = '') {
     if (!tasbeehState.soundEnabled) return;
 
-    const audioUrl = DHIKR_AUDIO_MAP[dhikrId] || '/audio/salawat.mp3';
     try {
-        if (activeDhikrAudio) {
-            activeDhikrAudio.pause();
-            activeDhikrAudio.currentTime = 0;
+        let audio = PRELOADED_DHIKR_AUDIO[dhikrId];
+        if (!audio) {
+            const url = DHIKR_AUDIO_MAP[dhikrId] || ('/api/tts?text=' + encodeURIComponent(fallbackText || 'سُبْحَانَ اللَّه'));
+            audio = new Audio(url);
+            PRELOADED_DHIKR_AUDIO[dhikrId] = audio;
         }
 
-        const audio = new Audio(audioUrl);
+        // Rewind and play immediately with full volume
+        audio.currentTime = 0;
         audio.volume = 1.0;
         activeDhikrAudio = audio;
 
         const playPromise = audio.play();
         if (playPromise !== undefined) {
             playPromise.catch(err => {
-                console.warn('Audio play blocked, fallback to TTS:', err);
-                if (fallbackText) speakArabicPhrase(fallbackText);
+                console.warn('Preloaded audio play error, trying fresh instance:', err);
+                const fresh = new Audio(audio.src);
+                fresh.volume = 1.0;
+                fresh.play().catch(e => console.warn('Fresh play error:', e));
             });
         }
     } catch (e) {
-        if (fallbackText) speakArabicPhrase(fallbackText);
+        console.error('playDhikrAudioPhrase error:', e);
     }
 }
 
@@ -5712,38 +5726,12 @@ function playSalawatVoice(soundType = 'salawat') {
         const playPromise = audio.play();
         if (playPromise !== undefined) {
             playPromise.catch(err => {
-                console.warn('Salawat voice blocked by autoplay, fallback to chime + TTS:', err);
+                console.warn('Salawat voice blocked, trying fallback chime:', err);
                 playSalawatBellChime();
-                speakArabicPhrase('صَلِّ عَلَى مُحَمَّد');
             });
         }
     } catch (e) {
         playSalawatBellChime();
-        speakArabicPhrase('صَلِّ عَلَى مُحَمَّد');
-    }
-}
-
-function speakArabicPhrase(phrase, onEndCallback = null) {
-    if (!tasbeehState.soundEnabled) return;
-    if (!('speechSynthesis' in window)) return;
-
-    try {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(phrase);
-        utterance.lang = 'ar-SA';
-        utterance.rate = 1.05;
-        utterance.pitch = 1.0;
-
-        const voices = window.speechSynthesis.getVoices();
-        const arabicVoice = voices.find(v => v.lang.startsWith('ar') || v.name.toLowerCase().includes('arabic') || v.name.includes('Hoda') || v.name.includes('Naayf'));
-        if (arabicVoice) {
-            utterance.voice = arabicVoice;
-        }
-
-        if (onEndCallback) utterance.onend = onEndCallback;
-        window.speechSynthesis.speak(utterance);
-    } catch (e) {
-        console.debug('Speech synthesis error:', e);
     }
 }
 
@@ -5774,7 +5762,7 @@ let salawatBannerTimer = null;
 function handleSalawatBroadcast(data = {}) {
     console.log('🕋 [SALAWAT] Received synchronized broadcast across lab devices:', data);
 
-    // 1. Play real spoken audio voice "صَلِّ عَلَى مُحَمَّد" directly!
+    // 1. Play audible spoken voice "صَلِّ عَلَى مُحَمَّد" directly!
     const soundToPlay = data.soundType || salawatSelectedSound || 'salawat';
     playSalawatVoice(soundToPlay);
 

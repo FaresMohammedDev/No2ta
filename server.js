@@ -305,6 +305,25 @@ function checkAndTriggerSalawatBroadcast() {
 }
 setInterval(checkAndTriggerSalawatBroadcast, 5000);
 
+// Dynamic Arabic TTS Proxy / Audio Generator 🗣️
+app.get('/api/tts', (req, res) => {
+    try {
+        const text = req.query.text || 'سُبْحَانَ اللَّه';
+        const url = 'https://translate.google.com/translate_tts?ie=UTF-8&q=' + encodeURIComponent(text) + '&tl=ar&client=tw-ob';
+        const https = require('https');
+        https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (ttsRes) => {
+            res.setHeader('Content-Type', 'audio/mpeg');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            ttsRes.pipe(res);
+        }).on('error', (err) => {
+            console.error('TTS proxy error:', err);
+            res.status(500).json({ error: 'TTS streaming error' });
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.post('/api/salawat/trigger', (req, res) => {
     const soundType = (req.body && req.body.soundType) ? req.body.soundType : 'salawat';
     io.emit('salawat_broadcast', {
