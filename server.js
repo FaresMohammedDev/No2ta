@@ -125,18 +125,8 @@ app.get('/api/network-info', async (req, res) => {
     try {
         const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
         const clientMac = await resolveMacAddress(clientIp);
-
-    // Send current classroom tasbeeh total
-    socket.emit('tasbeeh_global_update', { total: classroomTotalTasbeeh });
-
-    socket.on('tasbeeh_increment', (count = 1) => {
-        classroomTotalTasbeeh += Math.min(Math.max(1, count), 10);
-        io.emit('tasbeeh_global_update', { total: classroomTotalTasbeeh });
-        if (classroomTotalTasbeeh % 5 === 0) {
-            saveTasbeehCount();
-        }
-    });
         const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
+
         const lanIps = getServerLanIPs();
         const primaryLan = lanIps.find(i => i.address.startsWith('192.168.')) || lanIps[0] || { address: '127.0.0.1' };
         const joinUrl = `http://${primaryLan.address}:${PORT}`;
@@ -1931,6 +1921,17 @@ io.on('connection', async (socket) => {
     const rawIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
     const clientIp = cleanIP(rawIp);
     const clientMac = await resolveMacAddress(clientIp);
+
+    // Send current classroom tasbeeh total
+    socket.emit('tasbeeh_global_update', { total: classroomTotalTasbeeh });
+
+    socket.on('tasbeeh_increment', (count = 1) => {
+        classroomTotalTasbeeh += Math.min(Math.max(1, count), 10);
+        io.emit('tasbeeh_global_update', { total: classroomTotalTasbeeh });
+        if (classroomTotalTasbeeh % 5 === 0) {
+            saveTasbeehCount();
+        }
+    });
 
     // Initial Registration
     socket.on('register_presence', async (userData) => {
