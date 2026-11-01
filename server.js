@@ -287,23 +287,24 @@ app.get('/api/tasbeeh', (req, res) => {
     res.json({ success: true, total: classroomTotalTasbeeh });
 });
 
-// 10-Minute Synchronized Salawat API & Background Timer 🕋
+// 5-Minute Synchronized Salawat API & Background Timer 🕋
 let lastSalawatTriggerMinute = -1;
 
 function checkAndTriggerSalawatBroadcast() {
     const now = new Date();
     let minutes = now.getMinutes();
-    if (minutes % 10 === 0 && minutes !== lastSalawatTriggerMinute) {
+    if (minutes % 5 === 0 && minutes !== lastSalawatTriggerMinute) {
         lastSalawatTriggerMinute = minutes;
         console.log(`🕋 [SALAWAT BROADCAST] Synchronized Salawat across all devices at :${minutes < 10 ? '0' + minutes : minutes}`);
         io.emit('salawat_broadcast', {
             phrase: 'اللهم صلِّ على محمد',
             fullPhrase: '«اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ»',
+            soundType: 'salawat',
             timestamp: Date.now()
         });
     }
 }
-setInterval(checkAndTriggerSalawatBroadcast, 5000);
+setInterval(checkAndTriggerSalawatBroadcast, 3000);
 
 // Dynamic Arabic TTS Proxy / Audio Generator 🗣️
 app.get('/api/tts', (req, res) => {
