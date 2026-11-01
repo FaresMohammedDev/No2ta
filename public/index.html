@@ -88,15 +88,14 @@
             <!-- Right Controls: Profile & Panic -->
             <div class="flex items-center gap-2 shrink-0">
                 <!-- Alexandria Time & Prayer Quick Pill -->
-                <div id="alexandriaHeaderPill" onclick="openPrayerTimesModal()" class="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-950/40 via-teal-950/30 to-slate-900/60 border border-emerald-500/30 hover:border-emerald-400/60 cursor-pointer transition-all shadow-sm group shrink-0" title="توقيت الإسكندرية ومواقيت الصلاة - اضغط للتفاصيل 🕌">
-                    <span class="text-sm">🕌</span>
+                <div id="alexandriaHeaderPill" onclick="openPrayerTimesModal()" class="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-950/40 via-teal-950/30 to-slate-900/60 border border-emerald-500/30 hover:border-emerald-400/60 cursor-pointer transition-all shadow-sm group shrink-0" title="توقيت الإسكندرية، جدول الحصص، البريك، ومواقيت الصلاة - اضغط للتفاصيل 🏫🕒">
+                    <span class="text-sm">🕒</span>
                     <div class="flex flex-col sm:flex-row sm:items-center sm:gap-1.5 leading-none">
-                        <span class="text-[10px] font-bold text-emerald-300 hidden md:inline">الإسكندرية</span>
                         <span id="headerAlexandriaClock" class="text-xs font-mono font-bold text-white tracking-wide">--:--:--</span>
                     </div>
-                    <div class="hidden lg:flex items-center gap-1.5 pl-1 border-r border-white/10 pr-2">
-                        <span id="headerNextPrayerName" class="text-[10px] text-amber-300 font-bold">الظهر</span>
-                        <span id="headerNextPrayerCountdown" class="text-[10px] font-mono text-slate-300">--:--</span>
+                    <div class="hidden sm:flex items-center gap-1.5 pl-1 border-r border-white/10 pr-2">
+                        <span id="headerSchoolStatusBadge" class="text-[10px] font-bold text-cyan-300">الحصة --</span>
+                        <span id="headerSchoolBreakCountdown" class="text-[10px] font-mono text-amber-300">البريك: --</span>
                     </div>
                 </div>
                 <!-- NetSupport Lab Monitor Button (Admin Only) -->
@@ -210,6 +209,33 @@
                     <div id="prayer_card_isha" class="p-1 rounded-lg bg-black/40 border border-white/5 transition-all">
                         <div class="text-[9px] text-slate-400">العشاء</div>
                         <div id="prayer_time_isha" class="text-[10px] font-bold text-slate-200 mt-0.5">--:--</div>
+                    </div>
+                </div>
+
+                <!-- School Sessions & Break Live Card 🔔 -->
+                <div class="mt-2.5 pt-2 border-t border-white/10 text-xs">
+                    <div class="flex items-center justify-between mb-1.5 cursor-pointer" onclick="openPrayerTimesModal()">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0"></span>
+                            <span id="sidebarSchoolSessionBadge" class="text-[11px] font-black text-emerald-300 truncate">الحصة --</span>
+                        </div>
+                        <span id="sidebarSchoolSessionCountdown" class="text-[10px] font-mono font-bold text-cyan-300 shrink-0">باقي: --</span>
+                    </div>
+
+                    <!-- 3 School Countdowns Grid: Break, Bionic, Dismissal -->
+                    <div class="grid grid-cols-3 gap-1 text-center font-mono text-[9px]">
+                        <div class="p-1 rounded-lg bg-black/50 border border-white/5 flex flex-col justify-between">
+                            <div class="text-slate-400">☕ البريك (11:10)</div>
+                            <div id="sidebarSchoolBreakCountdown" class="font-bold text-amber-300 mt-0.5">باقي: --</div>
+                        </div>
+                        <div class="p-1 rounded-lg bg-black/50 border border-white/5 flex flex-col justify-between">
+                            <div id="sidebarSchoolBionicLabel" class="text-slate-400">🔬 البايونيك (3:30)</div>
+                            <div id="sidebarSchoolBionicCountdown" class="font-bold text-purple-300 mt-0.5">باقي: --</div>
+                        </div>
+                        <div class="p-1 rounded-lg bg-black/50 border border-white/5 flex flex-col justify-between">
+                            <div id="sidebarSchoolDismissalLabel" class="text-slate-400">🏠 المرواح (4:00)</div>
+                            <div id="sidebarSchoolDismissalCountdown" class="font-bold text-emerald-300 mt-0.5">باقي: --</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1471,6 +1497,35 @@
                 </div>
             </div>
 
+            <!-- School Day Live Status Box in Modal -->
+            <div class="p-3.5 rounded-2xl bg-gradient-to-r from-blue-950/50 via-slate-900/80 to-indigo-950/50 border border-cyan-500/30 mb-3 text-xs">
+                <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-white/10">
+                    <div class="flex items-center gap-2">
+                        <span class="text-base">🏫</span>
+                        <div>
+                            <span class="font-bold text-white text-xs block" id="modalSchoolCurrentStatus">--</span>
+                            <span class="text-[10px] text-slate-400" id="modalSchoolSessionInfo">الحصة 55 دقيقة • تبدأ 7:30 ص</span>
+                        </div>
+                    </div>
+                    <span id="modalSchoolSessionTimer" class="px-2 py-1 rounded-xl bg-cyan-500/20 text-cyan-300 font-mono font-bold text-xs border border-cyan-500/30">--</span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-1.5 text-center font-mono text-[10px]">
+                    <div class="p-1.5 rounded-xl bg-black/40 border border-white/5">
+                        <span class="text-slate-400 text-[9px] block">☕ البريك (11:10)</span>
+                        <strong id="modalSchoolBreakTimer" class="text-amber-300 text-[11px] block mt-0.5">--</strong>
+                    </div>
+                    <div class="p-1.5 rounded-xl bg-black/40 border border-white/5">
+                        <span id="modalSchoolBionicHeader" class="text-slate-400 text-[9px] block">🔬 البايونيك (3:30)</span>
+                        <strong id="modalSchoolBionicTimer" class="text-purple-300 text-[11px] block mt-0.5">--</strong>
+                    </div>
+                    <div class="p-1.5 rounded-xl bg-black/40 border border-white/5">
+                        <span id="modalSchoolDismissalHeader" class="text-slate-400 text-[9px] block">🏠 المرواح (4:00)</span>
+                        <strong id="modalSchoolDismissalTimer" class="text-emerald-300 text-[11px] block mt-0.5">--</strong>
+                    </div>
+                </div>
+            </div>
+
             <!-- 6 Timings Table (Fajr, Sunrise, Dhuhr, Asr, Maghrib, Isha) -->
             <div class="space-y-1.5 mb-4 text-xs">
                 <div id="modal_row_fajr" class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5 flex items-center justify-between transition-all">
@@ -1631,6 +1686,6 @@
 
     <!-- Main Application Scripts -->
     <script src="/js/html2canvas.min.js"></script>
-    <script src="/js/app.js?v=3.7.0"></script>
+    <script src="/js/app.js?v=3.8.0"></script>
 </body>
 </html>

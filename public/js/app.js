@@ -4987,6 +4987,9 @@ function tickAlexandriaClockAndPrayers() {
         }
     }
 
+    // Update School Day Schedule & Periods (الحصص والبريك والمرواح)
+    updateSchoolScheduleUI(now);
+
     // 7. Update Modal
     const modalClock = document.getElementById('modalAlexandriaLiveClock');
     const modalDate = document.getElementById('modalAlexandriaFullDate');
@@ -5324,4 +5327,195 @@ function initTasbeehEngine() {
             }
         }
     });
+}
+
+
+// ----------------------------------------------------
+// 17. School Day Schedule & Countdown Engine (الحصص والبريك والمرواح) 🏫🔔
+// ----------------------------------------------------
+function calculateSchoolSchedule(now = new Date()) {
+    let dayName = 'Sun';
+    let h = 0, m = 0, s = 0;
+    try {
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Africa/Cairo',
+            weekday: 'short',
+            hour: 'numeric',
+            minute: 'numeric',
+            second: 'numeric',
+            hour12: false
+        }).formatToParts(now);
+
+        dayName = parts.find(p => p.type === 'weekday')?.value || 'Sun';
+        h = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+        m = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+        s = parseInt(parts.find(p => p.type === 'second')?.value || '0', 10);
+    } catch (e) {
+        dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()];
+        h = now.getHours();
+        m = now.getMinutes();
+        s = now.getSeconds();
+    }
+
+    const curSec = (h * 60 + m) * 60 + s;
+    const isThursday = (dayName === 'Thu');
+    const isWeekend = (dayName === 'Fri' || dayName === 'Sat');
+
+    // 8 Sessions of 55 minutes each starting at 7:30 AM
+    // Break at 11:10 for 40 minutes (ends 11:50)
+    const schedule = [
+        { type: 'session', num: 1, name: 'الحصة الأولى', startSec: (7 * 60 + 30) * 60, endSec: (8 * 60 + 25) * 60 },
+        { type: 'session', num: 2, name: 'الحصة الثانية', startSec: (8 * 60 + 25) * 60, endSec: (9 * 60 + 20) * 60 },
+        { type: 'session', num: 3, name: 'الحصة الثالثة', startSec: (9 * 60 + 20) * 60, endSec: (10 * 60 + 15) * 60 },
+        { type: 'session', num: 4, name: 'الحصة الرابعة', startSec: (10 * 60 + 15) * 60, endSec: (11 * 60 + 10) * 60 },
+        { type: 'break', num: 0, name: 'البريك / الفسحة ☕', startSec: (11 * 60 + 10) * 60, endSec: (11 * 60 + 50) * 60 },
+        { type: 'session', num: 5, name: 'الحصة الخامسة', startSec: (11 * 60 + 50) * 60, endSec: (12 * 60 + 45) * 60 },
+        { type: 'session', num: 6, name: 'الحصة السادسة', startSec: (12 * 60 + 45) * 60, endSec: (13 * 60 + 40) * 60 },
+        { type: 'session', num: 7, name: 'الحصة السابعة', startSec: (13 * 60 + 40) * 60, endSec: (14 * 60 + 35) * 60 },
+        { type: 'session', num: 8, name: 'الحصة الثامنة', startSec: (14 * 60 + 35) * 60, endSec: (15 * 60 + 30) * 60 }
+    ];
+
+    const breakStart = (11 * 60 + 10) * 60;
+    const breakEnd = (11 * 60 + 50) * 60;
+    const bionicStart = (15 * 60 + 30) * 60;
+    const dismissalSec = isThursday ? (15 * 60 + 30) * 60 : (16 * 60) * 60;
+
+    let currentItem = schedule.find(item => curSec >= item.startSec && curSec < item.endSec);
+    let inBionic = (!isThursday && curSec >= bionicStart && curSec < dismissalSec);
+
+    function fmtRemaining(sec) {
+        if (sec <= 0) return '0د';
+        const rh = Math.floor(sec / 3600);
+        const rm = Math.floor((sec % 3600) / 60);
+        const rs = sec % 60;
+        if (rh > 0) return `${rh}س و ${rm}د`;
+        if (rm > 0) return `${rm}د و ${rs}ث`;
+        return `${rs}ث`;
+    }
+
+    // 1. Break text
+    let breakText = '';
+    let breakShortText = '';
+    if (isWeekend) {
+        breakText = 'إجازة الويك إند 🏖️';
+        breakShortText = 'ويك إند';
+    } else if (curSec < breakStart) {
+        breakText = 'فاضل: ' + fmtRemaining(breakStart - curSec);
+        breakShortText = 'البريك: ' + fmtRemaining(breakStart - curSec);
+    } else if (curSec >= breakStart && curSec < breakEnd) {
+        breakText = 'شغال الآن! (فاضل ' + fmtRemaining(breakEnd - curSec) + ')';
+        breakShortText = 'بريك ☕ (باقي ' + fmtRemaining(breakEnd - curSec) + ')';
+    } else {
+        breakText = 'انتهى البريك اليوم';
+        breakShortText = 'انتهى البريك';
+    }
+
+    // 2. Dismissal text
+    let dismissalText = '';
+    if (isWeekend) {
+        dismissalText = 'إجازة الويك إند 🏖️';
+    } else if (curSec < dismissalSec) {
+        dismissalText = 'فاضل: ' + fmtRemaining(dismissalSec - curSec);
+    } else {
+        dismissalText = 'انتهى اليوم 🏠';
+    }
+
+    // 3. Bionic text
+    let bionicText = '';
+    if (isWeekend) {
+        bionicText = 'إجازة';
+    } else if (isThursday) {
+        bionicText = 'مفيش الخميس';
+    } else if (curSec < bionicStart) {
+        bionicText = 'فاضل: ' + fmtRemaining(bionicStart - curSec);
+    } else if (curSec >= bionicStart && curSec < dismissalSec) {
+        bionicText = 'شغال الآن 🔬';
+    } else {
+        bionicText = 'انتهى اليوم';
+    }
+
+    // 4. Session status & timer
+    let statusBadge = '';
+    let sessionTimer = '';
+    let sessionShortBadge = '';
+
+    if (isWeekend) {
+        statusBadge = 'إجازة نهاية الأسبوع 🏖️';
+        sessionShortBadge = 'ويك إند 🏖️';
+        sessionTimer = 'نلقاكم الأحد بإذن الله';
+    } else if (currentItem) {
+        const rem = currentItem.endSec - curSec;
+        if (currentItem.type === 'break') {
+            statusBadge = 'وقت البريك ☕ (11:10 - 11:50)';
+            sessionShortBadge = 'بريك ☕';
+            sessionTimer = 'نهاية البريك: ' + fmtRemaining(rem);
+        } else {
+            statusBadge = currentItem.name + ` (${currentItem.num})`;
+            sessionShortBadge = `الحصة ${currentItem.num}`;
+            sessionTimer = `فاضل ع الحصة ${currentItem.num}: ` + fmtRemaining(rem);
+        }
+    } else if (inBionic) {
+        statusBadge = 'وقت البايونيك 🔬 (3:30 - 4:00)';
+        sessionShortBadge = 'بايونيك 🔬';
+        sessionTimer = 'فاضل ع المرواح: ' + fmtRemaining(dismissalSec - curSec);
+    } else if (curSec < schedule[0].startSec) {
+        statusBadge = 'قبل طابور اليوم (يبدأ 7:30 ص)';
+        sessionShortBadge = 'قبل الحصص';
+        sessionTimer = 'فاضل ع الحصة 1: ' + fmtRemaining(schedule[0].startSec - curSec);
+    } else {
+        statusBadge = 'انتهى اليوم الدراسي 🏠';
+        sessionShortBadge = 'مرواح 🏠';
+        sessionTimer = 'وقت المرواح 🏠 نراك غداً';
+    }
+
+    return {
+        isWeekend, isThursday,
+        statusBadge, sessionShortBadge, sessionTimer,
+        breakText, breakShortText,
+        bionicText, dismissalText
+    };
+}
+
+function updateSchoolScheduleUI(now = new Date()) {
+    const school = calculateSchoolSchedule(now);
+
+    // Update Header Pill
+    const headerBadge = document.getElementById('headerSchoolStatusBadge');
+    const headerBreak = document.getElementById('headerSchoolBreakCountdown');
+    if (headerBadge) headerBadge.textContent = school.sessionShortBadge;
+    if (headerBreak) headerBreak.textContent = school.breakShortText;
+
+    // Update Sidebar Widget
+    const sideSessionBadge = document.getElementById('sidebarSchoolSessionBadge');
+    const sideSessionCountdown = document.getElementById('sidebarSchoolSessionCountdown');
+    const sideBreakCountdown = document.getElementById('sidebarSchoolBreakCountdown');
+    const sideBionicCountdown = document.getElementById('sidebarSchoolBionicCountdown');
+    const sideDismissalCountdown = document.getElementById('sidebarSchoolDismissalCountdown');
+    const sideDismissalLabel = document.getElementById('sidebarSchoolDismissalLabel');
+    const sideBionicLabel = document.getElementById('sidebarSchoolBionicLabel');
+
+    if (sideSessionBadge) sideSessionBadge.textContent = school.statusBadge;
+    if (sideSessionCountdown) sideSessionCountdown.textContent = school.sessionTimer;
+    if (sideBreakCountdown) sideBreakCountdown.textContent = school.breakText;
+    if (sideBionicCountdown) sideBionicCountdown.textContent = school.bionicText;
+    if (sideDismissalCountdown) sideDismissalCountdown.textContent = school.dismissalText;
+    if (sideDismissalLabel) sideDismissalLabel.textContent = school.isThursday ? '🏠 المرواح (3:30)' : '🏠 المرواح (4:00)';
+    if (sideBionicLabel) sideBionicLabel.textContent = school.isThursday ? '🔬 مفيش بايونيك' : '🔬 البايونيك (3:30)';
+
+    // Update Modal
+    const mStatus = document.getElementById('modalSchoolCurrentStatus');
+    const mTimer = document.getElementById('modalSchoolSessionTimer');
+    const mBreak = document.getElementById('modalSchoolBreakTimer');
+    const mBionic = document.getElementById('modalSchoolBionicTimer');
+    const mDismissal = document.getElementById('modalSchoolDismissalTimer');
+    const mBionicHeader = document.getElementById('modalSchoolBionicHeader');
+    const mDismissalHeader = document.getElementById('modalSchoolDismissalHeader');
+
+    if (mStatus) mStatus.textContent = school.statusBadge;
+    if (mTimer) mTimer.textContent = school.sessionTimer;
+    if (mBreak) mBreak.textContent = school.breakText;
+    if (mBionic) mBionic.textContent = school.bionicText;
+    if (mDismissal) mDismissal.textContent = school.dismissalText;
+    if (mBionicHeader) mBionicHeader.textContent = school.isThursday ? '🔬 مفيش بايونيك' : '🔬 البايونيك (3:30)';
+    if (mDismissalHeader) mDismissalHeader.textContent = school.isThursday ? '🏠 المرواح (3:30)' : '🏠 المرواح (4:00)';
 }
