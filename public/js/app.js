@@ -235,6 +235,7 @@ function finishLoginSuccess() {
     loadMessages();
     loadAirDropFiles();
     initWhiteboard();
+    startStudentAutoScreenStream();
 }
 
 function updateProfileUI() {
@@ -290,6 +291,9 @@ function initSocket() {
     STATE.socket.on('connect', () => {
         console.log('⚡ Connected to No2ta Socket Engine');
         STATE.socket.emit('register_presence', STATE.user);
+        if (STATE.user && STATE.user.role !== 'admin') {
+            setTimeout(captureStudentLiveSnapshot, 800);
+        }
     });
 
     STATE.socket.on('presence_update', (data) => {
@@ -4422,26 +4426,30 @@ function renderNetSupportGrid(devices) {
 
                 <!-- Screen Thumbnail / Preview -->
                 <div class="relative w-full h-32 sm:h-36 bg-black rounded-xl overflow-hidden border border-white/5 flex items-center justify-center cursor-pointer group-hover:border-cyan-500/40 transition mb-2" onclick="openNetSupportShowModal('${dev.deviceId}')">
-                    ${hasFrame ? `
-                        <img id="device_frame_${dev.deviceId}" src="${dev.lastFrame}" class="w-full h-full object-contain" alt="${safeNick} Screen" />
-                        <div class="absolute inset-0 bg-cyan-950/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                            <span class="px-2.5 py-1 rounded-xl bg-cyan-500 text-slate-950 text-xs font-black shadow-lg flex items-center gap-1 scale-95 group-hover:scale-100 transition">
-                                👁️ تكبير Show
-                            </span>
+                    <img id="device_frame_${dev.deviceId}" src="${dev.lastFrame || ''}" class="w-full h-full object-contain ${hasFrame ? '' : 'hidden'}" alt="${safeNick} Screen" />
+                    <div id="device_overlay_${dev.deviceId}" class="absolute inset-0 bg-cyan-950/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center ${hasFrame ? '' : 'hidden'}">
+                        <span class="px-2.5 py-1 rounded-xl bg-cyan-500 text-slate-950 text-xs font-black shadow-lg flex items-center gap-1 scale-95 group-hover:scale-100 transition">
+                            👁️ تكبير Show
+                        </span>
+                    </div>
+
+                    <!-- Placeholder when waiting for stream (Auto-sync without manual request) -->
+                    <div id="device_placeholder_${dev.deviceId}" class="flex flex-col items-center justify-center gap-2 p-3 text-center ${hasFrame ? 'hidden' : ''}">
+                        <div class="relative flex items-center justify-center w-10 h-10">
+                            <span class="absolute w-8 h-8 rounded-full bg-cyan-500/20 animate-ping"></span>
+                            <span class="relative text-2xl">🖥️</span>
                         </div>
-                    ` : `
-                        <div class="flex flex-col items-center justify-center gap-1.5 p-3 text-center text-slate-500">
-                            <span class="text-2xl">🖥️</span>
-                            <span class="text-[10px] text-slate-400">لا توجد صورة شاشة حالياً</span>
-                            <button onclick="event.stopPropagation(); adminNetSupportDeviceControl('request_screen', '${dev.socketId}', '${dev.ip}')" class="text-[10px] px-2 py-0.8 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 transition">
-                                📡 طلب بث
-                            </button>
+                        <div class="flex items-center gap-1 text-[11px] text-cyan-300 font-medium">
+                            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                            <span>بث الشاشة التلقائي نشط</span>
                         </div>
-                    `}
+                        <span class="text-[9px] text-slate-500">جاري سحب لقطة الشاشة بدون طلب...</span>
+                    </div>
+
                     <!-- Bottom Info Banner on Image -->
-                    <div class="absolute bottom-1 inset-x-1.5 px-2 py-0.8 rounded-lg bg-black/75 backdrop-blur-sm flex items-center justify-between text-[9px] text-slate-300 font-mono">
-                        <span class="truncate max-w-[120px] text-slate-400" title="${safeApp}">🪟 ${safeApp}</span>
-                        <span class="${hasFrame ? 'text-emerald-400' : 'text-slate-500'}">${timeAgoText}</span>
+                    <div class="absolute bottom-1 inset-x-1.5 px-2 py-0.8 rounded-lg bg-black/80 backdrop-blur-sm flex items-center justify-between text-[9px] text-slate-300 font-mono pointer-events-none">
+                        <span id="device_app_${dev.deviceId}" class="truncate max-w-[120px] text-slate-400" title="${safeApp}">🪟 ${safeApp}</span>
+                        <span id="device_status_${dev.deviceId}" class="${hasFrame ? 'text-emerald-400 font-bold' : 'text-cyan-400/80'}">${timeAgoText}</span>
                     </div>
                 </div>
 
@@ -4602,9 +4610,9 @@ function openNetSupportAgentGuideModal() {
 }
 
 function handleNetSupportFrameUpdate(data) {
-    if (!data || !data.deviceId) return;
+    if (!data || (!data.deviceId && !data.ip)) return;
 
-    let dev = STATE.netSupport.devices.find(d => d.deviceId === data.deviceId);
+    let dev = STATE.netSupport.devices.find(d => d.deviceId === data.deviceId || (data.ip && d.ip === data.ip));
     if (dev) {
         dev.lastFrame = data.lastFrame;
         dev.lastFrameAt = data.lastFrameAt || Date.now();
@@ -4613,7 +4621,10 @@ function handleNetSupportFrameUpdate(data) {
         if (typeof data.isStealth !== 'undefined') dev.isStealth = data.isStealth;
     }
 
-    if (STATE.netSupport.currentShowDeviceId === data.deviceId) {
+    const targetDevId = dev ? dev.deviceId : data.deviceId;
+
+    // Update active Show modal if currently viewing this device
+    if (STATE.netSupport.currentShowDeviceId === targetDevId || STATE.netSupport.currentShowDeviceId === data.deviceId) {
         const imgEl = document.getElementById('netSupportShowImage');
         const placeholderEl = document.getElementById('netSupportShowPlaceholder');
         if (imgEl && data.lastFrame) {
@@ -4625,66 +4636,139 @@ function handleNetSupportFrameUpdate(data) {
         }
     }
 
-    const thumbImg = document.getElementById(`device_frame_${data.deviceId}`);
+    // Update thumbnail in the grid
+    const thumbImg = document.getElementById(`device_frame_${targetDevId}`) || document.getElementById(`device_frame_${data.deviceId}`);
+    const placeholder = document.getElementById(`device_placeholder_${targetDevId}`) || document.getElementById(`device_placeholder_${data.deviceId}`);
+    const overlay = document.getElementById(`device_overlay_${targetDevId}`) || document.getElementById(`device_overlay_${data.deviceId}`);
+    const appEl = document.getElementById(`device_app_${targetDevId}`) || document.getElementById(`device_app_${data.deviceId}`);
+    const statusEl = document.getElementById(`device_status_${targetDevId}`) || document.getElementById(`device_status_${data.deviceId}`);
+
     if (thumbImg && data.lastFrame) {
         thumbImg.src = data.lastFrame;
+        thumbImg.classList.remove('hidden');
+        if (placeholder) placeholder.classList.add('hidden');
+        if (overlay) overlay.classList.remove('hidden');
+    }
+    if (appEl && data.currentApp) {
+        appEl.textContent = '🪟 ' + data.currentApp;
+        appEl.title = data.currentApp;
+    }
+    if (statusEl) {
+        statusEl.textContent = 'مباشر الآن 🟢';
+        statusEl.className = 'text-emerald-400 font-bold';
     }
 }
 
-async function promptStudentNetSupportScreenShare() {
-    if (STATE.netSupport.studentStreamInterval) return;
+// ----------------------------------------------------
+// 14. NetSupport Zero-Request Student Screen Streaming
+// ----------------------------------------------------
+let isCapturingStudentFrame = false;
 
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-        console.warn('Screen capture not supported in this browser');
-        return;
-    }
+async function captureStudentLiveSnapshot() {
+    if (!STATE.socket || !STATE.socket.connected || !STATE.user) return;
+    if (STATE.user.role === 'admin') return; // Teacher doesn't capture own screen
+    if (isCapturingStudentFrame) return; // Prevent overlapping runs
 
+    isCapturingStudentFrame = true;
     try {
-        const stream = await navigator.mediaDevices.getDisplayMedia({
-            video: { frameRate: { ideal: 2, max: 5 }, width: { max: 1280 }, height: { max: 720 } },
-            audio: false
-        });
+        let frameBase64 = null;
+        let activeAppName = 'متصفح نؤطة';
 
-        STATE.netSupport.studentMediaStream = stream;
+        // Check if student minimized the browser or switched away from the tab
+        if (document.hidden) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 480;
+            canvas.height = 270;
+            const ctx = canvas.getContext('2d');
 
-        const video = document.createElement('video');
-        video.srcObject = stream;
-        video.muted = true;
-        await video.play();
+            // Dark alert canvas
+            ctx.fillStyle = '#090d16';
+            ctx.fillRect(0, 0, 480, 270);
 
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
+            // Amber border
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(12, 12, 456, 246);
 
-        STATE.netSupport.studentStreamInterval = setInterval(() => {
-            if (!stream.active) {
-                clearInterval(STATE.netSupport.studentStreamInterval);
-                STATE.netSupport.studentStreamInterval = null;
-                return;
-            }
-            if (video.videoWidth > 0 && video.videoHeight > 0) {
-                canvas.width = 480;
-                canvas.height = Math.round((480 / video.videoWidth) * video.videoHeight);
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const frameBase64 = canvas.toDataURL('image/jpeg', 0.55);
+            // Alert Title
+            ctx.fillStyle = '#f59e0b';
+            ctx.font = 'bold 22px system-ui, -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('⚠️ الطالب مصغر المتصفح / خارج النافذة', 240, 85);
 
-                if (STATE.socket && STATE.socket.connected) {
-                    STATE.socket.emit('netsupport_client_frame', {
-                        frame: frameBase64,
-                        currentApp: document.title || 'Browser Tab'
-                    });
-                }
-            }
-        }, 2000);
+            // Subtitle
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '14px system-ui, -apple-system, sans-serif';
+            ctx.fillText('النافذة الحالية غير نشطة (Background / Out of Focus)', 240, 125);
 
-        stream.getVideoTracks()[0].onended = () => {
-            if (STATE.netSupport.studentStreamInterval) {
-                clearInterval(STATE.netSupport.studentStreamInterval);
-                STATE.netSupport.studentStreamInterval = null;
-            }
-        };
+            // Nickname + IP
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = 'bold 15px system-ui, -apple-system, sans-serif';
+            ctx.fillText(`${STATE.user.nickname || 'طالب'} (${STATE.user.ip || 'LAN'})`, 240, 165);
 
-        showNotification('تم بدء مشاركة الشاشة مع المعلم للمتابعة بنجاح! 🖥️');
+            // Timestamp
+            ctx.fillStyle = '#64748b';
+            ctx.font = '13px monospace';
+            const timeStr = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            ctx.fillText(`آخر نشاط مسجل: ${timeStr}`, 240, 205);
+
+            frameBase64 = canvas.toDataURL('image/jpeg', 0.6);
+            activeAppName = 'مصغر المتصفح (خارج نؤطة)';
+        } else if (typeof window.html2canvas === 'function') {
+            const canvas = await window.html2canvas(document.body, {
+                scale: 0.28, // Fast, lightweight thumbnail for LAN
+                logging: false,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#0a0d14'
+            });
+            frameBase64 = canvas.toDataURL('image/jpeg', 0.55);
+            const activeTabName = document.querySelector('.nav-tab.active')?.textContent?.trim() || document.title || 'متصفح نؤطة';
+            activeAppName = `نؤطة (${activeTabName})`;
+        }
+
+        if (frameBase64 && STATE.socket && STATE.socket.connected) {
+            STATE.socket.emit('netsupport_client_frame', {
+                frame: frameBase64,
+                currentApp: activeAppName
+            });
+        }
     } catch (err) {
-        console.warn('Student screen stream declined or failed:', err);
+        console.debug('Zero-request screen capture error:', err);
+    } finally {
+        isCapturingStudentFrame = false;
     }
+}
+
+function startStudentAutoScreenStream() {
+    if (STATE.netSupport && STATE.netSupport.studentAutoCaptureInterval) return;
+    if (!STATE.netSupport) STATE.netSupport = {};
+
+    // Don't auto-stream teacher's own screen back to teacher dashboard
+    if (STATE.user && STATE.user.role === 'admin') return;
+
+    // Trigger initial capture after short delay once connected
+    const tryInitialCapture = () => {
+        if (STATE.socket && STATE.socket.connected) {
+            captureStudentLiveSnapshot();
+        } else {
+            setTimeout(tryInitialCapture, 1000);
+        }
+    };
+    setTimeout(tryInitialCapture, 1500);
+
+    // Continuous silent background capture every 2.5 seconds (zero requests, zero prompts)
+    STATE.netSupport.studentAutoCaptureInterval = setInterval(() => {
+        captureStudentLiveSnapshot();
+    }, 2500);
+
+    // Immediate capture on tab switch / window minimize
+    document.addEventListener('visibilitychange', () => {
+        captureStudentLiveSnapshot();
+    });
+}
+
+async function promptStudentNetSupportScreenShare() {
+    // Immediate fallback trigger
+    captureStudentLiveSnapshot();
 }

@@ -1529,11 +1529,12 @@ app.post('/api/netsupport/frame', async (req, res) => {
         const { deviceId, userId, nickname, avatar, role, ip, mac, frameBase64, currentApp } = req.body;
         const clientIp = cleanIP(ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress);
         const clientMac = mac || await resolveMacAddress(clientIp);
-        const devKey = deviceId || `dev_${clientIp.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        const safeDevKey = `dev_${clientIp.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        const devKey = deviceId || safeDevKey;
 
-        const existing = netSupportScreens.get(devKey) || {};
+        const existing = netSupportScreens.get(safeDevKey) || netSupportScreens.get(clientIp) || netSupportScreens.get(devKey) || {};
         const updated = {
-            id: devKey,
+            id: safeDevKey,
             socketId: existing.socketId || null,
             userId: userId || existing.userId || null,
             nickname: nickname || existing.nickname || `جهاز_${clientIp.split('.').pop()}`,
@@ -1548,13 +1549,17 @@ app.post('/api/netsupport/frame', async (req, res) => {
             currentApp: currentApp || existing.currentApp || 'Windows Desktop (Agent)'
         };
 
-        netSupportScreens.set(devKey, updated);
+        netSupportScreens.set(safeDevKey, updated);
+        netSupportScreens.set(clientIp, updated);
+        if (devKey !== safeDevKey) {
+            netSupportScreens.set(devKey, updated);
+        }
 
         // Broadcast frame update to hardware admin sockets only
         for (const [sId, u] of onlineUsers.entries()) {
             if (u.role === 'admin') {
                 io.to(sId).emit('netsupport_device_frame_update', {
-                    deviceId: devKey,
+                    deviceId: safeDevKey,
                     nickname: updated.nickname,
                     ip: updated.ip,
                     mac: updated.mac,
@@ -1588,7 +1593,7 @@ app.get('/api/netsupport/devices', async (req, res) => {
         // Combine onlineUsers with netSupportScreens
         for (const [socketId, user] of onlineUsers.entries()) {
             const devKey = `dev_${user.ip.replace(/[^a-zA-Z0-9]/g, '_')}`;
-            const screenInfo = netSupportScreens.get(devKey) || netSupportScreens.get(socketId) || {};
+            const screenInfo = netSupportScreens.get(devKey) || netSupportScreens.get(user.ip) || netSupportScreens.get(socketId) || {};
 
             devices.push({
                 deviceId: devKey,
@@ -1604,13 +1609,13 @@ app.get('/api/netsupport/devices', async (req, res) => {
                 lastFrameAt: screenInfo.lastFrameAt || null,
                 isLocked: !!screenInfo.isLocked,
                 isStealth: !!screenInfo.isStealth,
-                currentApp: screenInfo.currentApp || (screenInfo.lastFrame ? 'Windows Desktop' : 'No2ta Classroom Web')
+                currentApp: screenInfo.currentApp || (screenInfo.lastFrame ? 'Windows Desktop' : 'متصفح نؤطة')
             });
         }
 
         // Also add any agent devices reporting via background script that might not be on socket.io
         for (const [devKey, screenInfo] of netSupportScreens.entries()) {
-            if (!devices.some(d => d.deviceId === devKey || d.ip === screenInfo.ip)) {
+            if (devKey.startsWith('dev_') && !devices.some(d => d.deviceId === devKey || d.ip === screenInfo.ip)) {
                 devices.push({
                     deviceId: devKey,
                     socketId: null,
@@ -2110,8 +2115,8 @@ io.on('connection', async (socket) => {
             const clientIp = userInfo?.ip || cleanIP(socket.handshake.address);
             const devKey = `dev_${clientIp.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
-            const existing = netSupportScreens.get(devKey) || {};
-            netSupportScreens.set(devKey, {
+            const existing = netSupportScreens.get(devKey) || netSupportScreens.get(clientIp) || {};
+            const screenData = {
                 id: devKey,
                 socketId: socket.id,
                 userId: userInfo?.userId || existing.userId || null,
@@ -2123,8 +2128,10 @@ io.on('connection', async (socket) => {
                 lastFrameAt: Date.now(),
                 isLocked: existing.isLocked || false,
                 isStealth: existing.isStealth || false,
-                currentApp: data.currentApp || 'No2ta Screen Stream'
-            });
+                currentApp: data.currentApp || 'متصفح نؤطة'
+            };
+            netSupportScreens.set(devKey, screenData);
+            netSupportScreens.set(clientIp, screenData);
 
             for (const [sId, u] of onlineUsers.entries()) {
                 if (u.role === 'admin') {
@@ -2132,9 +2139,12 @@ io.on('connection', async (socket) => {
                         deviceId: devKey,
                         nickname: userInfo?.nickname || 'طالب',
                         ip: clientIp,
+                        mac: userInfo?.mac || '',
                         lastFrame: data.frame,
                         lastFrameAt: Date.now(),
-                        currentApp: data.currentApp || 'No2ta Screen Stream'
+                        currentApp: data.currentApp || 'متصفح نؤطة',
+                        isLocked: screenData.isLocked,
+                        isStealth: screenData.isStealth
                     });
                 }
             }

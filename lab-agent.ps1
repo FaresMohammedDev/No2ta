@@ -1,4 +1,4 @@
-﻿param (
+param (
     [string]$ServerUrl = "http://192.168.20.54:5000"
 )
 
@@ -65,15 +65,17 @@ while ($true) {
         $bitmap.Dispose()
 
         # Send to No2ta NetSupport Server
+        $safeIpDevId = "dev_" + $localIp.Replace(".", "_")
         $payload = @{
-            deviceId    = "agent_$hostname"
-            nickname    = $nickname
-            ip          = $localIp
-            mac         = $mac
-            avatar      = "PC"
-            role        = "student"
-            currentApp  = "Windows Desktop"
-            frameBase64 = $base64
+            deviceId     = $safeIpDevId
+            computerName = $hostname
+            nickname     = $nickname
+            ip           = $localIp
+            mac          = $mac
+            avatar       = "PC"
+            role         = "student"
+            currentApp   = "Windows Desktop"
+            frameBase64  = $base64
         } | ConvertTo-Json
 
         $response = Invoke-RestMethod -Uri $endpoint -Method Post -Body $payload -ContentType "application/json" -TimeoutSec 3 -ErrorAction SilentlyContinue
