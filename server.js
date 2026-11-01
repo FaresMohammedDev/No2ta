@@ -299,7 +299,7 @@ function checkAndTriggerSalawatBroadcast() {
         io.emit('salawat_broadcast', {
             phrase: 'اللهم صلِّ على محمد',
             fullPhrase: '«اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ»',
-            soundType: 'salawat',
+            soundType: 'voice1',
             timestamp: Date.now()
         });
     }
