@@ -2026,12 +2026,40 @@ io.on('connection', async (socket) => {
     // Send current classroom tasbeeh total
     socket.emit('tasbeeh_global_update', { total: classroomTotalTasbeeh });
 
-    socket.on('tasbeeh_increment', (count = 1) => {
+    socket.on('tasbeeh_increment', (data = 1) => {
+        const count = (typeof data === 'number') ? data : (data?.count || 1);
+        const dhikrId = (typeof data === 'object' && data?.dhikrId) ? data.dhikrId : 'subhanallah';
+        const dhikrTitle = (typeof data === 'object' && data?.dhikrTitle) ? data.dhikrTitle : 'سُبْحَانَ اللَّهِ';
+        const senderName = (typeof data === 'object' && data?.senderName) ? data.senderName : (socket.user ? socket.user.nickname : 'زميل');
+
         classroomTotalTasbeeh += Math.min(Math.max(1, count), 10);
         io.emit('tasbeeh_global_update', { total: classroomTotalTasbeeh });
+
+        // 📿 Spoken Dhikr Broadcast: Pronounce "Subhan Allah" and Azkar on ALL devices!
+        io.emit('dhikr_spoken_broadcast', {
+            dhikrId,
+            dhikrTitle,
+            senderName,
+            timestamp: Date.now()
+        });
+        console.log(`📿 [DHIKR BROADCAST] "${dhikrTitle}" spoken across all devices by ${senderName}`);
+
         if (classroomTotalTasbeeh % 5 === 0) {
             saveTasbeehCount();
         }
+    });
+
+    socket.on('broadcast_dhikr_voice', (data = {}) => {
+        const dhikrId = data.dhikrId || 'subhanallah';
+        const dhikrTitle = data.dhikrTitle || 'سُبْحَانَ اللَّهِ';
+        const senderName = data.senderName || (socket.user ? socket.user.nickname : 'المشرف');
+        io.emit('dhikr_spoken_broadcast', {
+            dhikrId,
+            dhikrTitle,
+            senderName,
+            timestamp: Date.now()
+        });
+        console.log(`📿 [DIRECT DHIKR VOICE] "${dhikrTitle}" broadcast to all devices by ${senderName}`);
     });
 
         // 📻 CAIRO QURAN RADIO BROADCAST

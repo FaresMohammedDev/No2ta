@@ -327,6 +327,12 @@ function initSocket() {
         }
     });
 
+    STATE.socket.on('dhikr_spoken_broadcast', (data) => {
+        if (!data || !data.dhikrId) return;
+        playDhikrAudioPhrase(data.dhikrId, data.dhikrTitle);
+        showDhikrFloatingToast(data);
+    });
+
     STATE.socket.on('salawat_broadcast', (data) => {
         handleSalawatBroadcast(data);
     });
@@ -5418,11 +5424,7 @@ function updateTasbeehUI() {
 }
 
 function incrementTasbeeh() {
-    // Spoken Dhikr pronunciation is the sound of the Tasbeeh (ساوند التسبيح هو نطق الجملة المكتوبة)
     const currentDhikr = TASBEEH_AZKAR.find(d => d.id === tasbeehState.selectedDhikrId) || TASBEEH_AZKAR[0];
-    if (currentDhikr) {
-        playDhikrAudioPhrase(currentDhikr.id, currentDhikr.title);
-    }
 
     if (navigator.vibrate) {
         try { navigator.vibrate(25); } catch (e) {}
@@ -5465,7 +5467,16 @@ function incrementTasbeeh() {
     updateTasbeehUI();
 
     if (STATE.socket && STATE.socket.connected) {
-        STATE.socket.emit('tasbeeh_increment', 1);
+        STATE.socket.emit('tasbeeh_increment', {
+            count: 1,
+            dhikrId: currentDhikr ? currentDhikr.id : 'subhanallah',
+            dhikrTitle: currentDhikr ? currentDhikr.title : 'سُبْحَانَ اللَّهِ',
+            senderName: STATE.user ? STATE.user.nickname : 'زميل'
+        });
+    } else {
+        if (currentDhikr) {
+            playDhikrAudioPhrase(currentDhikr.id, currentDhikr.title);
+        }
     }
 }
 
@@ -5870,30 +5881,41 @@ function playDhikrAudioPhrase(dhikrId, fallbackText = '') {
     if (!tasbeehState.soundEnabled) return;
 
     try {
-        let audio = PRELOADED_DHIKR_AUDIO[dhikrId];
-        if (!audio) {
-            const url = DHIKR_AUDIO_MAP[dhikrId] || ('/api/tts?text=' + encodeURIComponent(fallbackText || 'سُبْحَانَ اللَّه'));
-            audio = new Audio(url);
-            PRELOADED_DHIKR_AUDIO[dhikrId] = audio;
-        }
+        const audioSrc = DHIKR_AUDIO_MAP[dhikrId] || '/audio/human_subhanallah.wav';
+        const fresh = new Audio(audioSrc);
+        fresh.volume = 1.0;
+        activeDhikrAudio = fresh;
 
-        // Rewind and play immediately with full volume (Human Voice)
-        audio.currentTime = 0;
-        audio.volume = 1.0;
-        activeDhikrAudio = audio;
-
-        const playPromise = audio.play();
+        const playPromise = fresh.play();
         if (playPromise !== undefined) {
             playPromise.catch(err => {
-                console.warn('Preloaded audio play error, trying fresh instance:', err);
-                const fresh = new Audio(audio.src);
-                fresh.volume = 1.0;
-                fresh.play().catch(e => console.warn('Fresh play error:', e));
+                console.warn('Dhikr audio playback error (user interaction needed):', err);
             });
         }
     } catch (e) {
         console.error('playDhikrAudioPhrase error:', e);
     }
+}
+
+function showDhikrFloatingToast(data) {
+    if (!data || !data.dhikrTitle) return;
+    let toast = document.getElementById('globalDhikrToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'globalDhikrToast';
+        toast.className = 'fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-gradient-to-r from-emerald-950/90 to-slate-900/90 border border-emerald-500/50 shadow-2xl backdrop-blur-md text-white text-xs font-bold flex items-center gap-2 pointer-events-none transition-all duration-300 opacity-0 -translate-y-2';
+        document.body.appendChild(toast);
+    }
+
+    toast.innerHTML = `<span class="text-base">📿</span> <span>${data.senderName || 'زميل'}:</span> <span class="text-emerald-300 font-black text-sm">${data.dhikrTitle}</span>`;
+    toast.classList.remove('opacity-0', '-translate-y-2');
+    toast.classList.add('opacity-100', 'translate-y-0');
+
+    if (window._dhikrToastTimer) clearTimeout(window._dhikrToastTimer);
+    window._dhikrToastTimer = setTimeout(() => {
+        toast.classList.remove('opacity-100', 'translate-y-0');
+        toast.classList.add('opacity-0', '-translate-y-2');
+    }, 2200);
 }
 
 function playSalawatVoice(soundType = 'voice1') {
