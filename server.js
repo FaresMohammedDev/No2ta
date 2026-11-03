@@ -1764,6 +1764,28 @@ app.post('/api/admin/action', async (req, res) => {
 // ---------------------- 13. NETSUPPORT CLASSROOM MONITOR & REMOTE CONTROL ----------------------
 const netSupportScreens = new Map(); // key: deviceId/ip -> { id, socketId, userId, nickname, avatar, role, ip, mac, lastFrame, lastFrameAt, isLocked, isStealth, currentApp }
 
+// Helper to reliably resolve registered student info by IP, MAC, or userId
+async function resolveStudentInfo(ip, mac, userId) {
+    try {
+        if (userId) {
+            const u = await get(`SELECT id, nickname, avatar, role, ip_address, mac_address FROM users WHERE id = ?`, [userId]);
+            if (u && u.nickname && u.nickname !== 'طالب' && !u.nickname.startsWith('طالب_')) return u;
+        }
+        if (mac && mac !== 'N/A') {
+            const cleanMac = mac.toUpperCase().replace(/-/g, ':');
+            const u = await get(`SELECT id, nickname, avatar, role, ip_address, mac_address FROM users WHERE UPPER(REPLACE(mac_address, '-', ':')) = ? ORDER BY last_seen DESC LIMIT 1`, [cleanMac]);
+            if (u && u.nickname && u.nickname !== 'طالب' && !u.nickname.startsWith('طالب_')) return u;
+        }
+        if (ip) {
+            const u = await get(`SELECT id, nickname, avatar, role, ip_address, mac_address FROM users WHERE ip_address = ? ORDER BY last_seen DESC LIMIT 1`, [ip]);
+            if (u && u.nickname && u.nickname !== 'طالب' && !u.nickname.startsWith('طالب_')) return u;
+        }
+    } catch (e) {
+        console.error('Error resolving student info:', e);
+    }
+    return null;
+}
+
 // Receive screen frame from student browser or Windows background agent (lab-agent.ps1)
 app.post('/api/netsupport/frame', async (req, res) => {
     try {
@@ -1774,13 +1796,19 @@ app.post('/api/netsupport/frame', async (req, res) => {
         const devKey = deviceId || safeDevKey;
 
         const existing = netSupportScreens.get(safeDevKey) || netSupportScreens.get(clientIp) || netSupportScreens.get(devKey) || {};
+        const resolved = await resolveStudentInfo(clientIp, clientMac, userId || existing.userId);
+        const effectiveNickname = (nickname && nickname !== 'طالب') ? nickname : (resolved?.nickname || existing.nickname || `طالب_${clientIp.split('.').pop()}`);
+        const effectiveAvatar = avatar || resolved?.avatar || existing.avatar || '🖥️';
+        const effectiveUserId = userId || resolved?.id || existing.userId || null;
+        const effectiveRole = role || resolved?.role || existing.role || 'student';
+
         const updated = {
             id: safeDevKey,
             socketId: existing.socketId || null,
-            userId: userId || existing.userId || null,
-            nickname: nickname || existing.nickname || `جهاز_${clientIp.split('.').pop()}`,
-            avatar: avatar || existing.avatar || '🖥️',
-            role: role || existing.role || 'student',
+            userId: effectiveUserId,
+            nickname: effectiveNickname,
+            avatar: effectiveAvatar,
+            role: effectiveRole,
             ip: clientIp,
             mac: clientMac || existing.mac || '',
             lastFrame: frameBase64 || existing.lastFrame || null,
@@ -1836,13 +1864,28 @@ app.get('/api/netsupport/devices', async (req, res) => {
             const devKey = `dev_${user.ip.replace(/[^a-zA-Z0-9]/g, '_')}`;
             const screenInfo = netSupportScreens.get(devKey) || netSupportScreens.get(user.ip) || netSupportScreens.get(socketId) || {};
 
+            let nickname = user.nickname || screenInfo.nickname;
+            let avatar = user.avatar || screenInfo.avatar;
+            let userId = user.userId || screenInfo.userId;
+            let role = user.role || screenInfo.role || 'student';
+
+            if (!nickname || nickname === 'طالب' || nickname.startsWith('جهاز_') || nickname.startsWith('طالب_')) {
+                const resolved = await resolveStudentInfo(user.ip, user.mac, userId);
+                if (resolved && resolved.nickname) {
+                    nickname = resolved.nickname;
+                    avatar = resolved.avatar || avatar;
+                    userId = resolved.id || userId;
+                    role = resolved.role || role;
+                }
+            }
+
             devices.push({
                 deviceId: devKey,
                 socketId: socketId,
-                userId: user.userId,
-                nickname: user.nickname,
-                avatar: user.avatar,
-                role: user.role,
+                userId: userId,
+                nickname: nickname || `طالب_${user.ip.split('.').pop()}`,
+                avatar: avatar || '🖥️',
+                role: role,
                 ip: user.ip,
                 mac: user.mac || screenInfo.mac || '',
                 connectedAt: user.connectedAt,
@@ -1857,13 +1900,28 @@ app.get('/api/netsupport/devices', async (req, res) => {
         // Also add any agent devices reporting via background script that might not be on socket.io
         for (const [devKey, screenInfo] of netSupportScreens.entries()) {
             if (devKey.startsWith('dev_') && !devices.some(d => d.deviceId === devKey || d.ip === screenInfo.ip)) {
+                let nickname = screenInfo.nickname;
+                let avatar = screenInfo.avatar;
+                let userId = screenInfo.userId;
+                let role = screenInfo.role || 'student';
+
+                if (!nickname || nickname === 'طالب' || nickname.startsWith('جهاز_') || nickname.startsWith('طالب_')) {
+                    const resolved = await resolveStudentInfo(screenInfo.ip, screenInfo.mac, userId);
+                    if (resolved && resolved.nickname) {
+                        nickname = resolved.nickname;
+                        avatar = resolved.avatar || avatar;
+                        userId = resolved.id || userId;
+                        role = resolved.role || role;
+                    }
+                }
+
                 devices.push({
                     deviceId: devKey,
-                    socketId: null,
-                    userId: screenInfo.userId,
-                    nickname: screenInfo.nickname,
-                    avatar: screenInfo.avatar,
-                    role: screenInfo.role,
+                    socketId: screenInfo.socketId || null,
+                    userId: userId,
+                    nickname: nickname || `طالب_${screenInfo.ip ? screenInfo.ip.split('.').pop() : 'LAN'}`,
+                    avatar: avatar || '🖥️',
+                    role: role,
                     ip: screenInfo.ip,
                     mac: screenInfo.mac,
                     connectedAt: screenInfo.lastFrameAt,
@@ -2125,6 +2183,18 @@ socket.on('admin_trigger_salawat', (data = {}) => {
         userSockets.get(userData.id).add(socket.id);
 
         await run(`UPDATE users SET is_online = 1, role = ?, last_seen = CURRENT_TIMESTAMP WHERE id = ?`, [effectiveRole, userData.id]);
+
+        // Link student profile to netSupport device entry immediately
+        const presenceDevKey = `dev_${clientIp.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        const screenToUpdate = netSupportScreens.get(presenceDevKey) || netSupportScreens.get(clientIp);
+        if (screenToUpdate) {
+            screenToUpdate.nickname = userData.nickname;
+            screenToUpdate.avatar = userData.avatar;
+            screenToUpdate.userId = userData.id;
+            screenToUpdate.role = effectiveRole;
+            netSupportScreens.set(presenceDevKey, screenToUpdate);
+            netSupportScreens.set(clientIp, screenToUpdate);
+        }
 
         // Send current whiteboard history
         socket.emit('whiteboard_init', whiteboardHistory);
@@ -2446,21 +2516,29 @@ socket.on('admin_trigger_salawat', (data = {}) => {
     });
 
     // NetSupport client screen frame stream
-    socket.on('netsupport_client_frame', (data) => {
+    socket.on('netsupport_client_frame', async (data) => {
         if (data && data.frame) {
             const userInfo = onlineUsers.get(socket.id);
             const clientIp = userInfo?.ip || cleanIP(socket.handshake.address);
+            const clientMac = userInfo?.mac || await resolveMacAddress(clientIp);
             const devKey = `dev_${clientIp.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
             const existing = netSupportScreens.get(devKey) || netSupportScreens.get(clientIp) || {};
+            const resolved = await resolveStudentInfo(clientIp, clientMac, data.userId || userInfo?.userId || existing.userId);
+            const effectiveNickname = (data.nickname && data.nickname !== 'طالب') ? data.nickname : (resolved?.nickname || userInfo?.nickname || existing.nickname || `طالب_${clientIp.split('.').pop()}`);
+            const effectiveAvatar = data.avatar || resolved?.avatar || userInfo?.avatar || existing.avatar || '🖥️';
+            const effectiveUserId = data.userId || resolved?.id || userInfo?.userId || existing.userId || null;
+            const effectiveRole = resolved?.role || userInfo?.role || existing.role || 'student';
+
             const screenData = {
                 id: devKey,
                 socketId: socket.id,
-                userId: userInfo?.userId || existing.userId || null,
-                nickname: userInfo?.nickname || existing.nickname || 'طالب',
-                avatar: userInfo?.avatar || existing.avatar || '🖥️',
+                userId: effectiveUserId,
+                nickname: effectiveNickname,
+                avatar: effectiveAvatar,
+                role: effectiveRole,
                 ip: clientIp,
-                mac: userInfo?.mac || existing.mac || '',
+                mac: clientMac || existing.mac || '',
                 lastFrame: data.frame,
                 lastFrameAt: Date.now(),
                 isLocked: existing.isLocked || false,
@@ -2474,9 +2552,10 @@ socket.on('admin_trigger_salawat', (data = {}) => {
                 if (u.role === 'admin') {
                     io.to(sId).emit('netsupport_device_frame_update', {
                         deviceId: devKey,
-                        nickname: userInfo?.nickname || 'طالب',
+                        nickname: effectiveNickname,
+                        avatar: effectiveAvatar,
                         ip: clientIp,
-                        mac: userInfo?.mac || '',
+                        mac: clientMac || '',
                         lastFrame: data.frame,
                         lastFrameAt: Date.now(),
                         currentApp: data.currentApp || 'متصفح نؤطة',

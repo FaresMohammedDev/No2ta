@@ -4610,7 +4610,25 @@ function renderNetSupportGrid(devices) {
         const lastSeenSec = dev.lastFrameAt ? Math.round((Date.now() - dev.lastFrameAt) / 1000) : null;
         const timeAgoText = lastSeenSec !== null ? (lastSeenSec < 6 ? 'مباشر الآن 🟢' : `منذ ${lastSeenSec} ثانية`) : 'لا توجد لقطة';
 
-        const safeNick = escapeHtml(dev.nickname || 'طالب');
+        // Resolve real student name from STATE.users or STATE.allUsers if dev.nickname is generic
+        let studentName = dev.nickname;
+        let studentAvatar = dev.avatar;
+        if (!studentName || studentName === 'طالب' || studentName.startsWith('جهاز_') || studentName.startsWith('طالب_')) {
+            const matchedUser = (STATE.users || []).find(u => 
+                (dev.userId && u.id === dev.userId) || 
+                (dev.ip && (u.ip_address === dev.ip || u.ip === dev.ip)) || 
+                (dev.mac && u.mac_address && u.mac_address === dev.mac)
+            );
+            if (matchedUser && matchedUser.nickname) {
+                studentName = matchedUser.nickname;
+                if (matchedUser.avatar) studentAvatar = matchedUser.avatar;
+            }
+        }
+        if (!studentName || studentName === 'طالب') {
+            studentName = `طالب (${dev.ip ? dev.ip.split('.').pop() : 'جهاز'})`;
+        }
+
+        const safeNick = escapeHtml(studentName);
         const safeIp = escapeHtml(dev.ip || '');
         const safeApp = dev.currentApp ? escapeHtml(dev.currentApp) : 'سطح المكتب';
 
@@ -4618,13 +4636,13 @@ function renderNetSupportGrid(devices) {
             <div class="glass-panel rounded-2xl p-3 border ${isLocked ? 'border-red-500/60 bg-red-950/20' : 'border-white/10 bg-slate-900/60'} flex flex-col justify-between transition-all hover:border-cyan-500/50 shadow-lg group">
                 <!-- Header -->
                 <div class="flex items-center justify-between gap-2 mb-2">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <div class="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-xs overflow-hidden shrink-0">
-                            ${renderAvatarHTML(dev.avatar, 'w-full h-full')}
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-sm overflow-hidden shrink-0 border border-white/10 shadow-sm">
+                            ${renderAvatarHTML(studentAvatar, 'w-full h-full')}
                         </div>
                         <div class="min-w-0">
                             <div class="flex items-center gap-1.5">
-                                <h4 class="text-xs font-bold text-white truncate max-w-[110px]" title="${safeNick}">${safeNick}</h4>
+                                <h4 id="device_title_${dev.deviceId}" class="text-xs font-black text-white truncate max-w-[130px]" title="${safeNick}">${safeNick}</h4>
                                 ${dev.role === 'admin' ? '<span class="text-[9px] px-1 rounded bg-amber-500/20 text-amber-300 font-bold">معلم</span>' : ''}
                             </div>
                             <p class="text-[10px] text-slate-400 font-mono truncate">${safeIp}</p>
@@ -4831,6 +4849,14 @@ function handleNetSupportFrameUpdate(data) {
         if (data.currentApp) dev.currentApp = data.currentApp;
         if (typeof data.isLocked !== 'undefined') dev.isLocked = data.isLocked;
         if (typeof data.isStealth !== 'undefined') dev.isStealth = data.isStealth;
+        if (data.nickname && data.nickname !== 'طالب') dev.nickname = data.nickname;
+        if (data.avatar) dev.avatar = data.avatar;
+
+        const titleEl = document.getElementById(`device_title_${dev.deviceId}`);
+        if (titleEl && dev.nickname && dev.nickname !== 'طالب') {
+            titleEl.textContent = dev.nickname;
+            titleEl.title = dev.nickname;
+        }
     }
 
     const targetDevId = dev ? dev.deviceId : data.deviceId;
@@ -4942,7 +4968,10 @@ async function captureStudentLiveSnapshot() {
         if (frameBase64 && STATE.socket && STATE.socket.connected) {
             STATE.socket.emit('netsupport_client_frame', {
                 frame: frameBase64,
-                currentApp: activeAppName
+                currentApp: activeAppName,
+                userId: STATE.user?.id,
+                nickname: STATE.user?.nickname,
+                avatar: STATE.user?.avatar
             });
         }
     } catch (err) {
