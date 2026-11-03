@@ -3334,21 +3334,30 @@ function switchMusicModalTab(tab) {
 // ====================================================
 let currentQuranFallbackIdx = 0;
 const QURAN_FALLBACK_URLS = [
+    '/audio/quran_cairo_live.mp3',
+    '/audio/quran_cairo_fallback.mp3',
     'https://stream.radiojar.com/8s5u5tpdtwzuv',
-    'http://n12.radiojar.com/8s5u5tpdtwzuv',
-    'https://stream.zeno.fm/8t42gV/qrc',
-    '/audio/quran_cairo_fallback.mp3'
+    'http://n12.radiojar.com/8s5u5tpdtwzuv'
 ];
 
 function toggleBroadcastQuranRadio() {
     const isPlayingCairo = STATE.radio && STATE.radio.activeTrack && STATE.radio.activeTrack.id === 'quran_cairo_live' && STATE.radio.isPlaying;
-    
+    const audio = getRadioAudioElement();
+
     if (isPlayingCairo) {
+        if (audio) {
+            audio.pause();
+        }
         if (STATE.socket) {
             STATE.socket.emit('broadcast_quran_cairo', { action: 'stop' });
         }
         showNotification('⏹️ تم إيقاف بث إذاعة القرآن الكريم على جميع الأجهزة');
     } else {
+        // Pre-activate audio on user gesture
+        if (audio) {
+            audio.muted = false;
+            audio.volume = 1.0;
+        }
         if (STATE.socket) {
             STATE.socket.emit('broadcast_quran_cairo', {
                 action: 'play',
@@ -3867,9 +3876,11 @@ function handleRadioSyncState(state) {
             audio.removeAttribute('src');
         }
 
-        const expectedTime = state.currentTime || 0;
-        if (Math.abs(audio.currentTime - expectedTime) > 2) {
-            audio.currentTime = expectedTime;
+        if (!state.track.isLive && state.track.id !== 'quran_cairo_live') {
+            const expectedTime = state.currentTime || 0;
+            if (Math.abs(audio.currentTime - expectedTime) > 2) {
+                audio.currentTime = expectedTime;
+            }
         }
 
         if (state.isPlaying && !STATE.isStealthActive && targetSrc) {
@@ -3919,7 +3930,10 @@ function getRadioAudioElement() {
         if (STATE.radio.audioEl) {
             STATE.radio.audioEl.addEventListener('timeupdate', updateRadioProgressUI);
             STATE.radio.audioEl.addEventListener('ended', () => {
-                if (STATE.socket && STATE.radio.activeTrack) {
+                if (STATE.radio.activeTrack && (STATE.radio.activeTrack.id === 'quran_cairo_live' || STATE.radio.activeTrack.isLive)) {
+                    STATE.radio.audioEl.currentTime = 0;
+                    STATE.radio.audioEl.play().catch(e => console.warn('Quran radio loop error:', e));
+                } else if (STATE.socket && STATE.radio.activeTrack) {
                     STATE.socket.emit('radio_stop');
                 }
             });

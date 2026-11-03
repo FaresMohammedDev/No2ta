@@ -362,8 +362,8 @@ app.post('/api/quran/broadcast', (req, res) => {
             title: 'إذاعة القرآن الكريم من القاهرة',
             artist: 'بث مباشر 24/7 • مصر 98.2 FM 🕌',
             cover: '',
-            audioUrl: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
-            file_url: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
+            audioUrl: '/audio/quran_cairo_live.mp3',
+            file_url: '/audio/quran_cairo_live.mp3',
             isLive: true,
             duration: 'مباشر'
         },
@@ -2048,8 +2048,8 @@ io.on('connection', async (socket) => {
                     title: 'إذاعة القرآن الكريم من القاهرة',
                     artist: 'بث مباشر 24/7 • مصر 98.2 FM 🕌',
                     cover: '',
-                    audioUrl: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
-                    file_url: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
+                    audioUrl: '/audio/quran_cairo_live.mp3',
+                    file_url: '/audio/quran_cairo_live.mp3',
                     isLive: true,
                     duration: 'مباشر'
                 },
