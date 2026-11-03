@@ -333,11 +333,12 @@ app.get('/api/quran/radio-info', (req, res) => {
         streamUrl: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
         backupUrls: [
             'http://n12.radiojar.com/8s5u5tpdtwzuv',
+            'http://n0e.radiojar.com/8s5u5tpdtwzuv',
             'https://stream.zeno.fm/8t42gV/qrc',
             'http://66.45.232.131:9994/;stream.mp3'
         ],
         fallbackAudio: '/audio/quran_cairo_fallback.mp3',
-        officialPortal: 'https://misrquran.gov.eg',
+        officialPortal: 'https://www.holyquranradio.com',
         officialApi: 'https://api.misrquran.gov.eg',
         mp3QuranApi: 'https://mp3quran.net/api/v3/radios?language=ar',
         radioBrowserApi: 'https://de1.api.radio-browser.info/json/stations/byname/Quran%20Cairo',
@@ -360,10 +361,10 @@ app.post('/api/quran/broadcast', (req, res) => {
         track: {
             id: 'quran_cairo_live',
             title: 'إذاعة القرآن الكريم من القاهرة',
-            artist: 'بث مباشر 24/7 • مصر 98.2 FM 🕌',
+            artist: 'بث حي مباشر 24/7 • مصر 98.2 FM 📻 (holyquranradio.com)',
             cover: '',
-            audioUrl: '/audio/quran_cairo_live.mp3',
-            file_url: '/audio/quran_cairo_live.mp3',
+            audioUrl: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
+            file_url: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
             isLive: true,
             duration: 'مباشر'
         },
@@ -2074,10 +2075,10 @@ io.on('connection', async (socket) => {
                 track: {
                     id: 'quran_cairo_live',
                     title: 'إذاعة القرآن الكريم من القاهرة',
-                    artist: 'بث مباشر 24/7 • مصر 98.2 FM 🕌',
+                    artist: 'بث حي مباشر 24/7 • مصر 98.2 FM 📻 (holyquranradio.com)',
                     cover: '',
-                    audioUrl: '/audio/quran_cairo_live.mp3',
-                    file_url: '/audio/quran_cairo_live.mp3',
+                    audioUrl: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
+                    file_url: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
                     isLive: true,
                     duration: 'مباشر'
                 },
@@ -2141,9 +2142,13 @@ socket.on('admin_trigger_salawat', (data = {}) => {
         }
         // Send active synchronized radio state
         if (activeRadioTrack) {
-            let currentTime = activeRadioTrack.currentTime || 0;
-            if (activeRadioTrack.isPlaying && activeRadioTrack.startedAt) {
-                currentTime = (Date.now() - activeRadioTrack.startedAt) / 1000;
+            let currentTime = 0;
+            if (!activeRadioTrack.track?.isLive && activeRadioTrack.track?.id !== 'quran_cairo_live') {
+                if (activeRadioTrack.isPlaying && activeRadioTrack.startedAt) {
+                    currentTime = (Date.now() - activeRadioTrack.startedAt) / 1000;
+                } else {
+                    currentTime = activeRadioTrack.currentTime || 0;
+                }
             }
             socket.emit('radio_sync_state', { ...activeRadioTrack, currentTime });
         }
@@ -2393,10 +2398,12 @@ socket.on('admin_trigger_salawat', (data = {}) => {
     socket.on('get_radio_status', () => {
         let currentTime = 0;
         if (activeRadioTrack) {
-            if (activeRadioTrack.isPlaying && activeRadioTrack.startedAt) {
-                currentTime = (Date.now() - activeRadioTrack.startedAt) / 1000;
-            } else {
-                currentTime = activeRadioTrack.currentTime || 0;
+            if (!activeRadioTrack.track?.isLive && activeRadioTrack.track?.id !== 'quran_cairo_live') {
+                if (activeRadioTrack.isPlaying && activeRadioTrack.startedAt) {
+                    currentTime = (Date.now() - activeRadioTrack.startedAt) / 1000;
+                } else {
+                    currentTime = activeRadioTrack.currentTime || 0;
+                }
             }
             socket.emit('radio_sync_state', { ...activeRadioTrack, currentTime });
         } else {

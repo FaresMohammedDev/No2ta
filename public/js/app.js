@@ -3340,10 +3340,11 @@ function switchMusicModalTab(tab) {
 // ====================================================
 let currentQuranFallbackIdx = 0;
 const QURAN_FALLBACK_URLS = [
-    '/audio/quran_cairo_live.mp3',
-    '/audio/quran_cairo_fallback.mp3',
     'https://stream.radiojar.com/8s5u5tpdtwzuv',
-    'http://n12.radiojar.com/8s5u5tpdtwzuv'
+    'http://n12.radiojar.com/8s5u5tpdtwzuv',
+    'http://n0e.radiojar.com/8s5u5tpdtwzuv',
+    'https://stream.zeno.fm/8t42gV/qrc',
+    '/audio/quran_cairo_fallback.mp3'
 ];
 
 function toggleBroadcastQuranRadio() {
@@ -3854,6 +3855,14 @@ function handleRadioSyncState(state) {
     if (modalQuranBtnText) {
         modalQuranBtnText.textContent = isQuranPlaying ? '⏹️ إيقاف البث' : 'بث للجميع';
     }
+    const quranExtLink = document.getElementById('quranExternalLinkBtn');
+    if (quranExtLink) {
+        if (isQuranPlaying) {
+            quranExtLink.classList.remove('hidden');
+        } else {
+            quranExtLink.classList.add('hidden');
+        }
+    }
 
     if (state && state.track && state.track.id === 'quran_cairo_live') {
         currentQuranFallbackIdx = 0; // Reset fallback on fresh play
@@ -3873,7 +3882,10 @@ function handleRadioSyncState(state) {
 
     if (audio) {
         audio.muted = false;
-        const targetSrc = state.track.file_url || state.track.audioUrl;
+        let targetSrc = state.track.file_url || state.track.audioUrl;
+        if (state.track.id === 'quran_cairo_live') {
+            targetSrc = QURAN_FALLBACK_URLS[currentQuranFallbackIdx] || 'https://stream.radiojar.com/8s5u5tpdtwzuv';
+        }
         if (targetSrc && audio.src !== targetSrc && !audio.src.endsWith(targetSrc)) {
             audio.src = targetSrc;
             audio.load();
@@ -3935,10 +3947,18 @@ function getRadioAudioElement() {
         STATE.radio.audioEl = document.getElementById('classroomAudioElement');
         if (STATE.radio.audioEl) {
             STATE.radio.audioEl.addEventListener('timeupdate', updateRadioProgressUI);
+            STATE.radio.audioEl.addEventListener('error', handleRadioAudioError);
             STATE.radio.audioEl.addEventListener('ended', () => {
                 if (STATE.radio.activeTrack && (STATE.radio.activeTrack.id === 'quran_cairo_live' || STATE.radio.activeTrack.isLive)) {
-                    STATE.radio.audioEl.currentTime = 0;
-                    STATE.radio.audioEl.play().catch(e => console.warn('Quran radio loop error:', e));
+                    console.log('[Quran Radio] Live stream ended/reconnecting...');
+                    setTimeout(() => {
+                        if (STATE.radio.isPlaying && STATE.radio.activeTrack && STATE.radio.activeTrack.id === 'quran_cairo_live') {
+                            const curUrl = QURAN_FALLBACK_URLS[currentQuranFallbackIdx] || QURAN_FALLBACK_URLS[0];
+                            STATE.radio.audioEl.src = curUrl + (curUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+                            STATE.radio.audioEl.load();
+                            STATE.radio.audioEl.play().catch(e => console.warn('Quran radio reconnect error:', e));
+                        }
+                    }, 1000);
                 } else if (STATE.socket && STATE.radio.activeTrack) {
                     STATE.socket.emit('radio_stop');
                 }
