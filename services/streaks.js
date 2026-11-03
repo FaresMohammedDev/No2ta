@@ -37,63 +37,67 @@ async function recordInteraction(user1, user2) {
         // First interaction ever
         const id = crypto.randomUUID();
         await run(
-            `INSERT INTO streaks (id, user_a, user_b, streak_count, last_interaction_date, is_frozen)
-             VALUES (?, ?, ?, 1, ?, ?)`,
+            `INSERT INTO streaks (id, user_a, user_b, streak_count, last_interaction_date, is_frozen, interaction_count)
+             VALUES (?, ?, ?, 1, ?, ?, 1)`,
             [id, uA, uB, todayStr, isFrozen]
         );
-        return { streak_count: 1, is_frozen: isFrozen, status: 'new' };
+        return { streak_count: 1, is_frozen: isFrozen, status: 'new', interaction_count: 1 };
     }
 
     const lastDateStr = existing.last_interaction_date;
+    const currentInteractions = (existing.interaction_count || 1);
+
+    // SAME DAY: Active conversation progress
     if (lastDateStr === todayStr) {
-        // Already recorded today, update frozen state flag
+        const nextInteractions = currentInteractions + 1;
+        let newStreak = existing.streak_count;
+        let status = 'same_day';
+
+        // Every 3 direct messages exchanged in the session gives a +1 boost!
+        if (nextInteractions % 3 === 0) {
+            newStreak += 1;
+            status = 'boosted';
+        }
+
         await run(
-            `UPDATE streaks SET is_frozen = ? WHERE id = ?`,
-            [isFrozen, existing.id]
+            `UPDATE streaks SET streak_count = ?, is_frozen = ?, interaction_count = ? WHERE id = ?`,
+            [newStreak, isFrozen, nextInteractions, existing.id]
         );
-        return { streak_count: existing.streak_count, is_frozen: isFrozen, status: 'same_day' };
+
+        return {
+            streak_count: newStreak,
+            is_frozen: isFrozen,
+            status: status,
+            interaction_count: nextInteractions
+        };
     }
 
-    const lastDate = new Date(lastDateStr);
-    const diffTime = Math.abs(now.setHours(0,0,0,0) - lastDate.setHours(0,0,0,0));
+    // DIFFERENT DAY: Consecutive classroom days & grace period
+    const diffTime = Math.abs(new Date(todayStr).getTime() - new Date(lastDateStr).getTime());
     const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
     let newCount = existing.streak_count;
+    let status = 'updated';
 
-    if (isFrozen) {
-        // Friday or Saturday - Streak is FROZEN! It cannot break.
-        // If they chat on weekend, we update last_interaction_date and preserve or increment
-        await run(
-            `UPDATE streaks SET last_interaction_date = ?, is_frozen = 1 WHERE id = ?`,
-            [todayStr, existing.id]
-        );
-        return { streak_count: existing.streak_count, is_frozen: 1, status: 'frozen_weekend' };
-    }
-
-    // Weekdays (Sunday to Thursday)
-    const dayOfWeek = new Date().getDay(); // 0 is Sunday
-    if (dayOfWeek === 0) {
-        // Sunday: If last interaction was Thursday (3 days ago), Friday (2 days), or Saturday (1 day), streak continues!
-        if (diffDays <= 3) {
-            newCount += 1;
-        } else {
-            newCount = 1; // Missed before weekend
-        }
+    // Generous classroom grace period (up to 5 days covers weekends, holidays, and lab schedules)
+    if (diffDays <= 5) {
+        newCount += 1;
     } else {
-        // Mon - Thu: Must be consecutive (diffDays === 1)
-        if (diffDays === 1) {
-            newCount += 1;
-        } else {
-            newCount = 1;
-        }
+        // If they missed more than 5 days, preserve partial progress so they aren't discouraged
+        newCount = Math.max(1, Math.floor(existing.streak_count / 2) + 1);
     }
 
     await run(
-        `UPDATE streaks SET streak_count = ?, last_interaction_date = ?, is_frozen = ? WHERE id = ?`,
-        [newCount, todayStr, 0, existing.id]
+        `UPDATE streaks SET streak_count = ?, last_interaction_date = ?, is_frozen = ?, interaction_count = 1 WHERE id = ?`,
+        [newCount, todayStr, isFrozen, existing.id]
     );
 
-    return { streak_count: newCount, is_frozen: 0, status: 'updated' };
+    return {
+        streak_count: newCount,
+        is_frozen: isFrozen,
+        status: status,
+        interaction_count: 1
+    };
 }
 
 async function getStreakBetween(user1, user2) {

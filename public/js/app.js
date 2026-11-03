@@ -300,6 +300,33 @@ function initSocket() {
         }
     });
 
+    
+    STATE.socket.on('streak_updated', (data) => {
+        if (!data || !STATE.user) return;
+        const otherId = data.userA === STATE.user.id ? data.userB : data.userA;
+        let s = STATE.streaks.find(item => item.other_user_id === otherId);
+        if (s) {
+            s.streak_count = data.streak_count;
+            s.is_frozen = data.is_frozen;
+            s.interaction_count = data.interaction_count;
+        } else {
+            STATE.streaks.push({
+                other_user_id: otherId,
+                streak_count: data.streak_count,
+                is_frozen: data.is_frozen,
+                interaction_count: data.interaction_count
+            });
+        }
+        renderUsersList();
+        updateDirectStreakBadge(otherId);
+
+        if (data.status === 'boosted') {
+            const targetUser = STATE.users.find(u => u.id === otherId);
+            const name = targetUser ? targetUser.nickname : 'زميلك';
+            showNotification(`🔥 زاد الاستريك بينك وبين ${name} إلى ${data.streak_count}! حافظ عليه ⚡`);
+        }
+    });
+
     STATE.socket.on('salawat_broadcast', (data) => {
         handleSalawatBroadcast(data);
     });
@@ -315,6 +342,7 @@ function initSocket() {
     STATE.socket.on('presence_update', (data) => {
         STATE.onlineUserIds = new Set(data.onlineUserIds);
         renderUsersList();
+        if (STATE.activeChat?.type === "direct") updateDirectStreakBadge(STATE.activeChat.recipient?.id);
         updateOnlineCount();
     });
 
@@ -349,7 +377,27 @@ function initSocket() {
         }
 
         if (streakInfo && (message.sender_id === STATE.user.id || message.recipient_id === STATE.user.id)) {
-            loadUsers(); // Refresh streak badges
+            const otherId = message.sender_id === STATE.user.id ? message.recipient_id : message.sender_id;
+            let s = STATE.streaks.find(item => item.other_user_id === otherId);
+            if (s) {
+                s.streak_count = streakInfo.streak_count;
+                s.is_frozen = streakInfo.is_frozen;
+                s.interaction_count = streakInfo.interaction_count;
+            } else {
+                STATE.streaks.push({
+                    other_user_id: otherId,
+                    streak_count: streakInfo.streak_count,
+                    is_frozen: streakInfo.is_frozen,
+                    interaction_count: streakInfo.interaction_count
+                });
+            }
+            renderUsersList();
+            updateDirectStreakBadge(otherId);
+
+            if (streakInfo.status === 'boosted') {
+                showNotification(`🔥 استريك مشتعل! وصلتوا لـ ${streakInfo.streak_count} استريك معاً ⚡`);
+            }
+            loadUsers();
         }
     });
 
@@ -923,6 +971,27 @@ function toggleChatInputVisibility(visible) {
     } else {
         if (chatForm) chatForm.classList.add('hidden');
         if (lockedNotice) lockedNotice.classList.remove('hidden');
+    }
+}
+
+
+function updateDirectStreakBadge(otherUserId) {
+    if (!STATE.activeChat || STATE.activeChat.type !== 'direct' || !STATE.activeChat.recipient) return;
+    if (otherUserId && STATE.activeChat.recipient.id !== otherUserId) return;
+
+    const streak = STATE.streaks.find(s => s.other_user_id === STATE.activeChat.recipient.id);
+    const directBadge = document.getElementById('directStreakBadge');
+    if (directBadge) {
+        if (streak && streak.streak_count > 0) {
+            directBadge.innerHTML = `${streak.is_frozen ? '❄️🔥' : '🔥'} استريك ${streak.streak_count} يوم`;
+            directBadge.classList.remove('hidden');
+            directBadge.classList.remove('scale-110');
+            void directBadge.offsetWidth;
+            directBadge.classList.add('scale-110', 'transition-transform');
+            setTimeout(() => directBadge.classList.remove('scale-110'), 300);
+        } else {
+            directBadge.classList.add('hidden');
+        }
     }
 }
 

@@ -2172,6 +2172,19 @@ socket.on('admin_trigger_salawat', (data = {}) => {
                 // Send to recipient sockets
                 const recipientSockets = userSockets.get(recipientId);
                 if (recipientSockets) recipientSockets.forEach(s => io.to(s).emit('new_message', { message: newMsg, streakInfo }));
+
+                if (streakInfo) {
+                    const streakPayload = {
+                        userA: senderId,
+                        userB: recipientId,
+                        streak_count: streakInfo.streak_count,
+                        is_frozen: streakInfo.is_frozen,
+                        status: streakInfo.status,
+                        interaction_count: streakInfo.interaction_count
+                    };
+                    if (senderSockets) senderSockets.forEach(sock => io.to(sock).emit('streak_updated', streakPayload));
+                    if (recipientSockets) recipientSockets.forEach(sock => io.to(sock).emit('streak_updated', streakPayload));
+                }
             } else if (chatType === 'group' && recipientId) {
                 // Send to all members of this group
                 const members = await all(`SELECT user_id FROM group_members WHERE group_id = ?`, [recipientId]);
