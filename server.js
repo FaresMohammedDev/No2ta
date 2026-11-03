@@ -325,6 +325,58 @@ app.get('/api/tts', (req, res) => {
     }
 });
 
+// ---------------------- 📻 CAIRO QURAN RADIO REST API ----------------------
+app.get('/api/quran/radio-info', (req, res) => {
+    res.json({
+        name: 'إذاعة القرآن الكريم من القاهرة',
+        frequency: '98.2 FM',
+        streamUrl: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
+        backupUrls: [
+            'http://n12.radiojar.com/8s5u5tpdtwzuv',
+            'https://stream.zeno.fm/8t42gV/qrc',
+            'http://66.45.232.131:9994/;stream.mp3'
+        ],
+        fallbackAudio: '/audio/quran_cairo_fallback.mp3',
+        officialPortal: 'https://misrquran.gov.eg',
+        officialApi: 'https://api.misrquran.gov.eg',
+        mp3QuranApi: 'https://mp3quran.net/api/v3/radios?language=ar',
+        radioBrowserApi: 'https://de1.api.radio-browser.info/json/stations/byname/Quran%20Cairo',
+        isBroadcasting: !!(activeRadioTrack && activeRadioTrack.track && activeRadioTrack.track.id === 'quran_cairo_live' && activeRadioTrack.isPlaying)
+    });
+});
+
+app.post('/api/quran/broadcast', (req, res) => {
+    const action = (req.body && req.body.action) ? req.body.action : 'play';
+    const isCurrentlyPlaying = activeRadioTrack && activeRadioTrack.track && activeRadioTrack.track.id === 'quran_cairo_live' && activeRadioTrack.isPlaying;
+    
+    if (action === 'stop' || (action === 'toggle' && isCurrentlyPlaying)) {
+        activeRadioTrack = null;
+        io.emit('radio_sync_state', null);
+        console.log('📻 [QURAN RADIO] Broadcast stopped across all devices via REST API');
+        return res.json({ success: true, isBroadcasting: false, message: 'تم إيقاف البث لجميع الأجهزة' });
+    }
+    
+    activeRadioTrack = {
+        track: {
+            id: 'quran_cairo_live',
+            title: 'إذاعة القرآن الكريم من القاهرة',
+            artist: 'بث مباشر 24/7 • مصر 98.2 FM 🕌',
+            cover: '',
+            audioUrl: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
+            file_url: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
+            isLive: true,
+            duration: 'مباشر'
+        },
+        currentTime: 0,
+        isPlaying: true,
+        startedAt: Date.now(),
+        djName: (req.body && req.body.userName) ? req.body.userName : 'المشرف 🕌'
+    };
+    io.emit('radio_sync_state', activeRadioTrack);
+    console.log('📻 [QURAN RADIO] Broadcast started across all devices via REST API by ' + activeRadioTrack.djName);
+    res.json({ success: true, isBroadcasting: true, track: activeRadioTrack.track });
+});
+
 app.post('/api/salawat/trigger', (req, res) => {
     const soundType = (req.body && req.body.soundType) ? req.body.soundType : 'salawat';
     io.emit('salawat_broadcast', {
@@ -1982,7 +2034,36 @@ io.on('connection', async (socket) => {
         }
     });
 
-    socket.on('admin_trigger_salawat', (data = {}) => {
+        // 📻 CAIRO QURAN RADIO BROADCAST
+    socket.on('broadcast_quran_cairo', (data = {}) => {
+        const isCurrentlyPlaying = activeRadioTrack && activeRadioTrack.track && activeRadioTrack.track.id === 'quran_cairo_live' && activeRadioTrack.isPlaying;
+        if (data.action === 'stop' || (data.action === 'toggle' && isCurrentlyPlaying)) {
+            activeRadioTrack = null;
+            io.emit('radio_sync_state', null);
+            console.log('📻 [QURAN RADIO] Broadcast stopped for all devices by socket');
+        } else {
+            activeRadioTrack = {
+                track: {
+                    id: 'quran_cairo_live',
+                    title: 'إذاعة القرآن الكريم من القاهرة',
+                    artist: 'بث مباشر 24/7 • مصر 98.2 FM 🕌',
+                    cover: '',
+                    audioUrl: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
+                    file_url: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
+                    isLive: true,
+                    duration: 'مباشر'
+                },
+                currentTime: 0,
+                isPlaying: true,
+                startedAt: Date.now(),
+                djName: data.djName || (socket.user ? socket.user.nickname : 'المشرف 🕌')
+            };
+            io.emit('radio_sync_state', activeRadioTrack);
+            console.log(`📻 [QURAN RADIO] Broadcasting to all devices by ${activeRadioTrack.djName}`);
+        }
+    });
+
+socket.on('admin_trigger_salawat', (data = {}) => {
         io.emit('salawat_broadcast', {
             phrase: 'اللهم صلِّ على محمد',
             fullPhrase: '«اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ»',

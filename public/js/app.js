@@ -3259,6 +3259,55 @@ function switchMusicModalTab(tab) {
     }
 }
 
+
+// ====================================================
+// 📻 CAIRO HOLY QURAN RADIO BROADCAST SYSTEM
+// ====================================================
+let currentQuranFallbackIdx = 0;
+const QURAN_FALLBACK_URLS = [
+    'https://stream.radiojar.com/8s5u5tpdtwzuv',
+    'http://n12.radiojar.com/8s5u5tpdtwzuv',
+    'https://stream.zeno.fm/8t42gV/qrc',
+    '/audio/quran_cairo_fallback.mp3'
+];
+
+function toggleBroadcastQuranRadio() {
+    const isPlayingCairo = STATE.radio && STATE.radio.activeTrack && STATE.radio.activeTrack.id === 'quran_cairo_live' && STATE.radio.isPlaying;
+    
+    if (isPlayingCairo) {
+        if (STATE.socket) {
+            STATE.socket.emit('broadcast_quran_cairo', { action: 'stop' });
+        }
+        showNotification('⏹️ تم إيقاف بث إذاعة القرآن الكريم على جميع الأجهزة');
+    } else {
+        if (STATE.socket) {
+            STATE.socket.emit('broadcast_quran_cairo', {
+                action: 'play',
+                djName: STATE.user ? STATE.user.nickname : 'المشرف 🕌'
+            });
+        }
+        showNotification('📻 جاري بث إذاعة القرآن الكريم من القاهرة لجميع الأجهزة ⚡');
+    }
+}
+
+function handleRadioAudioError(e) {
+    const audio = STATE.radio.audioEl;
+    if (!audio || !STATE.radio.activeTrack) return;
+    
+    if (STATE.radio.activeTrack.id === 'quran_cairo_live') {
+        currentQuranFallbackIdx++;
+        if (currentQuranFallbackIdx < QURAN_FALLBACK_URLS.length) {
+            const nextUrl = QURAN_FALLBACK_URLS[currentQuranFallbackIdx];
+            console.warn(`[Quran Radio] Primary stream failed, trying mirror (${currentQuranFallbackIdx}): ${nextUrl}`);
+            audio.src = nextUrl;
+            audio.load();
+            audio.play().catch(err => console.warn('Fallback play attempt error:', err));
+        } else {
+            console.error('[Quran Radio] All audio mirrors and fallbacks exhausted.');
+        }
+    }
+}
+
 function openMusicModal() {
     showModal('musicSearchModal');
     switchMusicModalTab('online');
@@ -3696,6 +3745,36 @@ function handleRadioSyncState(state) {
 
     if (bar) bar.classList.remove('hidden');
 
+    // 📻 Update Cairo Holy Quran Radio UI buttons and live indicators
+    const isQuranPlaying = !!(state && state.track && state.track.id === 'quran_cairo_live' && state.isPlaying);
+    const quranBtn = document.getElementById('quranRadioBroadcastBtn');
+    const quranLiveDot = document.getElementById('quranRadioLiveIndicator');
+    const quranBtnText = document.getElementById('quranRadioBtnText');
+    const adminQuranBtnText = document.getElementById('adminQuranRadioBtnText');
+    const modalQuranBtnText = document.getElementById('modalQuranRadioBtnText');
+
+    if (quranBtn) {
+        if (isQuranPlaying) {
+            quranBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/30 border border-emerald-400 text-emerald-300 text-xs font-bold transition-all shadow-md shadow-emerald-500/20 shrink-0 animate-pulse';
+            if (quranLiveDot) quranLiveDot.classList.remove('hidden');
+            if (quranBtnText) quranBtnText.textContent = 'القرآن شغّال 🔊';
+        } else {
+            quranBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-bold transition-all shadow-sm relative shrink-0';
+            if (quranLiveDot) quranLiveDot.classList.add('hidden');
+            if (quranBtnText) quranBtnText.textContent = 'إذاعة القرآن';
+        }
+    }
+    if (adminQuranBtnText) {
+        adminQuranBtnText.textContent = isQuranPlaying ? '⏹️ إيقاف إذاعة القرآن للجميع' : 'إذاعة القرآن (لكل الأجهزة)';
+    }
+    if (modalQuranBtnText) {
+        modalQuranBtnText.textContent = isQuranPlaying ? '⏹️ إيقاف البث' : 'بث للجميع';
+    }
+
+    if (state && state.track && state.track.id === 'quran_cairo_live') {
+        currentQuranFallbackIdx = 0; // Reset fallback on fresh play
+    }
+
     if (titleEl) titleEl.textContent = state.track.title || 'أغنية الفصل';
     if (artistEl) artistEl.textContent = `${state.track.artist || 'موسيقى'} • مشغل بواسطة: ${state.djName || 'دي جي الفصل 🎧'}`;
     if (playIcon) playIcon.textContent = state.isPlaying ? '⏸' : '▶';
@@ -3787,6 +3866,14 @@ function updateRadioProgressUI() {
     const totTimeEl = document.getElementById('radioTotalDuration');
     const audio = STATE.radio.audioEl;
     if (!audio) return;
+
+    // 🔴 Live stream handling (Cairo Quran Radio)
+    if (STATE.radio.activeTrack && (STATE.radio.activeTrack.isLive || STATE.radio.activeTrack.id === 'quran_cairo_live' || !isFinite(audio.duration))) {
+        if (progressBar) progressBar.value = 100;
+        if (totTimeEl) totTimeEl.innerHTML = '<span class="text-emerald-400 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> مباشر</span>';
+        if (curTimeEl) curTimeEl.textContent = 'بث حي';
+        return;
+    }
 
     if (audio.duration && !isNaN(audio.duration)) {
         if (progressBar) progressBar.value = (audio.currentTime / audio.duration) * 100;

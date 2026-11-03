@@ -64,6 +64,13 @@
                     <span id="screenShareLiveDot" class="hidden w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
                 </button>
 
+                <!-- Cairo Holy Quran Radio Broadcast Button 📻🕌 -->
+                <button id="quranRadioBroadcastBtn" onclick="toggleBroadcastQuranRadio()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-bold transition-all shadow-sm relative shrink-0" title="تشغيل إذاعة القرآن الكريم من القاهرة على كل الأجهزة">
+                    <span class="text-sm">📻</span>
+                    <span id="quranRadioBtnText">إذاعة القرآن</span>
+                    <span id="quranRadioLiveIndicator" class="hidden w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                </button>
+
                 <!-- Classroom Radio Button 🎵 -->
                 <button id="radioToggleBtn" onclick="openMusicModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/30 text-pink-400 text-xs font-bold transition-all shadow-sm relative shrink-0" title="راديو وموسيقى الفصل أونلاين">
                     <span class="text-sm">🎵</span>
@@ -870,6 +877,10 @@
 
             <!-- Admin Action Buttons Row -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
+                <button id="adminQuranRadioBtn" onclick="toggleBroadcastQuranRadio()" class="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-bold text-xs hover:bg-emerald-500/25 transition-all text-center flex items-center justify-center gap-1.5">
+                    <span>📻</span>
+                    <span id="adminQuranRadioBtnText">إذاعة القرآن (لكل الأجهزة)</span>
+                </button>
                 <button onclick="adminBroadcastAlert()" class="p-3 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-bold text-xs hover:bg-cyan-500/25 transition-all text-center">
                     📢 إذاعة عامة لجميع الشاشات
                 </button>
@@ -1071,6 +1082,26 @@
             </div>
 
             <!-- Tabs Navigation -->
+            <!-- 📻 Featured Quran Radio Cairo Card -->
+            <div class="mb-3 p-3 rounded-2xl bg-gradient-to-r from-emerald-950/60 to-slate-900 border border-emerald-500/30 flex items-center justify-between gap-3 shadow-md shrink-0">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-xl shrink-0">
+                        🕌
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-1.5">
+                            <h4 class="text-xs font-bold text-white truncate">إذاعة القرآن الكريم من القاهرة</h4>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold">بث مباشر 24/7</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 truncate">مصر 98.2 FM • بث متزامن لجميع أجهزة الفصل بنقرة واحدة</p>
+                    </div>
+                </div>
+                <button type="button" onclick="toggleBroadcastQuranRadio()" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center gap-1">
+                    <span>📻</span>
+                    <span id="modalQuranRadioBtnText">بث للجميع</span>
+                </button>
+            </div>
+
             <div class="flex items-center gap-2 p-1 bg-slate-950/80 rounded-2xl border border-slate-800 mb-3 shrink-0">
                 <button type="button" id="onlineMusicTabBtn" onclick="switchMusicModalTab('online')" class="flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-gradient-to-r from-pink-500/20 to-purple-500/20 text-pink-400 border border-pink-500/40 shadow-sm">
                     <span>🌐</span>
@@ -1781,6 +1812,6 @@
 
     <!-- Main Application Scripts -->
     <script src="/js/html2canvas.min.js"></script>
-    <script src="/js/app.js?v=4.5.0"></script>
+    <script src="/js/app.js?v=4.6.0"></script>
 </body>
 </html>
