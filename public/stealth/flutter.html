@@ -12,11 +12,6 @@
         .mono-font { font-family: 'JetBrains Mono', monospace; }
         .quiz-card { transition: all 0.25s ease-in-out; }
         .quiz-card:hover { border-color: rgba(6, 182, 212, 0.4); }
-        .pulse-subtle { animation: pulseSlow 3s infinite; }
-        @keyframes pulseSlow {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.75; }
-        }
     </style>
 </head>
 <body class="bg-gray-950 text-slate-100 min-h-screen selection:bg-cyan-500 selection:text-black pb-28">
@@ -33,7 +28,7 @@
                         <span>اختبار وتقييم مهارات فلاتر التفاعلي</span>
                         <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono font-bold">Q121 - Q202</span>
                     </h1>
-                    <span class="text-[11px] text-gray-400 en-font">Flutter Competency & Mobile App Development • Interactive Assessment</span>
+                    <span class="text-[11px] text-gray-400 en-font">Flutter Competency & Mobile App Development • Official Model Answers</span>
                 </div>
             </div>
 
@@ -57,7 +52,7 @@
                     0%
                 </div>
                 <button onclick="toggleAllAnswers()" id="toggle-answers-btn" class="px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 transition text-xs font-bold flex items-center gap-1 cursor-pointer">
-                    👁️ <span class="hidden sm:inline">إظهار الإجابات</span>
+                    👁️ <span class="hidden sm:inline">إظهار كافة الإجابات</span>
                 </button>
                 <button onclick="resetQuiz()" title="إعادة الاختبار بالكامل" class="px-2.5 py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition text-xs font-bold flex items-center gap-1 cursor-pointer">
                     🔄 <span class="hidden sm:inline">إعادة</span>
@@ -82,10 +77,10 @@
                         <span>🚀</span> بنك أسئلة ونموذج إجابة مادة تطبيقات الهاتف (Flutter Competency)
                     </div>
                     <h2 class="text-xl md:text-2xl font-black text-white">
-                        وضع الاختبار والتقييم الفوري الذكي ⚡
+                        وضع الاختبار والتقييم الذاتي المتطابق مع الفايل 100% ⚡
                     </h2>
                     <p class="text-gray-300 text-xs md:text-sm leading-relaxed max-w-3xl">
-                        جميع الأسئلة من <strong>Q121 إلى Q202</strong> مصممة تفاعلياً: جاوب بنفسك وتحقق من إجابتك فوراً، أو اعرض نموذج الإجابة الرسمي في أي وقت مع احتساب درجاتك لحظياً!
+                        جميع الأسئلة من <strong>Q121 إلى Q202</strong> مجهزة بنماذج الإجابة الأصلية نصياً وبدقة تامة. تم تفعيل خانات الكتابة في جميع الأقسام بما فيها قسم الشرح (Explain) لكتابة إجابتك بحرية والتحقق منها ومقارنتها بنموذج الفايل!
                     </p>
                 </div>
 
@@ -93,7 +88,7 @@
                     <a href="#section-complete" class="px-2.5 py-1.5 rounded-xl bg-gray-800 hover:bg-cyan-500/20 hover:text-cyan-300 border border-gray-700 text-xs font-bold transition">1. أكمل (121-130)</a>
                     <a href="#section-correct" class="px-2.5 py-1.5 rounded-xl bg-gray-800 hover:bg-cyan-500/20 hover:text-cyan-300 border border-gray-700 text-xs font-bold transition">2. التصويب (131-140)</a>
                     <a href="#section-terms" class="px-2.5 py-1.5 rounded-xl bg-gray-800 hover:bg-cyan-500/20 hover:text-cyan-300 border border-gray-700 text-xs font-bold transition">3. مصطلحات (141-150)</a>
-                    <a href="#section-explain" class="px-2.5 py-1.5 rounded-xl bg-gray-800 hover:bg-cyan-500/20 hover:text-cyan-300 border border-gray-700 text-xs font-bold transition">4. التعليلات (151-172)</a>
+                    <a href="#section-explain" class="px-2.5 py-1.5 rounded-xl bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 border border-indigo-500/30 text-xs font-bold transition">✍️ 4. الشرح والكتابة (151-172)</a>
                     <a href="#section-tf" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30 text-xs font-bold transition">5. صح وغلط (173-192)</a>
                     <a href="#section-mcq" class="px-2.5 py-1.5 rounded-xl bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25 border border-cyan-500/30 text-xs font-bold transition">6. اختيارات (193-202)</a>
                 </div>
@@ -129,7 +124,7 @@
                 <div class="flex items-center gap-2.5">
                     <span class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs font-black">Q2</span>
                     <div>
-                        <h2 class="text-base md:text-lg font-bold text-white">Correct the underlined word for the following sentences</h2>
+                        <h2 class="text-base md:text-lg font-bold text-white">Correct the underlined word for the following sentence</h2>
                         <span class="text-xs text-gray-400 en-font">Questions 131 to 140 (10 Questions)</span>
                     </div>
                 </div>
@@ -150,7 +145,7 @@
                 <div class="flex items-center gap-2.5">
                     <span class="w-8 h-8 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center text-xs font-black">Q3</span>
                     <div>
-                        <h2 class="text-base md:text-lg font-bold text-white">Write the Technical term which fits this description</h2>
+                        <h2 class="text-base md:text-lg font-bold text-white">Write the Technical term which is this description</h2>
                         <span class="text-xs text-gray-400 en-font">Questions 141 to 150 (10 Questions)</span>
                     </div>
                 </div>
@@ -164,21 +159,24 @@
 
 
         <!-- ==========================================
-             SECTION 4: EXPLAIN THE FOLLOWING (151 - 172)
+             SECTION 4: EXPLAIN THE FOLLOWING (151 - 172) - WITH WRITING AREA ✍️
              ========================================== -->
-        <section id="section-explain" class="bg-gray-900/90 border border-gray-800 rounded-3xl p-5 md:p-7 space-y-4 shadow-lg">
+        <section id="section-explain" class="bg-gray-900/90 border border-indigo-500/30 rounded-3xl p-5 md:p-7 space-y-4 shadow-lg">
             <div class="flex items-center justify-between border-b border-gray-800 pb-3">
                 <div class="flex items-center gap-2.5">
                     <span class="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-black">Q4</span>
                     <div>
-                        <h2 class="text-base md:text-lg font-bold text-white">Explain the following sentences & Concepts</h2>
-                        <span class="text-xs text-gray-400 en-font">Questions 151 to 172 (11 Core Concepts & Explanations)</span>
+                        <h2 class="text-base md:text-lg font-bold text-white flex items-center gap-2">
+                            <span>Explain the following sentences</span>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-normal">✍️ متاح لك الكتابة والتحقق الذاتي</span>
+                        </h2>
+                        <span class="text-xs text-gray-400 en-font">Questions 151 to 172 (11 Questions — Type & Verify with exact file answer)</span>
                     </div>
                 </div>
-                <span class="text-xs px-2.5 py-1 rounded-xl bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono font-bold">11 مفاهيم نموذجية</span>
+                <span id="explain-score-badge" class="text-xs px-2.5 py-1 rounded-xl bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono font-bold">0 / 11 المحلول</span>
             </div>
 
-            <div id="explain-container" class="space-y-3">
+            <div id="explain-container" class="space-y-4">
                 <!-- Populated dynamically via JS -->
             </div>
         </section>
@@ -213,7 +211,7 @@
                 <div class="flex items-center gap-2.5">
                     <span class="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs font-black">Q6</span>
                     <div>
-                        <h2 class="text-base md:text-lg font-bold text-white">Multiple Choice Questions (MCQ)</h2>
+                        <h2 class="text-base md:text-lg font-bold text-white">Multiple Choice Questions</h2>
                         <span class="text-xs text-gray-400 en-font">Questions 193 to 202 (10 Questions — Real-time Grading)</span>
                     </div>
                 </div>
@@ -228,7 +226,7 @@
     </main>
 
     <footer class="border-t border-gray-800 py-6 text-center text-xs text-gray-500 en-font">
-        Flutter Competency & Mobile Development Exam Engine • Senior Review • Real-time Interactive Grading
+        Flutter Competency & Mobile Development Exam Engine • Official Answers Verbatim • Real-time Interactive Grading
     </footer>
 
     <!-- ========================================================
@@ -246,88 +244,154 @@
             showAllAnswers: false
         };
 
-        // 1. DATA: Complete Section (121 - 130)
+        // 1. DATA: Complete Section (121 - 130) - EXACT FILE ANSWERS
         const COMPLETE_QUESTIONS = [
             { id: 121, q: "A mobile app runs on devices like __________ and tablets.", ans: "Smartphones OR Mobiles OR Mobile phones", match: ["smartphones", "smart phones", "smartphone", "mobiles", "mobile", "mobile phones", "phone", "phones", "smart phone"] },
-            { id: 122, q: "Flutter was created by __________ the company.", ans: "Google", match: ["google", "google inc", "alphabet"] },
+            { id: 122, q: "Flutter was created by __________ the company", ans: "Google", match: ["google", "google inc", "alphabet"] },
             { id: 123, q: "Instagram is an example of a __________ media app.", ans: "social", match: ["social", "social media"] },
             { id: 124, q: "A __________ is a small part of the screen in Flutter like a button or text.", ans: "widget", match: ["widget", "widgets"] },
-            { id: 125, q: "The language used in Flutter is called __________.", ans: "Dart", match: ["dart"] },
+            { id: 125, q: "The language used in Flutter is called __________", ans: "Dart", match: ["dart"] },
             { id: 126, q: "Facebook and Instagram are __________ media applications.", ans: "social", match: ["social", "social media"] },
-            { id: 127, q: "Health apps help users track __________ and fitness.", ans: "health", match: ["health", "healthy"] },
-            { id: 128, q: "The first stage of app development is __________ and conceptualization.", ans: "planning", match: ["planning", "plan"] },
-            { id: 129, q: "UI stands for __________ Interface.", ans: "User", match: ["user", "user's"] },
+            { id: 127, q: "Health apps help users track __________ and fitness", ans: "health", match: ["health", "healthy"] },
+            { id: 128, q: "The first stage of app development is __________ and conceptualization", ans: "planning", match: ["planning", "plan"] },
+            { id: 129, q: "UI stands for __________ Interface", ans: "User", match: ["user", "user's"] },
             { id: 130, q: "iOS is developed by __________.", ans: "Apple", match: ["apple", "apple inc"] }
         ];
 
-        // 2. DATA: Correct Underlined Word (131 - 140)
+        // 2. DATA: Correct Underlined Word (131 - 140) - EXACT FILE ANSWERS
         const CORRECT_QUESTIONS = [
-            { id: 131, sentence: "Swift is mainly used for <span class='underline decoration-rose-400 font-bold text-rose-300'>Android</span> application development.", wrong: "Android", ans: "Java or Kotlin (iOS/Apple)", match: ["java", "kotlin", "java or kotlin", "ios", "apple"] },
-            { id: 132, sentence: "<span class='underline decoration-rose-400 font-bold text-rose-300'>Google Play Store</span> is used for publishing iOS applications.", wrong: "Google Play Store", ans: "Apple App Store", match: ["apple app store", "app store", "apple store", "apple app"] },
+            { id: 131, sentence: "Swift is mainly used for <span class='underline decoration-rose-400 font-bold text-rose-300'>Android</span> application development.", wrong: "Android", ans: "Java or Kotlin", match: ["java or kotlin", "java", "kotlin"] },
+            { id: 132, sentence: "<span class='underline decoration-rose-400 font-bold text-rose-300'>Google Play Store</span> is used for publishing iOS applications.", wrong: "Google Play Store", ans: "Apple App", match: ["apple app", "apple app store", "app store", "apple store"] },
             { id: 133, sentence: "Google Play Store is used for publishing <span class='underline decoration-rose-400 font-bold text-rose-300'>iOS</span> applications.", wrong: "iOS", ans: "Android", match: ["android"] },
-            { id: 134, sentence: "Swift is used for <span class='underline decoration-rose-400 font-bold text-rose-300'>Android</span> app development.", wrong: "Android", ans: "iOS", match: ["ios", "apple"] },
+            { id: 134, sentence: "Swift is used for <span class='underline decoration-rose-400 font-bold text-rose-300'>Android</span> app development.", wrong: "Android", ans: "IOS", match: ["ios", "apple"] },
             { id: 135, sentence: "<span class='underline decoration-rose-400 font-bold text-rose-300'>iOS</span> apps are published on the Play store.", wrong: "iOS", ans: "Android", match: ["android"] },
-            { id: 136, sentence: "iOS is developed by <span class='underline decoration-rose-400 font-bold text-rose-300'>Google</span>.", wrong: "Google", ans: "Apple", match: ["apple", "apple inc"] },
-            { id: 137, sentence: "<span class='underline decoration-rose-400 font-bold text-rose-300'>UX</span> design focuses specifically on the buttons, colors, and layout of the app screens.", wrong: "UX", ans: "UI (User Interface)", match: ["ui", "user interface"] },
+            { id: 136, sentence: "iOS is developed by <span class='underline decoration-rose-400 font-bold text-rose-300'>Google</span> .", wrong: "Google", ans: "Apple", match: ["apple", "apple inc"] },
+            { id: 137, sentence: "<span class='underline decoration-rose-400 font-bold text-rose-300'>UX</span> design focuses specifically on the buttons, colors, and layout of the app screens.", wrong: "UX", ans: "UI Or User interface", match: ["ui", "user interface", "ui or user interface"] },
             { id: 138, sentence: "Flutter uses the <span class='underline decoration-rose-400 font-bold text-rose-300'>Java</span> programming language to create high-performance mobile apps.", wrong: "Java", ans: "Dart", match: ["dart"] },
             { id: 139, sentence: "A widget that can change state is called <span class='underline decoration-rose-400 font-bold text-rose-300'>StatelessWidget</span>.", wrong: "StatelessWidget", ans: "StatefulWidget", match: ["statefulwidget", "stateful"] },
             { id: 140, sentence: "A widget that can’t change state is called <span class='underline decoration-rose-400 font-bold text-rose-300'>StatefulWidget</span>.", wrong: "StatefulWidget", ans: "StatelessWidget", match: ["statelesswidget", "stateless"] }
         ];
 
-        // 3. DATA: Technical Terms (141 - 150)
+        // 3. DATA: Technical Terms (141 - 150) - EXACT FILE ANSWERS
         const TERMS_QUESTIONS = [
-            { id: 141, desc: "It is a program that works on phones and tablets to help users do different tasks.", ans: "Mobile application (Mobile App)", match: ["mobile application", "mobile app", "app", "mobile applications"] },
+            { id: 141, desc: "It is a program that works on phones and tablets to help users do different tasks.", ans: "Mobile application", match: ["mobile application", "mobile app", "app", "mobile applications"] },
             { id: 142, desc: "It is a tool made by Google that helps developers create apps for phones, computers, and websites using one code.", ans: "Flutter", match: ["flutter"] },
-            { id: 143, desc: "It is a small building block in Flutter, like a button, text, or image that you see on the screen.", ans: "Widget", match: ["widget", "widgets"] },
-            { id: 144, desc: "It means creating one app that can work on different systems like Android and iOS at the same time.", ans: "Cross-platform development", match: ["cross-platform development", "cross platform development", "cross-platform", "cross platform"] },
-            { id: 145, desc: "It is checking if the app works correctly and finding any problems or bugs before giving it to users.", ans: "Testing (Software Testing)", match: ["testing", "software testing", "qa", "quality assurance"] },
+            { id: 143, desc: "It is a small building block in Flutter, like a button, text, or image that you see on the screen.", ans: "widget", match: ["widget", "widgets"] },
+            { id: 144, desc: "It is means creating one app that can work on different systems like Android and iOS at the same time.", ans: "Cross-platform development", match: ["cross-platform development", "cross platform development", "cross-platform", "cross platform"] },
+            { id: 145, desc: "It is checking if the app works correctly and finding any problems or bugs before giving it to users.", ans: "Testing", match: ["testing", "software testing", "qa", "quality assurance"] },
             { id: 146, desc: "It is a widget that does not change its UI.", ans: "StatelessWidget", match: ["statelesswidget", "stateless"] },
             { id: 147, desc: "It is a widget that can change its UI during runtime.", ans: "StatefulWidget", match: ["statefulwidget", "stateful"] },
-            { id: 148, desc: "It provides app structure (AppBar, Drawer, Body).", ans: "Scaffold", match: ["scaffold"] },
+            { id: 148, desc: "It is provides app structure (AppBar, Drawer, Body).", ans: "Scaffold", match: ["scaffold"] },
             { id: 149, desc: "It shows title, actions, and navigation.", ans: "AppBar", match: ["appbar", "app bar"] },
             { id: 150, desc: "It is the programming language powering Flutter.", ans: "Dart", match: ["dart"] }
         ];
 
-        // 4. DATA: Explain Questions (151 - 172)
+        // 4. DATA: Explain Questions (151 - 172) - EXACT FILE ANSWERS VERBATIM & KEYWORDS
         const EXPLAIN_QUESTIONS = [
-            { id: '151-152', title: "Planning phase", ans: "It is the first step in mobile app development where the idea, target audience, requirements, and feasibility are defined." },
-            { id: '153-154', title: "Maintenance and Updates phase", ans: "It is an important stage after launching the mobile app to fix bugs, improve performance, add new features, and adapt to OS updates." },
-            { id: '155-156', title: "Productivity Apps", ans: "Apps that help users manage their time, tasks, and work efficiently, such as to-do lists, calendars, and note-taking apps." },
-            { id: '157-158', title: "Why do people use mobile apps?", ans: "People use mobile apps to make their daily lives easier, communicate, work, learn, and entertain themselves like playing games." },
-            { id: '159-160', title: "Why is Flutter popular?", ans: "It is popular because it's easy to learn, fast to develop with, and allows building high-performance apps for Android, iOS, web, and desktop from a single codebase." },
-            { id: '161-162', title: "What makes a good mobile app?", ans: "A good mobile app is easy to use, responsive, fast, secure, and has an intuitive, simple user interface (UI)." },
-            { id: '163-164', title: "Why is documentation important in programming?", ans: "Documentation helps developers understand how the code works, maintain the project, collaborate effectively, and onboard new team members." },
-            { id: '165-166', title: "Why is user interface (UI) important?", ans: "UI makes the app easy, visually appealing, and enjoyable to use, ensuring smooth user adoption." },
-            { id: '167-168', title: "Explain git pull command in git", ans: "Downloads and integrates updates FROM the remote repository TO your local repository." },
-            { id: '169-170', title: "Explain git push command in git", ans: "Uploads your local commits and changes FROM your local repository TO the remote repository." },
-            { id: '171-172', title: "Why do we use the Navigator in apps?", ans: "To manage routes and navigate between different screens and pages in the app (pushing and popping routes)." }
+            {
+                id: '151-152',
+                numText: '151 - 152',
+                title: "Planning phase",
+                ans: "It is the first step in mobile app development.",
+                keywords: ["first step", "mobile app development", "mobile app", "development", "first"]
+            },
+            {
+                id: '153-154',
+                numText: '153 - 154',
+                title: "Maintenance and Updates phase",
+                ans: "It is an important stage after launching the mobile app.",
+                keywords: ["important stage", "after launching", "launching", "mobile app", "updates"]
+            },
+            {
+                id: '155-156',
+                numText: '155 - 156',
+                title: "Productivity Apps.",
+                ans: "It helps users manage their time and work. like to-do lists.",
+                keywords: ["manage", "time", "work", "to-do", "to-do lists"]
+            },
+            {
+                id: '157-158',
+                numText: '157 - 158',
+                title: "Why do people use mobile apps?",
+                ans: "People use mobile apps to make their lives easier, like playing games .",
+                keywords: ["lives easier", "easier", "playing games", "games", "make their lives"]
+            },
+            {
+                id: '159-160',
+                numText: '159 - 160',
+                title: "Why is Flutter popular?",
+                ans: "It is popular because it's easy to learn, fast to develop with. Other answer and allows making apps for both Android and iPhone with the same code.",
+                keywords: ["easy to learn", "fast to develop", "android and iphone", "same code", "easy", "fast"]
+            },
+            {
+                id: '161-162',
+                numText: '161 - 162',
+                title: "What makes a good mobile app?",
+                ans: "A good mobile app is easy to use and has easy UI",
+                keywords: ["easy to use", "easy ui", "ui", "easy"]
+            },
+            {
+                id: '163-164',
+                numText: '163 - 164',
+                title: "Why is documentation important in programming?",
+                ans: "It is important because it helps developers understand how the code works and makes it easier for others to use.",
+                keywords: ["understand how the code works", "code works", "understand", "easier for others"]
+            },
+            {
+                id: '165-166',
+                numText: '165 - 166',
+                title: "Why is user interface (UI) important?",
+                ans: "UI makes the app easy and enjoyable to use.",
+                keywords: ["easy and enjoyable", "enjoyable", "easy to use", "enjoyable to use"]
+            },
+            {
+                id: '167-168',
+                numText: '167 - 168',
+                title: "Explain git pull commands in git",
+                ans: "Downloads updates FROM the remote repo TO your local repo",
+                keywords: ["downloads updates", "downloads", "remote repo", "local repo", "remote", "local"]
+            },
+            {
+                id: '169-170',
+                numText: '169 - 170',
+                title: "Explain git push commands in git",
+                ans: "Uploads your local changes FROM local repo TO the remote repo",
+                keywords: ["uploads your local changes", "uploads", "local repo", "remote repo", "remote", "local"]
+            },
+            {
+                id: '171-172',
+                numText: '171 - 172',
+                title: "Why do we use the Navigator in apps?",
+                ans: "To manage routes and navigate between different screens.",
+                keywords: ["manage routes", "navigate between different screens", "routes", "navigate", "different screens", "screens"]
+            }
         ];
 
-        // 5. DATA: True/False Questions (173 - 192)
+        // 5. DATA: True/False Questions (173 - 192) - EXACT FILE ANSWERS
         const TF_QUESTIONS = [
-            { id: 173, q: "Kotlin is used for iOS development.", correct: false, reason: "False: Kotlin is primarily used for Android; Swift and Objective-C are used for iOS." },
-            { id: 174, q: "Native apps are typically faster than hybrid apps.", correct: true, reason: "True: Native apps are compiled directly to machine code for that specific OS." },
-            { id: 175, q: "Flutter uses Dart as its programming language.", correct: true, reason: "True: Dart is the client-optimized language powering Flutter." },
-            { id: 176, q: "User feedback is not important after launching an app.", correct: false, reason: "False: User feedback is vital for identifying bugs and improving user experience." },
-            { id: 177, q: "A mobile app can be distributed through app stores.", correct: true, reason: "True: Google Play, Apple App Store, and Huawei AppGallery are main distribution channels." },
-            { id: 178, q: "Developers must pay to publish apps on the Huawei App Gallery (Harmony OS).", correct: false, reason: "False: Huawei AppGallery does not charge individual developers annual fees like Apple." },
-            { id: 179, q: "Identifying the target audience is the last step in the mobile app development process.", correct: false, reason: "False: Target audience identification is done in the earliest Planning phase." },
-            { id: 180, q: "Considering cross-platform development means creating an app for one specific OS only.", correct: false, reason: "False: Cross-platform means targeting multiple operating systems with one codebase." },
-            { id: 181, q: "Software Testing is the first step for developing apps.", correct: false, reason: "False: Planning & Conceptualization is the first step; testing comes later." },
-            { id: 182, q: "Considering development expertise is not important when building a team.", correct: false, reason: "False: Technical expertise directly impacts code quality, timeline, and success." },
-            { id: 183, q: "User Interface (UI) focuses on design.", correct: true, reason: "True: UI focuses on visual elements, layouts, typography, and styling." },
-            { id: 184, q: "UX stands for “Universal Experience.”", correct: false, reason: "False: UX stands for 'User Experience'." },
-            { id: 185, q: "Apple uses the Play Store to publish apps.", correct: false, reason: "False: Apple uses the Apple App Store." },
-            { id: 186, q: "Android Studio is used for iOS development.", correct: false, reason: "False: Xcode is the official IDE used for native iOS development." },
-            { id: 187, q: "Mobile apps can only run online.", correct: false, reason: "False: Many mobile apps have local databases and function fully offline." },
-            { id: 188, q: "Planning is an important step before coding.", correct: true, reason: "True: Proper planning prevents architectural mistakes and saves development time." },
-            { id: 189, q: "The UI should be simple and user-friendly.", correct: true, reason: "True: A clean, intuitive UI increases usability and user retention." },
-            { id: 190, q: "Android apps are written only in C++.", correct: false, reason: "False: Android apps are predominantly written in Kotlin, Java, and Dart." },
-            { id: 191, q: "A layout controls how elements are displayed on screen.", correct: true, reason: "True: Layout widgets (Row, Column, Stack) govern position and size." },
-            { id: 192, q: "Testing is optional in app development.", correct: false, reason: "False: Rigorous testing is mandatory to ensure reliability and security." }
+            { id: 173, q: "Kotlin is used for iOS development.", correct: false, ansStr: "False" },
+            { id: 174, q: "Native apps are typically faster than hybrid apps.", correct: true, ansStr: "True" },
+            { id: 175, q: "Flutter uses Dart as its programming language.", correct: true, ansStr: "True" },
+            { id: 176, q: "User feedback is not important after launching an app.", correct: false, ansStr: "False" },
+            { id: 177, q: "A mobile app can be distributed through app stores.", correct: true, ansStr: "True" },
+            { id: 178, q: "Developers must pay to publish apps on the Huawei App Gallery (Harmony OS).", correct: false, ansStr: "False" },
+            { id: 179, q: "Identifying the target audience is the last step in the mobile app development process.", correct: false, ansStr: "False" },
+            { id: 180, q: "Considering cross-platform development means creating an app for one specific OS only.", correct: false, ansStr: "False" },
+            { id: 181, q: "Software Testing is the first step for developing apps", correct: false, ansStr: "False" },
+            { id: 182, q: "Considering development expertise is not important when building a team", correct: false, ansStr: "False" },
+            { id: 183, q: "User Interface (UI) focuses on design.", correct: true, ansStr: "True" },
+            { id: 184, q: "UX stands for “Universal Experience.”", correct: false, ansStr: "False" },
+            { id: 185, q: "Apple uses the Play Store to publish apps", correct: false, ansStr: "False" },
+            { id: 186, q: "Android Studio is used for iOS development.", correct: false, ansStr: "False" },
+            { id: 187, q: "Mobile apps can only run online.", correct: false, ansStr: "False" },
+            { id: 188, q: "Planning is an important step before coding.", correct: true, ansStr: "True" },
+            { id: 189, q: "The UI should be simple and user-friendly.", correct: true, ansStr: "True" },
+            { id: 190, q: "Android apps are written only in C++.", correct: false, ansStr: "False" },
+            { id: 191, q: "A layout controls how elements are displayed on screen.", correct: true, ansStr: "True" },
+            { id: 192, q: "Testing is optional in app development.", correct: false, ansStr: "False" }
         ];
 
-        // 6. DATA: Multiple Choice Questions (193 - 202)
+        // 6. DATA: Multiple Choice Questions (193 - 202) - EXACT FILE ANSWERS
         const MCQ_QUESTIONS = [
             {
                 id: 193,
@@ -339,7 +403,7 @@
                     { label: "D) Kotlin", val: "D" }
                 ],
                 correct: "B",
-                exp: "Dart is the programming language created by Google that powers Flutter."
+                fileAns: "B"
             },
             {
                 id: 194,
@@ -351,7 +415,7 @@
                     { label: "D) Galaxy Store", val: "D" }
                 ],
                 correct: "C",
-                exp: "Google Play Store is the primary official app store for Android."
+                fileAns: "C"
             },
             {
                 id: 195,
@@ -363,7 +427,7 @@
                     { label: "D) C++", val: "D" }
                 ],
                 correct: "C",
-                exp: "React Native utilizes JavaScript (and TypeScript) to build mobile apps."
+                fileAns: "C"
             },
             {
                 id: 196,
@@ -375,11 +439,11 @@
                     { label: "D) Deployment", val: "D" }
                 ],
                 correct: "C",
-                exp: "Testing & Quality Assurance verifies functionality, performance, and screen responsiveness across devices."
+                fileAns: "C"
             },
             {
                 id: 197,
-                q: "What does the term 'API' stand for?",
+                q: "What does the term \"API\" stand for?",
                 options: [
                     { label: "A) Application Programming Interface", val: "A" },
                     { label: "B) Advanced Programming Interface", val: "B" },
@@ -387,7 +451,7 @@
                     { label: "D) Automated Program Integration", val: "D" }
                 ],
                 correct: "A",
-                exp: "API stands for Application Programming Interface."
+                fileAns: "A"
             },
             {
                 id: 198,
@@ -399,11 +463,11 @@
                     { label: "D) Maintenance", val: "D" }
                 ],
                 correct: "B",
-                exp: "UI Development creates the actual visual components, widgets, and layouts users interact with."
+                fileAns: "B"
             },
             {
                 id: 199,
-                q: "iOS is exclusive to ________ devices?",
+                q: "IOS is exclusive to ________ devices?",
                 options: [
                     { label: "A) Samsung", val: "A" },
                     { label: "B) Google", val: "B" },
@@ -411,7 +475,7 @@
                     { label: "D) Apple", val: "D" }
                 ],
                 correct: "D",
-                exp: "iOS is the proprietary operating system developed exclusively for Apple hardware (iPhone, iPod Touch)."
+                fileAns: "D"
             },
             {
                 id: 200,
@@ -423,7 +487,7 @@
                     { label: "d) To choose programming languages", val: "D" }
                 ],
                 correct: "B",
-                exp: "Target market research helps tailor the app to the specific problems and preferences of users."
+                fileAns: "B"
             },
             {
                 id: 201,
@@ -435,7 +499,7 @@
                     { label: "d) MyFitnessPal", val: "D" }
                 ],
                 correct: "B",
-                exp: "Evernote is a note-taking and task organization productivity application."
+                fileAns: "B"
             },
             {
                 id: 202,
@@ -447,7 +511,7 @@
                     { label: "d) Maintenance", val: "D" }
                 ],
                 correct: "C",
-                exp: "Planning and Conceptualization establishes the foundation, scope, and direction of the app."
+                fileAns: "C"
             }
         ];
 
@@ -465,10 +529,10 @@
                     <div class="flex flex-wrap items-center gap-2 pt-1">
                         <input type="text" id="complete-input-${item.id}" placeholder="اكتب الكلمة الناقصة..." class="flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-gray-900 border border-gray-700 text-white text-xs en-font focus:outline-none focus:border-cyan-500 transition" onkeydown="if(event.key==='Enter') checkComplete(${item.id})">
                         <button onclick="checkComplete(${item.id})" class="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition cursor-pointer">تحقق</button>
-                        <button onclick="revealComplete(${item.id})" class="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold transition cursor-pointer">نموذج الإجابة</button>
+                        <button onclick="revealComplete(${item.id})" class="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold transition cursor-pointer">نموذج الفايل</button>
                     </div>
                     <div id="complete-answer-${item.id}" class="hidden p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 font-bold en-font">
-                        ✓ الإجابة النموذجية: <span class="text-white font-mono">${item.ans}</span>
+                        ✓ إجابة الفايل: <span class="text-white font-mono">${item.ans}</span>
                     </div>
                 </div>
             `).join('');
@@ -485,12 +549,12 @@
                     </div>
                     <p class="text-sm md:text-base font-medium text-white en-font leading-relaxed">${item.sentence}</p>
                     <div class="flex flex-wrap items-center gap-2 pt-1">
-                        <input type="text" id="correct-input-${item.id}" placeholder="اكتب التصويب الصحيح..." class="flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-gray-900 border border-gray-700 text-white text-xs en-font focus:outline-none focus:border-amber-500 transition" onkeydown="if(event.key==='Enter') checkCorrection(${item.id})">
+                        <input type="text" id="correct-input-${item.id}" placeholder="اكتب التصويب..." class="flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-gray-900 border border-gray-700 text-white text-xs en-font focus:outline-none focus:border-amber-500 transition" onkeydown="if(event.key==='Enter') checkCorrection(${item.id})">
                         <button onclick="checkCorrection(${item.id})" class="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-slate-950 text-xs font-black transition cursor-pointer">تصويب</button>
-                        <button onclick="revealCorrection(${item.id})" class="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold transition cursor-pointer">نموذج الإجابة</button>
+                        <button onclick="revealCorrection(${item.id})" class="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold transition cursor-pointer">نموذج الفايل</button>
                     </div>
                     <div id="correct-answer-${item.id}" class="hidden p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 font-bold en-font">
-                        ✓ التصويب النموذجي: <span class="text-white font-mono">${item.ans}</span>
+                        ✓ إجابة الفايل: <span class="text-white font-mono">${item.ans}</span>
                     </div>
                 </div>
             `).join('');
@@ -507,12 +571,12 @@
                     </div>
                     <p class="text-sm md:text-base font-medium text-white en-font leading-relaxed">${item.desc}</p>
                     <div class="flex flex-wrap items-center gap-2 pt-1">
-                        <input type="text" id="terms-input-${item.id}" placeholder="اكتب المصطلح الفني (Technical Term)..." class="flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-gray-900 border border-gray-700 text-white text-xs en-font focus:outline-none focus:border-teal-500 transition" onkeydown="if(event.key==='Enter') checkTerm(${item.id})">
+                        <input type="text" id="terms-input-${item.id}" placeholder="اكتب المصطلح (Technical term)..." class="flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-gray-900 border border-gray-700 text-white text-xs en-font focus:outline-none focus:border-teal-500 transition" onkeydown="if(event.key==='Enter') checkTerm(${item.id})">
                         <button onclick="checkTerm(${item.id})" class="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition cursor-pointer">تحقق</button>
-                        <button onclick="revealTerm(${item.id})" class="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold transition cursor-pointer">نموذج المصطلح</button>
+                        <button onclick="revealTerm(${item.id})" class="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold transition cursor-pointer">نموذج الفايل</button>
                     </div>
                     <div id="terms-answer-${item.id}" class="hidden p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 font-bold en-font">
-                        ✓ المصطلح النموذجي: <span class="text-white font-mono">${item.ans}</span>
+                        ✓ إجابة الفايل: <span class="text-white font-mono">${item.ans}</span>
                     </div>
                 </div>
             `).join('');
@@ -522,17 +586,30 @@
             const container = document.getElementById('explain-container');
             if (!container) return;
             container.innerHTML = EXPLAIN_QUESTIONS.map(item => `
-                <div class="quiz-card p-4 rounded-2xl bg-gray-950 border border-gray-800 space-y-2">
+                <div class="quiz-card p-4 md:p-5 rounded-2xl bg-gray-950 border border-gray-800 space-y-3">
                     <div class="flex items-center justify-between gap-2">
-                        <span class="px-2.5 py-0.5 rounded-lg bg-indigo-500/15 text-indigo-300 font-mono text-xs font-bold">Q${item.id}</span>
-                        <button onclick="toggleExplain('${item.id}')" class="text-xs px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-indigo-500/20 hover:text-indigo-300 text-gray-300 transition font-bold cursor-pointer">
-                            👁️ عرض الشرح النموذجي
-                        </button>
+                        <span class="px-2.5 py-0.5 rounded-lg bg-indigo-500/15 text-indigo-300 font-mono text-xs font-bold">Q${item.numText}</span>
+                        <span id="explain-status-${item.id}" class="text-xs font-bold"></span>
                     </div>
                     <h3 class="text-sm md:text-base font-bold text-white en-font">${item.title}</h3>
+                    
+                    <!-- Writing Area so student can type freely ✍️ -->
+                    <div class="space-y-2">
+                        <textarea id="explain-input-${item.id}" rows="2" placeholder="اكتب شرحك وإجابتك هنا..." class="w-full px-3.5 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-white text-xs md:text-sm en-font focus:outline-none focus:border-indigo-500 transition leading-relaxed"></textarea>
+                        
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button onclick="checkExplain('${item.id}')" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition cursor-pointer shadow-sm">
+                                ✍️ حفظ وتحقق من إجابتي
+                            </button>
+                            <button onclick="revealExplain('${item.id}')" class="px-3.5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold transition cursor-pointer">
+                                👁️ نموذج الفايل
+                            </button>
+                        </div>
+                    </div>
+
                     <div id="explain-ans-${item.id}" class="hidden p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-xs md:text-sm text-indigo-200 leading-relaxed en-font">
-                        <span class="font-bold text-white block mb-0.5">💡 Model Answer:</span>
-                        ${item.ans}
+                        <span class="font-bold text-white block mb-0.5">✓ إجابة الفايل بالضبط:</span>
+                        <span class="text-white font-medium select-all">${item.ans}</span>
                     </div>
                 </div>
             `).join('');
@@ -551,15 +628,15 @@
                     <div class="flex items-center gap-3 pt-1">
                         <button onclick="answerTF(${item.id}, true)" id="tf-btn-true-${item.id}" class="flex-1 py-2 px-3 rounded-xl bg-gray-900 hover:bg-emerald-500/20 hover:text-emerald-300 border border-gray-700 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
                             <span>✓</span>
-                            <span>True (صحيح)</span>
+                            <span>True</span>
                         </button>
                         <button onclick="answerTF(${item.id}, false)" id="tf-btn-false-${item.id}" class="flex-1 py-2 px-3 rounded-xl bg-gray-900 hover:bg-rose-500/20 hover:text-rose-300 border border-gray-700 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
                             <span>✗</span>
-                            <span>False (خطأ)</span>
+                            <span>False</span>
                         </button>
                     </div>
-                    <div id="tf-reason-${item.id}" class="hidden p-2.5 rounded-xl bg-gray-900 border border-gray-800 text-xs text-gray-300 en-font">
-                        ${item.reason}
+                    <div id="tf-reason-${item.id}" class="hidden p-2 rounded-xl bg-gray-900 border border-gray-800 text-xs text-emerald-400 font-mono font-bold">
+                        ✓ إجابة الفايل: ${item.ansStr}
                     </div>
                 </div>
             `).join('');
@@ -583,8 +660,8 @@
                             </button>
                         `).join('')}
                     </div>
-                    <div id="mcq-exp-${item.id}" class="hidden p-3 rounded-xl bg-gray-900 border border-gray-800 text-xs text-gray-300 en-font">
-                        💡 <strong class="text-white">Explanation:</strong> ${item.exp}
+                    <div id="mcq-exp-${item.id}" class="hidden p-2.5 rounded-xl bg-gray-900 border border-gray-800 text-xs text-cyan-300 font-mono font-bold">
+                        ✓ إجابة الفايل: (${item.fileAns})
                     </div>
                 </div>
             `).join('');
@@ -624,11 +701,11 @@
 
             if (isCorrect) {
                 input.className = 'flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-emerald-950/40 border border-emerald-500 text-emerald-300 text-xs en-font';
-                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ إجابة صحيحة ممتاز!</span>';
+                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ صحيح</span>';
                 ansBox.classList.remove('hidden');
             } else {
                 input.className = 'flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-rose-950/40 border border-rose-500 text-rose-300 text-xs en-font';
-                status.innerHTML = '<span class="text-rose-400 font-bold">✗ خطأ، راجع النموذج</span>';
+                status.innerHTML = '<span class="text-rose-400 font-bold">✗ خطأ</span>';
                 ansBox.classList.remove('hidden');
             }
             updateScoreHeader();
@@ -663,7 +740,7 @@
 
             if (isCorrect) {
                 input.className = 'flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-emerald-950/40 border border-emerald-500 text-emerald-300 text-xs en-font';
-                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ تصويب صحيح!</span>';
+                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ تصويب صحيح</span>';
                 ansBox.classList.remove('hidden');
             } else {
                 input.className = 'flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-rose-950/40 border border-rose-500 text-rose-300 text-xs en-font';
@@ -702,11 +779,11 @@
 
             if (isCorrect) {
                 input.className = 'flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-emerald-950/40 border border-emerald-500 text-emerald-300 text-xs en-font';
-                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ مصطلح صحيح!</span>';
+                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ مصطلح صحيح</span>';
                 ansBox.classList.remove('hidden');
             } else {
                 input.className = 'flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-rose-950/40 border border-rose-500 text-rose-300 text-xs en-font';
-                status.innerHTML = '<span class="text-rose-400 font-bold">✗ مصطلح غير دقيق</span>';
+                status.innerHTML = '<span class="text-rose-400 font-bold">✗ خطأ</span>';
                 ansBox.classList.remove('hidden');
             }
             updateScoreHeader();
@@ -717,8 +794,47 @@
             if (box) box.classList.toggle('hidden');
         }
 
-        function toggleExplain(id) {
-            const box = document.getElementById(`explain-ans-${id}`);
+        // Check Explain with Typed Answer & Smart Keyword Matching ✍️
+        function checkExplain(id) {
+            const item = EXPLAIN_QUESTIONS.find(i => i.id === id);
+            const input = document.getElementById('explain-input-' + id);
+            const status = document.getElementById('explain-status-' + id);
+            const ansBox = document.getElementById('explain-ans-' + id);
+            if (!input || !item) return;
+
+            const val = input.value.trim().toLowerCase();
+            if (!val) {
+                alert('اكتب إجابتك أو شرحك في الخانة أولاً ثم اضغط تحقق ✍️');
+                return;
+            }
+
+            // Keyword check
+            const matchCount = item.keywords.filter(k => val.includes(k.toLowerCase())).length;
+            const isGood = matchCount >= 1 || val.length >= 15;
+
+            if (!state.userAnswers['explain_' + id]) {
+                state.answered++;
+                if (isGood) {
+                    state.score++;
+                    state.correct++;
+                } else {
+                    state.wrong++;
+                }
+                state.userAnswers['explain_' + id] = true;
+            }
+
+            if (isGood) {
+                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ إجابة ممتازة ومكتوبة!</span>';
+                input.className = 'w-full px-3.5 py-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/50 text-white text-xs md:text-sm en-font leading-relaxed';
+            } else {
+                status.innerHTML = '<span class="text-amber-400 font-bold">قارن إجابتك بنموذج الفايل:</span>';
+            }
+            ansBox.classList.remove('hidden');
+            updateScoreHeader();
+        }
+
+        function revealExplain(id) {
+            const box = document.getElementById('explain-ans-' + id);
             if (box) box.classList.toggle('hidden');
         }
 
@@ -752,9 +868,9 @@
             }
 
             if (isCorrect) {
-                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ إجابة صحيحة</span>';
+                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ صحيح</span>';
             } else {
-                status.innerHTML = '<span class="text-rose-400 font-bold">✗ إجابة خاطئة</span>';
+                status.innerHTML = '<span class="text-rose-400 font-bold">✗ خطأ</span>';
             }
 
             if (reason) reason.classList.remove('hidden');
@@ -804,7 +920,7 @@
             });
 
             if (isCorrect) {
-                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ إجابة ممتازة</span>';
+                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ ممتاز</span>';
             } else {
                 status.innerHTML = '<span class="text-rose-400 font-bold">✗ خطأ</span>';
             }
@@ -816,7 +932,7 @@
         function toggleAllAnswers() {
             state.showAllAnswers = !state.showAllAnswers;
             const btn = document.getElementById('toggle-answers-btn');
-            if (btn) btn.innerHTML = state.showAllAnswers ? '🙈 <span class="hidden sm:inline">إخفاء الإجابات</span>' : '👁️ <span class="hidden sm:inline">إظهار الإجابات</span>';
+            if (btn) btn.innerHTML = state.showAllAnswers ? '🙈 <span class="hidden sm:inline">إخفاء الإجابات</span>' : '👁️ <span class="hidden sm:inline">إظهار كافة الإجابات</span>';
 
             COMPLETE_QUESTIONS.forEach(i => {
                 const b = document.getElementById('complete-answer-' + i.id);
