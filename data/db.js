@@ -65,9 +65,19 @@ const initDB = async () => {
         media_size INTEGER DEFAULT 0,
         is_disappearing INTEGER DEFAULT 0,
         expires_at DATETIME,
+        is_read INTEGER DEFAULT 0,
+        read_at DATETIME,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE CASCADE
     );`);
+
+    // Safe migrations for existing messages table
+    try {
+        await run(`ALTER TABLE messages ADD COLUMN is_read INTEGER DEFAULT 0;`);
+    } catch (e) {}
+    try {
+        await run(`ALTER TABLE messages ADD COLUMN read_at DATETIME;`);
+    } catch (e) {}
 
     // Message Reactions
     await run(`CREATE TABLE IF NOT EXISTS message_reactions (

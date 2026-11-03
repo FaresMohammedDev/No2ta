@@ -94,7 +94,102 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 3. Setup UI Listeners
     setupEventListeners();
+
+    // 4. Desktop Notifications & Read Receipts
+    initDesktopNotifications();
 });
+
+// ----------------------------------------------------
+// Notifications, Tab Alert & Seen (سين) System
+// ----------------------------------------------------
+let titleAlertInterval = null;
+const originalDocTitle = 'نؤطة (No2ta) 💬⚡ - شبكة الفصل الاجتماعية';
+
+function triggerTabTitleAlert(senderName) {
+    if (document.hasFocus()) return;
+    if (titleAlertInterval) clearInterval(titleAlertInterval);
+
+    let isAlert = true;
+    titleAlertInterval = setInterval(() => {
+        document.title = isAlert ? `💬 (1) رسالة من ${senderName} | نؤطة` : originalDocTitle;
+        isAlert = !isAlert;
+    }, 1200);
+}
+
+function stopTabTitleAlert() {
+    if (titleAlertInterval) {
+        clearInterval(titleAlertInterval);
+        titleAlertInterval = null;
+        document.title = originalDocTitle;
+    }
+}
+
+window.addEventListener('focus', () => {
+    stopTabTitleAlert();
+    // When returning to window, mark active direct chat as read
+    if (STATE.activeChat && STATE.activeChat.type === 'direct' && STATE.activeChat.recipient && STATE.user) {
+        STATE.socket?.emit('mark_messages_read', {
+            senderId: STATE.activeChat.recipient.id,
+            recipientId: STATE.user.id
+        });
+    }
+});
+
+function initDesktopNotifications() {
+    if ('Notification' in window && Notification.permission === 'default') {
+        const askPermission = () => {
+            Notification.requestPermission();
+            window.removeEventListener('click', askPermission);
+            window.removeEventListener('keydown', askPermission);
+        };
+        window.addEventListener('click', askPermission, { once: true });
+        window.addEventListener('keydown', askPermission, { once: true });
+    }
+}
+
+function showDesktopNotification(senderName, text, chatType, targetId) {
+    try {
+        if (!('Notification' in window)) return;
+        if (Notification.permission !== 'granted') return;
+        if (document.hasFocus()) return;
+
+        const notif = new Notification(`💬 ${senderName} (نؤطة ⚡)`, {
+            body: text,
+            icon: '/favicon.ico',
+            tag: `no2ta-chat-${targetId || 'general'}`
+        });
+
+        notif.onclick = () => {
+            window.focus();
+            if (chatType === 'direct' && targetId) {
+                selectDirectChat(targetId);
+            } else if (chatType === 'group' && targetId) {
+                selectGroupChat(targetId);
+            } else {
+                selectGeneralChat();
+            }
+            notif.close();
+        };
+    } catch (e) {
+        console.warn('Desktop notification error:', e);
+    }
+}
+
+function formatChatTime(isoString) {
+    if (!isoString) return '';
+    try {
+        const d = new Date(isoString);
+        if (isNaN(d.getTime())) return '';
+        const now = new Date();
+        const isToday = d.toDateString() === now.toDateString();
+        if (isToday) {
+            return d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+        }
+        return d.toLocaleDateString('ar-EG', { month: 'numeric', day: 'numeric' });
+    } catch (e) {
+        return '';
+    }
+}
 
 // ----------------------------------------------------
 // 1. Network & Auth
@@ -364,6 +459,7 @@ function initSocket() {
 
     STATE.socket.on('new_message', (data) => {
         const { message, streakInfo } = data;
+        const isMe = STATE.user && message.sender_id === STATE.user.id;
         const isCurrentChat = (message.chat_type === 'general' && STATE.activeChat.type === 'general') ||
             (message.chat_type === 'direct' && STATE.activeChat.type === 'direct' &&
              (message.sender_id === STATE.activeChat.recipient?.id || message.recipient_id === STATE.activeChat.recipient?.id)) ||
@@ -376,13 +472,69 @@ function initSocket() {
             scrollToBottom();
         }
 
-        if (message.sender_id === STATE.user.id) {
+        // Sound Notification
+        if (isMe) {
             window.soundEngine.playSend();
         } else {
             window.soundEngine.playReceive();
         }
 
-        if (streakInfo && (message.sender_id === STATE.user.id || message.recipient_id === STATE.user.id)) {
+        // 1. Dynamic Reordering & Unread Indicator ("اخر شات اكلمه يظهر فوق" + "تفضل جنبها علامة")
+        if (message.chat_type === 'direct') {
+            const partnerId = isMe ? message.recipient_id : message.sender_id;
+            const partnerIdx = STATE.users.findIndex(u => u.id === partnerId);
+            if (partnerIdx !== -1) {
+                const [partner] = STATE.users.splice(partnerIdx, 1);
+                partner.last_message_at = message.created_at;
+                partner.last_message_text = message.content || (message.media_type ? 'ملف مرفق 📎' : '');
+
+                if (!isMe) {
+                    if (!isCurrentChat || !document.hasFocus()) {
+                        partner.unread_count = (Number(partner.unread_count) || 0) + 1;
+                    } else {
+                        STATE.socket.emit('mark_messages_read', { senderId: partner.id, recipientId: STATE.user.id });
+                    }
+                }
+
+                // Place at index 0 (top of sidebar!)
+                STATE.users.unshift(partner);
+                renderUsersList();
+            } else {
+                loadUsers();
+            }
+        } else if (message.chat_type === 'group' && message.recipient_id) {
+            const groupIdx = STATE.groups.findIndex(g => g.id === message.recipient_id);
+            if (groupIdx !== -1) {
+                const [grp] = STATE.groups.splice(groupIdx, 1);
+                grp.last_message_at = message.created_at;
+                STATE.groups.unshift(grp);
+                if (typeof renderGroupsList === 'function') renderGroupsList();
+            }
+        }
+
+        // 2. Incoming Notification Delivery ("تجيلي نوتفيكيشن")
+        if (!isMe) {
+            const senderName = message.sender_name || 'زميل في الفصل';
+            const previewText = message.content 
+                ? (message.content.length > 40 ? message.content.substring(0, 37) + '...' : message.content)
+                : (message.media_type ? 'أرسل مرفقاً 📎' : 'رسالة جديدة');
+
+            // Floating in-app pill notification (if chat is not active or window blurred)
+            if (!isCurrentChat || !document.hasFocus()) {
+                const chatTag = message.chat_type === 'direct' ? 'خاص' : (message.chat_type === 'group' ? 'جروب' : 'عام');
+                showNotification(`💬 [${chatTag}] ${senderName}: ${previewText}`, 4000);
+            }
+
+            // Native Desktop Web Notification
+            const targetId = message.chat_type === 'direct' ? message.sender_id : (message.chat_type === 'group' ? message.recipient_id : null);
+            showDesktopNotification(senderName, previewText, message.chat_type, targetId);
+
+            // Tab Title Alert Flash
+            triggerTabTitleAlert(senderName);
+        }
+
+        // 3. Streak Engine Update
+        if (streakInfo && (message.sender_id === STATE.user?.id || message.recipient_id === STATE.user?.id)) {
             const otherId = message.sender_id === STATE.user.id ? message.recipient_id : message.sender_id;
             let s = STATE.streaks.find(item => item.other_user_id === otherId);
             if (s) {
@@ -403,7 +555,23 @@ function initSocket() {
             if (streakInfo.status === 'boosted') {
                 showNotification(`🔥 استريك مشتعل! وصلتوا لـ ${streakInfo.streak_count} استريك معاً ⚡`);
             }
-            loadUsers();
+        }
+    });
+
+    // Handle messages marked as read by recipient (double cyan checkmarks ✓✓)
+    STATE.socket.on('messages_marked_read', (data) => {
+        const { readerId } = data;
+        if (STATE.activeChat && STATE.activeChat.type === 'direct' && STATE.activeChat.recipient?.id === readerId) {
+            STATE.messages.forEach(m => {
+                if (m.sender_id === STATE.user?.id) {
+                    m.is_read = 1;
+                }
+            });
+            document.querySelectorAll('.msg-read-check').forEach(el => {
+                el.textContent = '✓✓';
+                el.className = 'msg-read-check text-cyan-400 font-bold';
+                el.title = 'تمت القراءة (سين) ✓✓';
+            });
         }
     });
 
@@ -850,7 +1018,8 @@ function promptStealthUnlock() {
 // ----------------------------------------------------
 async function loadUsers() {
     try {
-        const res = await fetch('/api/users');
+        const currentUserId = STATE.user ? STATE.user.id : '';
+        const res = await fetch(`/api/users?currentUserId=${encodeURIComponent(currentUserId)}`);
         const users = await res.json();
         STATE.users = users.filter(u => u.id !== STATE.user?.id);
 
@@ -881,31 +1050,64 @@ function renderUsersList() {
         const streakCount = streak ? streak.streak_count : 0;
         const isFrozen = streak ? streak.is_frozen : STATE.networkInfo.isWeekend;
         const streakBadge = streakCount > 0 
-            ? `<span class="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${isFrozen ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/30' : 'bg-orange-500/10 text-orange-400 border border-orange-500/30'}" title="${isFrozen ? 'الاستريك مجمد لعطلة نهاية الأسبوع ❄️' : 'استريك نشط اليوم 🔥'}">
+            ? `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isFrozen ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/30' : 'bg-orange-500/10 text-orange-400 border border-orange-500/30'}" title="${isFrozen ? 'الاستريك مجمد لعطلة نهاية الأسبوع ❄️' : 'استريك نشط اليوم 🔥'}">
                 ${isFrozen ? '❄️🔥' : '🔥'} ${streakCount}
                </span>`
             : '';
 
+        const unreadCount = Number(u.unread_count || 0);
+        const hasUnread = unreadCount > 0;
         const isSelected = STATE.activeChat.type === 'direct' && STATE.activeChat.recipient?.id === u.id;
 
+        // Visual Unread Badge (سين)
+        const unreadBadge = hasUnread 
+            ? `<span class="unread-pill inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-black bg-cyan-400 text-slate-950 shadow-md shadow-cyan-400/50 animate-pulse" title="${unreadCount} رسائل غير مقروءة">
+                ${unreadCount > 99 ? '99+' : unreadCount}
+               </span>`
+            : '';
+
+        const timeStr = formatChatTime(u.last_message_at);
+        let previewHTML = '';
+        if (u.last_message_text) {
+            previewHTML = hasUnread 
+                ? `<p class="text-[11px] text-cyan-300 font-bold truncate max-w-[130px] flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0"></span>${escapeHtml(u.last_message_text)}</p>`
+                : `<p class="text-[11px] text-slate-400 truncate max-w-[130px]">${escapeHtml(u.last_message_text)}</p>`;
+        } else {
+            previewHTML = `<p class="text-[11px] text-slate-500 truncate max-w-[130px]">${escapeHtml(u.bio || 'طالب عبقري')}</p>`;
+        }
+
+        let cardBgClass = 'hover:bg-slate-800/60 border border-transparent';
+        if (isSelected) {
+            cardBgClass = 'bg-cyan-500/15 border border-cyan-500/40 shadow-sm';
+        } else if (hasUnread) {
+            cardBgClass = 'bg-cyan-950/30 border border-cyan-500/50 hover:bg-cyan-900/30 shadow-md shadow-cyan-950/50';
+        }
+
         return `
-            <div onclick="selectDirectChat('${u.id}')" class="flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all ${isSelected ? 'bg-cyan-500/15 border border-cyan-500/30' : 'hover:bg-slate-800/60 border border-transparent'}">
-                <div class="flex items-center gap-3">
+            <div onclick="selectDirectChat('${u.id}')" class="flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all ${cardBgClass}">
+                <div class="flex items-center gap-3 min-w-0 flex-1">
                     <div class="relative shrink-0">
-                        <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xl overflow-hidden">
+                        <div class="w-10 h-10 rounded-full bg-slate-800 border ${hasUnread ? 'border-cyan-400 ring-2 ring-cyan-400/30' : 'border-slate-700'} flex items-center justify-center text-xl overflow-hidden transition-all">
                             ${renderAvatarHTML(u.avatar)}
                         </div>
                         <span class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 ${isOnline ? 'bg-emerald-500 live-glow' : 'bg-slate-600'}"></span>
+                        ${hasUnread ? `<span class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-cyan-400 border-2 border-slate-900 animate-ping"></span><span class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-cyan-400 border-2 border-slate-900"></span>` : ''}
                     </div>
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-sm font-bold text-white">${escapeHtml(u.nickname)}</span>
-                            ${u.role === 'admin' ? '<span class="text-[10px] text-amber-400 font-black">👑</span>' : ''}
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center justify-between gap-1 mb-0.5">
+                            <div class="flex items-center gap-1.5 truncate">
+                                <span class="text-sm font-bold ${hasUnread ? 'text-cyan-200' : 'text-white'} truncate">${escapeHtml(u.nickname)}</span>
+                                ${u.role === 'admin' ? '<span class="text-[10px] text-amber-400 font-black shrink-0">👑</span>' : ''}
+                            </div>
+                            ${timeStr ? `<span class="text-[10px] ${hasUnread ? 'text-cyan-400 font-bold' : 'text-slate-500'} shrink-0">${timeStr}</span>` : ''}
                         </div>
-                        <p class="text-[11px] text-slate-400 truncate max-w-[140px]">${escapeHtml(u.bio || 'طالب عبقري')}</p>
+                        ${previewHTML}
                     </div>
                 </div>
-                <div>${streakBadge}</div>
+                <div class="shrink-0 flex items-center gap-1.5 mr-2">
+                    ${streakBadge}
+                    ${unreadBadge}
+                </div>
             </div>
         `;
     }).join('');
@@ -1002,6 +1204,7 @@ function updateDirectStreakBadge(otherUserId) {
 }
 
 function selectGeneralChat() {
+    stopTabTitleAlert();
     STATE.activeChat = { type: 'general', recipient: null, group: null };
     document.getElementById('currentChatTitle').textContent = '💬 شات الفصل العام (General)';
     document.getElementById('currentChatSubtitle').textContent = 'متاح لجميع الزملاء في الفصل';
@@ -1024,6 +1227,16 @@ function selectGeneralChat() {
 function selectDirectChat(userId) {
     const target = STATE.users.find(u => u.id === userId);
     if (!target) return;
+
+    // 1. Clear unread mark immediately ("سين")
+    target.unread_count = 0;
+    renderUsersList();
+
+    // 2. Notify server that messages from this user are now read
+    if (STATE.socket && STATE.user) {
+        STATE.socket.emit('mark_messages_read', { senderId: target.id, recipientId: STATE.user.id });
+    }
+    stopTabTitleAlert();
 
     STATE.activeChat = { type: 'direct', recipient: target, group: null };
     document.getElementById('currentChatTitle').textContent = target.nickname;
@@ -1053,6 +1266,7 @@ function selectDirectChat(userId) {
 }
 
 function selectGroupChat(groupId) {
+    stopTabTitleAlert();
     const target = STATE.groups.find(g => g.id === groupId);
     if (!target) return;
 
@@ -1782,6 +1996,10 @@ function formatMessageHTML(m) {
     const isMe = STATE.user && m.sender_id === STATE.user.id;
     const canDelete = isMe || (STATE.user && STATE.user.role === 'admin') || (STATE.networkInfo && STATE.networkInfo.isHostAdmin);
     const time = new Date(m.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+    const isDirectChat = m.chat_type === 'direct' || STATE.activeChat?.type === 'direct';
+    const readCheckHTML = (isMe && isDirectChat)
+        ? `<span class="msg-read-check text-[11px] font-bold ${m.is_read ? 'text-cyan-400' : 'text-slate-400'}" title="${m.is_read ? 'تمت القراءة (سين) ✓✓' : 'تم الإرسال ✓'}">${m.is_read ? '✓✓' : '✓'}</span>`
+        : '';
 
     let mediaHTML = '';
     if (m.media_url) {
@@ -1858,7 +2076,7 @@ function formatMessageHTML(m) {
                     <span class="text-[11px] font-bold text-slate-300">${isMe ? 'أنت' : escapeHtml(m.sender_name)}</span>
                     ${m.sender_role === 'admin' ? '<span class="text-[9px] px-1 rounded bg-amber-500/20 text-amber-400 font-black">👑 الأدمن</span>' : ''}
                     ${disappearingBadge}
-                    <span class="text-[10px] text-slate-500 en-text">${time}</span>
+                    <span class="text-[10px] text-slate-500 en-text inline-flex items-center gap-1">${time} ${readCheckHTML}</span>
                 </div>
                 
                 <div class="relative px-3.5 py-2.5 text-sm ${isMe ? 'chat-bubble-outgoing' : 'chat-bubble-incoming'}">

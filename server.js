@@ -445,8 +445,71 @@ app.post('/api/auth/login', async (req, res) => {
 // 3. Get All Users
 app.get('/api/users', async (req, res) => {
     try {
-        const users = await all(`SELECT id, nickname, avatar, bio, role, is_online, last_seen, ip_address, mac_address FROM users ORDER BY is_online DESC, nickname ASC`);
+        const currentUserId = req.query.currentUserId;
+        let users;
+        if (currentUserId) {
+            users = await all(
+                `SELECT u.id, u.nickname, u.avatar, u.bio, u.role, u.is_online, u.last_seen, u.ip_address, u.mac_address,
+                    (SELECT MAX(created_at) FROM messages 
+                     WHERE chat_type = 'direct' AND 
+                           ((sender_id = u.id AND recipient_id = ?) OR (sender_id = ? AND recipient_id = u.id))
+                    ) as last_message_at,
+                    (SELECT content FROM messages 
+                     WHERE chat_type = 'direct' AND 
+                           ((sender_id = u.id AND recipient_id = ?) OR (sender_id = ? AND recipient_id = u.id))
+                     ORDER BY created_at DESC LIMIT 1
+                    ) as last_message_text,
+                    (SELECT COUNT(*) FROM messages 
+                     WHERE chat_type = 'direct' AND sender_id = u.id AND recipient_id = ? AND is_read = 0
+                    ) as unread_count
+                 FROM users u
+                 ORDER BY 
+                    (CASE WHEN (
+                        SELECT MAX(created_at) FROM messages 
+                        WHERE chat_type = 'direct' AND 
+                              ((sender_id = u.id AND recipient_id = ?) OR (sender_id = ? AND recipient_id = u.id))
+                    ) IS NOT NULL THEN 0 ELSE 1 END),
+                    (SELECT MAX(created_at) FROM messages 
+                     WHERE chat_type = 'direct' AND 
+                           ((sender_id = u.id AND recipient_id = ?) OR (sender_id = ? AND recipient_id = u.id))
+                    ) DESC,
+                    u.is_online DESC,
+                    u.nickname ASC`,
+                [currentUserId, currentUserId, currentUserId, currentUserId, currentUserId, currentUserId, currentUserId, currentUserId, currentUserId]
+            );
+        } else {
+            users = await all(
+                `SELECT id, nickname, avatar, bio, role, is_online, last_seen, ip_address, mac_address 
+                 FROM users ORDER BY is_online DESC, nickname ASC`
+            );
+        }
         res.json(users);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Mark direct chat messages as read API
+app.post('/api/messages/mark-read', async (req, res) => {
+    try {
+        const { senderId, recipientId } = req.body;
+        if (!senderId || !recipientId) return res.status(400).json({ error: 'senderId and recipientId required' });
+
+        const result = await run(
+            `UPDATE messages SET is_read = 1, read_at = CURRENT_TIMESTAMP 
+             WHERE chat_type = 'direct' AND sender_id = ? AND recipient_id = ? AND is_read = 0`,
+            [senderId, recipientId]
+        );
+
+        const senderSockets = userSockets.get(senderId);
+        if (senderSockets && senderSockets.size > 0) {
+            senderSockets.forEach(s => io.to(s).emit('messages_marked_read', {
+                readerId: recipientId,
+                readAt: new Date().toISOString()
+            }));
+        }
+
+        res.json({ success: true, updated: result.changes });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -499,6 +562,26 @@ app.get('/api/messages', async (req, res) => {
                  LIMIT 150`,
                 [user_id, recipient_id, recipient_id, user_id]
             );
+
+            // Auto-mark incoming direct messages as read
+            try {
+                const markResult = await run(
+                    `UPDATE messages SET is_read = 1, read_at = CURRENT_TIMESTAMP 
+                     WHERE chat_type = 'direct' AND sender_id = ? AND recipient_id = ? AND is_read = 0`,
+                    [recipient_id, user_id]
+                );
+                if (markResult.changes > 0) {
+                    const senderSockets = userSockets.get(recipient_id);
+                    if (senderSockets && senderSockets.size > 0) {
+                        senderSockets.forEach(s => io.to(s).emit('messages_marked_read', {
+                            readerId: user_id,
+                            readAt: new Date().toISOString()
+                        }));
+                    }
+                }
+            } catch (markErr) {
+                console.error('Error auto-marking messages as read:', markErr);
+            }
         } else if (chat_type === 'group' && (group_id || recipient_id)) {
             const targetGroupId = group_id || recipient_id;
             
@@ -2299,6 +2382,29 @@ socket.on('admin_trigger_salawat', (data = {}) => {
             }
         } catch (err) {
             console.error('Error sending message:', err);
+        }
+    });
+
+    // Mark Messages As Read (Seen / سين)
+    socket.on('mark_messages_read', async ({ senderId, recipientId }) => {
+        try {
+            if (!senderId || !recipientId) return;
+            const res = await run(
+                `UPDATE messages SET is_read = 1, read_at = CURRENT_TIMESTAMP 
+                 WHERE chat_type = 'direct' AND sender_id = ? AND recipient_id = ? AND is_read = 0`,
+                [senderId, recipientId]
+            );
+            if (res.changes > 0) {
+                const senderSockets = userSockets.get(senderId);
+                if (senderSockets && senderSockets.size > 0) {
+                    senderSockets.forEach(s => io.to(s).emit('messages_marked_read', {
+                        readerId: recipientId,
+                        readAt: new Date().toISOString()
+                    }));
+                }
+            }
+        } catch (err) {
+            console.error('Error in mark_messages_read socket handler:', err);
         }
     });
 
