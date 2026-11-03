@@ -337,7 +337,6 @@ app.get('/api/quran/radio-info', (req, res) => {
             'https://stream.zeno.fm/8t42gV/qrc',
             'http://66.45.232.131:9994/;stream.mp3'
         ],
-        fallbackAudio: '/audio/quran_cairo_fallback.mp3',
         officialPortal: 'https://www.holyquranradio.com',
         officialApi: 'https://api.misrquran.gov.eg',
         mp3QuranApi: 'https://mp3quran.net/api/v3/radios?language=ar',

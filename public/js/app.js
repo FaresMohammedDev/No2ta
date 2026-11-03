@@ -3339,15 +3339,23 @@ function switchMusicModalTab(tab) {
 // 📻 CAIRO HOLY QURAN RADIO BROADCAST SYSTEM
 // ====================================================
 let currentQuranFallbackIdx = 0;
+// STRICTLY REAL LIVE STREAMS ONLY - NO FAKE / CANNED LOCAL RECORDINGS!
 const QURAN_FALLBACK_URLS = [
     'https://stream.radiojar.com/8s5u5tpdtwzuv',
     'http://n12.radiojar.com/8s5u5tpdtwzuv',
     'http://n0e.radiojar.com/8s5u5tpdtwzuv',
-    'https://stream.zeno.fm/8t42gV/qrc',
-    '/audio/quran_cairo_fallback.mp3'
+    'https://stream.zeno.fm/8t42gV/qrc'
 ];
 
-function toggleBroadcastQuranRadio() {
+function openHolyQuranRadioModal() {
+    showModal('holyQuranRadioModal');
+}
+
+function openHolyQuranOfficialSite() {
+    window.open('https://www.holyquranradio.com/', '_blank');
+}
+
+function toggleBroadcastQuranRadioDirect() {
     const isPlayingCairo = STATE.radio && STATE.radio.activeTrack && STATE.radio.activeTrack.id === 'quran_cairo_live' && STATE.radio.isPlaying;
     const audio = getRadioAudioElement();
 
@@ -3360,7 +3368,6 @@ function toggleBroadcastQuranRadio() {
         }
         showNotification('⏹️ تم إيقاف بث إذاعة القرآن الكريم على جميع الأجهزة');
     } else {
-        // Pre-activate audio on user gesture
         if (audio) {
             audio.muted = false;
             audio.volume = 1.0;
@@ -3375,6 +3382,19 @@ function toggleBroadcastQuranRadio() {
     }
 }
 
+function stopBroadcastQuranRadio() {
+    const audio = getRadioAudioElement();
+    if (audio) audio.pause();
+    if (STATE.socket) {
+        STATE.socket.emit('broadcast_quran_cairo', { action: 'stop' });
+    }
+    showNotification('⏹️ تم إيقاف البث لجميع الأجهزة');
+}
+
+function toggleBroadcastQuranRadio() {
+    openHolyQuranRadioModal();
+}
+
 function handleRadioAudioError(e) {
     const audio = STATE.radio.audioEl;
     if (!audio || !STATE.radio.activeTrack) return;
@@ -3383,12 +3403,14 @@ function handleRadioAudioError(e) {
         currentQuranFallbackIdx++;
         if (currentQuranFallbackIdx < QURAN_FALLBACK_URLS.length) {
             const nextUrl = QURAN_FALLBACK_URLS[currentQuranFallbackIdx];
-            console.warn(`[Quran Radio] Primary stream failed, trying mirror (${currentQuranFallbackIdx}): ${nextUrl}`);
+            console.warn(`[Quran Radio] Trying mirror (${currentQuranFallbackIdx + 1}/${QURAN_FALLBACK_URLS.length}): ${nextUrl}`);
             audio.src = nextUrl;
             audio.load();
             audio.play().catch(err => console.warn('Fallback play attempt error:', err));
         } else {
-            console.error('[Quran Radio] All audio mirrors and fallbacks exhausted.');
+            console.warn('[Quran Radio] Live stream blocked by local firewall or unavailable.');
+            showNotification('⚠️ تعذر تشغيل الصوت المباشر تلقائياً؛ يمكنك فتح موقع holyquranradio.com مباشرة ↗');
+            openHolyQuranRadioModal();
         }
     }
 }
@@ -3862,6 +3884,10 @@ function handleRadioSyncState(state) {
         } else {
             quranExtLink.classList.add('hidden');
         }
+    }
+    const modalHubBtn = document.getElementById('modalHubBroadcastQuranBtnText');
+    if (modalHubBtn) {
+        modalHubBtn.textContent = isQuranPlaying ? '⏹️ إيقاف البث لجميع الأجهزة' : '📡 بث حي لجميع الأجهزة';
     }
 
     if (state && state.track && state.track.id === 'quran_cairo_live') {
