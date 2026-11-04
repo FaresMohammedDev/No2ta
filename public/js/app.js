@@ -4782,25 +4782,33 @@ function renderAdminDashboard(data) {
             </td>
             <td class="py-2.5 px-3">
                 ${d.role !== 'admin' ? `
-                    <button onclick="adminKickUser('${d.userId}')" class="px-2 py-1 rounded bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white transition-all text-[11px] font-bold">
-                        طرد ⛔
+                    <button onclick="adminKickUser('${d.userId}')" class="px-2 py-1 rounded bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white transition-all text-[11px] font-bold flex items-center gap-1">
+                        <i data-lucide="user-x" class="w-3 h-3"></i>
+                        <span>طرد</span>
                     </button>
                 ` : '<span class="text-slate-600 text-micro">-</span>'}
             </td>
         </tr>
     `).join('');
+    renderIcons();
 
+    setAdminFocusBtnState(data.isChatFocusLocked);
+}
+
+function setAdminFocusBtnState(isLocked) {
     const focusBtn = document.getElementById('adminToggleFocusBtn');
-    if (focusBtn) {
-        focusBtn.textContent = data.isChatFocusLocked ? '🔓 إلغاء قفل الشات (وضع الشرح)' : '🔒 تفعيل وضع التركيز (قفل الشات)';
-        focusBtn.className = data.isChatFocusLocked 
-            ? 'w-full py-2.5 rounded-xl font-bold text-xs bg-emerald-500 text-slate-950 transition-all'
-            : 'w-full py-2.5 rounded-xl font-bold text-xs bg-amber-500 text-slate-950 transition-all';
-    }
+    if (!focusBtn) return;
+    focusBtn.innerHTML = isLocked
+        ? '<i data-lucide="lock-open" class="w-[14px] h-[14px]"></i><span>إلغاء قفل الشات (وضع الشرح)</span>'
+        : '<i data-lucide="lock" class="w-[14px] h-[14px]"></i><span>تفعيل وضع التركيز (قفل الشات)</span>';
+    focusBtn.className = isLocked
+        ? 'w-full py-2.5 rounded-xl font-bold text-xs bg-emerald-500 text-slate-950 transition-all flex items-center justify-center gap-1.5'
+        : 'w-full py-2.5 rounded-xl font-bold text-xs bg-amber-500 text-slate-950 transition-all flex items-center justify-center gap-1.5';
+    renderIcons();
 }
 
 async function adminBroadcastAlert() {
-    const msg = prompt('📢 اكتب نص الإذاعة العامة لجميع أجهزة الفصل:');
+    const msg = prompt('اكتب نص الإذاعة العامة لجميع أجهزة الفصل:');
     if (!msg) return;
 
     await fetch('/api/admin/action', {
@@ -4822,7 +4830,7 @@ async function adminStealthRelease() {
             payload: {}
         })
     });
-    alert('تم إرسال أمر فك التمويه لجميع الشاشات بنجاح! 🚀');
+    alert('تم إرسال أمر فك التمويه لجميع الشاشات بنجاح!');
 }
 
 async function adminToggleFocusMode() {
@@ -4835,10 +4843,7 @@ async function adminToggleFocusMode() {
         })
     });
     const data = await res.json();
-    const focusBtn = document.getElementById('adminToggleFocusBtn');
-    if (focusBtn) {
-        focusBtn.textContent = data.isChatFocusLocked ? '🔓 إلغاء قفل الشات (وضع الشرح)' : '🔒 تفعيل وضع التركيز (قفل الشات)';
-    }
+    setAdminFocusBtnState(data.isChatFocusLocked);
 }
 
 async function adminKickUser(userId) {
@@ -5284,14 +5289,16 @@ function renderNetSupportGrid(devices) {
     if (!devices || devices.length === 0) {
         container.innerHTML = `
             <div class="col-span-full py-16 flex flex-col items-center justify-center text-center text-slate-500">
-                <span class="text-5xl mb-3">🖥️</span>
+                <i data-lucide="monitor" class="w-12 h-12 mb-3"></i>
                 <p class="text-sm font-bold text-slate-300 mb-1">لا توجد أجهزة متصلة بالمعمل حالياً</p>
                 <p class="text-xs text-slate-500 max-w-sm mb-4">عندما يفتح الطلاب نؤطة أو يتم تشغيل lab-agent.bat ستظهر شاشاتهم هنا فوراً وبشكل حي!</p>
-                <button onclick="openNetSupportAgentGuideModal()" class="px-4 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold transition">
-                    📖 طريقة تشغيل عميل المعمل (lab-agent.bat)
+                <button onclick="openNetSupportAgentGuideModal()" class="px-4 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold transition flex items-center gap-1.5">
+                    <i data-lucide="book-open" class="w-[14px] h-[14px]"></i>
+                    <span>طريقة تشغيل عميل المعمل (lab-agent.bat)</span>
                 </button>
             </div>
         `;
+        renderIcons();
         return;
     }
 
@@ -5341,8 +5348,8 @@ function renderNetSupportGrid(devices) {
                         </div>
                     </div>
                     <div class="flex items-center gap-1">
-                        ${isLocked ? '<span class="text-micro px-1.5 py-0.5 rounded-full bg-red-500/30 text-red-300 border border-red-500/40 font-bold animate-pulse">🔒 مقفول</span>' : ''}
-                        ${isStealth ? '<span class="text-micro px-1.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 font-bold">📚 تمويه</span>' : ''}
+                        ${isLocked ? '<span class="text-micro px-1.5 py-0.5 rounded-full bg-red-500/30 text-red-300 border border-red-500/40 font-bold animate-pulse flex items-center gap-0.5"><i data-lucide="lock" class="w-3 h-3"></i> مقفول</span>' : ''}
+                        ${isStealth ? '<span class="text-micro px-1.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 font-bold flex items-center gap-0.5"><i data-lucide="book-open" class="w-3 h-3"></i> تمويه</span>' : ''}
                     </div>
                 </div>
 
@@ -5351,7 +5358,7 @@ function renderNetSupportGrid(devices) {
                     <img id="device_frame_${dev.deviceId}" src="${dev.lastFrame || ''}" class="w-full h-full object-contain ${hasFrame ? '' : 'hidden'}" alt="${safeNick} Screen" />
                     <div id="device_overlay_${dev.deviceId}" class="absolute inset-0 bg-cyan-950/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center ${hasFrame ? '' : 'hidden'}">
                         <span class="px-2.5 py-1 rounded-xl bg-cyan-500 text-slate-950 text-xs font-black shadow-lg flex items-center gap-1 scale-95 group-hover:scale-100 transition">
-                            👁️ تكبير Show
+                            <i data-lucide="maximize-2" class="w-3 h-3"></i> تكبير Show
                         </span>
                     </div>
 
@@ -5359,7 +5366,7 @@ function renderNetSupportGrid(devices) {
                     <div id="device_placeholder_${dev.deviceId}" class="flex flex-col items-center justify-center gap-2 p-3 text-center ${hasFrame ? 'hidden' : ''}">
                         <div class="relative flex items-center justify-center w-10 h-10">
                             <span class="absolute w-8 h-8 rounded-full bg-cyan-500/20 animate-ping"></span>
-                            <span class="relative text-2xl">🖥️</span>
+                            <i data-lucide="monitor" class="relative w-5 h-5 text-cyan-300"></i>
                         </div>
                         <div class="flex items-center gap-1 text-[11px] text-cyan-300 font-medium">
                             <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
@@ -5378,25 +5385,26 @@ function renderNetSupportGrid(devices) {
                 <!-- Control Buttons -->
                 <div class="grid grid-cols-4 gap-1 pt-1 border-t border-white/5">
                     <button onclick="openNetSupportShowModal('${dev.deviceId}')" class="py-1 px-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold transition flex items-center justify-center gap-1" title="عرض ملء الشاشة كـ Show">
-                        <span>👁️</span>
+                        <i data-lucide="eye" class="w-3 h-3"></i>
                         <span class="hidden sm:inline">Show</span>
                     </button>
                     <button onclick="adminNetSupportDeviceControl('${isLocked ? 'unlock_screen' : 'lock_screen'}', '${dev.socketId}', '${dev.ip}')" class="py-1 px-1.5 rounded-lg ${isLocked ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40' : 'bg-red-500/15 hover:bg-red-500/30 text-red-300 border border-red-500/30'} text-[11px] font-bold transition flex items-center justify-center gap-1" title="${isLocked ? 'إلغاء القفل' : 'قفل شاشة الطالب'}">
-                        <span>${isLocked ? '🔓' : '🔒'}</span>
+                        <i data-lucide="${isLocked ? 'lock-open' : 'lock'}" class="w-3 h-3"></i>
                         <span class="hidden sm:inline">${isLocked ? 'فتح' : 'قفل'}</span>
                     </button>
                     <button onclick="promptMessageToNetSupportDevice('${dev.socketId}', '${dev.ip}', '${safeNick}')" class="py-1 px-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold transition flex items-center justify-center gap-1" title="إرسال رسالة تنبيه منبثقة للطالب">
-                        <span>💬</span>
+                        <i data-lucide="message-circle" class="w-3 h-3"></i>
                         <span class="hidden sm:inline">تنبيه</span>
                     </button>
                     <button onclick="adminNetSupportDeviceControl('play_alarm', '${dev.socketId}', '${dev.ip}')" class="py-1 px-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-bold transition flex items-center justify-center gap-1" title="رنين جرس إنذار على جهاز الطالب">
-                        <span>🔔</span>
+                        <i data-lucide="bell-ring" class="w-3 h-3"></i>
                         <span class="hidden sm:inline">إنذار</span>
                     </button>
                 </div>
             </div>
         `;
     }).join('');
+    renderIcons();
 }
 
 function promptMessageToNetSupportDevice(socketId, ip, nickname) {
@@ -5425,15 +5433,7 @@ function openNetSupportShowModal(deviceId) {
     if (titleEl) titleEl.textContent = `شاشة: ${dev.nickname || 'جهاز طالب'}`;
     if (subtitleEl) subtitleEl.textContent = `IP: ${dev.ip || ''} | MAC: ${dev.mac || 'N/A'} | التطبيق: ${dev.currentApp || 'Desktop'}`;
 
-    if (lockBtn && lockLabel) {
-        if (dev.isLocked) {
-            lockBtn.className = 'px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer';
-            lockLabel.textContent = 'إلغاء القفل 🔓';
-        } else {
-            lockBtn.className = 'px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer';
-            lockLabel.textContent = 'قفل الشاشة 🔒';
-        }
-    }
+    if (lockBtn && lockLabel) setNetSupportShowLockState(dev.isLocked);
 
     if (dev.lastFrame) {
         if (imgEl) {
@@ -5449,6 +5449,23 @@ function openNetSupportShowModal(deviceId) {
     if (modal) modal.classList.remove('hidden');
 }
 
+function setNetSupportShowLockState(isLocked) {
+    const lockBtn = document.getElementById('netSupportShowLockBtn');
+    const lockLabel = document.getElementById('netSupportShowLockLabel');
+    const iconLocked = document.getElementById('netSupportShowLockIconLocked');
+    const iconOpen = document.getElementById('netSupportShowLockIconOpen');
+    if (!lockBtn || !lockLabel) return;
+    if (isLocked) {
+        lockBtn.className = 'px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer';
+        lockLabel.textContent = 'إلغاء القفل';
+    } else {
+        lockBtn.className = 'px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer';
+        lockLabel.textContent = 'قفل الشاشة';
+    }
+    if (iconLocked) iconLocked.classList.toggle('hidden', isLocked);
+    if (iconOpen) iconOpen.classList.toggle('hidden', !isLocked);
+}
+
 function toggleCurrentShowLock() {
     if (!STATE.netSupport.currentShowDeviceId) return;
     const dev = STATE.netSupport.devices.find(d => d.deviceId === STATE.netSupport.currentShowDeviceId);
@@ -5456,19 +5473,7 @@ function toggleCurrentShowLock() {
 
     const newLockState = !dev.isLocked;
     dev.isLocked = newLockState;
-
-    const lockBtn = document.getElementById('netSupportShowLockBtn');
-    const lockLabel = document.getElementById('netSupportShowLockLabel');
-    if (lockBtn && lockLabel) {
-        if (newLockState) {
-            lockBtn.className = 'px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer';
-            lockLabel.textContent = 'إلغاء القفل 🔓';
-        } else {
-            lockBtn.className = 'px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer';
-            lockLabel.textContent = 'قفل الشاشة 🔒';
-        }
-    }
-
+    setNetSupportShowLockState(newLockState);
     adminNetSupportDeviceControl(newLockState ? 'lock_screen' : 'unlock_screen', dev.socketId, dev.ip);
 }
 
@@ -5484,7 +5489,7 @@ function triggerAlarmCurrentShowDevice() {
     const dev = STATE.netSupport.devices.find(d => d.deviceId === STATE.netSupport.currentShowDeviceId);
     if (!dev) return;
     adminNetSupportDeviceControl('play_alarm', dev.socketId, dev.ip);
-    showNotification(`تم إرسال إنذار صوتي لجهاز ${dev.nickname}! 🔔`);
+    showNotification(`تم إرسال إنذار صوتي لجهاز ${dev.nickname}!`);
 }
 
 async function adminNetSupportDeviceControl(action, targetSocketId, targetIp, payload = {}) {
@@ -5496,7 +5501,7 @@ async function adminNetSupportDeviceControl(action, targetSocketId, targetIp, pa
         });
         const data = await res.json();
         if (data.success) {
-            showNotification(`تم تنفيذ الأمر بنجاح! ⚡`);
+            showNotification(`تم تنفيذ الأمر بنجاح!`);
             await refreshNetSupportDevices();
         } else {
             alert(data.error || 'فشل إرسال أمر التحكم!');
@@ -5509,13 +5514,13 @@ async function adminNetSupportDeviceControl(action, targetSocketId, targetIp, pa
 
 async function adminNetSupportGlobalAction(action) {
     if (action === 'lock_all') {
-        if (confirm('هل أنت متأكد من قفل شاشات جميع الأجهزة في المعمل فوراً؟ 🔒')) {
+        if (confirm('هل أنت متأكد من قفل شاشات جميع الأجهزة في المعمل فوراً؟')) {
             await adminNetSupportDeviceControl('lock_screen', 'all', 'all');
         }
     } else if (action === 'unlock_all') {
         await adminNetSupportDeviceControl('unlock_screen', 'all', 'all');
     } else if (action === 'stealth_all') {
-        if (confirm('هل تريد تحويل جميع أجهزة المعمل لشاشة التمويه (مسألة فيزياء) فوراً؟ 📚')) {
+        if (confirm('هل تريد تحويل جميع أجهزة المعمل لشاشة التمويه (مسألة فيزياء) فوراً؟')) {
             await adminNetSupportDeviceControl('force_stealth', 'all', 'all');
         }
     } else if (action === 'message_all') {
