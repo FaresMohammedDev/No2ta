@@ -86,6 +86,12 @@
                     <span class="hidden xl:inline">سباق الكتابة</span>
                 </button>
 
+                <!-- Word Guess Button (Collab tag) -->
+                <button onclick="showModal('wordGuessModal')" class="flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-xl bg-fuchsia-500/10 hover:bg-fuchsia-500/20 border border-fuchsia-500/30 text-fuchsia-300 text-xs font-bold transition-all shadow-sm shrink-0" title="خمّن الكلمة">
+                    <i data-lucide="lightbulb" class="w-[15px] h-[15px]"></i>
+                    <span class="hidden xl:inline">خمّن الكلمة</span>
+                </button>
+
                 <!-- Weekend Freeze Badge (Hidden unless active) -->
                 <span id="weekendFreezeBadge" class="hidden px-2 py-0.5 rounded-full text-micro font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shrink-0">
                     <i data-lucide="snowflake" class="w-3 h-3 inline-block align-text-bottom"></i> الويك إند مجمّد
@@ -1925,6 +1931,64 @@
                 <button type="button" onclick="startTypingRace()" class="w-full py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-black text-xs flex items-center justify-center gap-2">
                     <i data-lucide="rotate-ccw" class="w-[14px] h-[14px]"></i>
                     <span>سباق جديد</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 💡 WORD GUESS COMPETITIVE MINI-GAME -->
+    <div id="wordGuessModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+        <div class="glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-md w-full border border-fuchsia-500/40 shadow-2xl relative bg-slate-950/95">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-fuchsia-500/20 border border-fuchsia-500/40 flex items-center justify-center shadow-inner">
+                        <i data-lucide="lightbulb" class="w-5 h-5 text-fuchsia-300"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-black text-white">خمّن الكلمة</h3>
+                        <p class="text-[11px] text-fuchsia-400/80">أول واحد يكتب الإجابة الصح ياخد النقطة — 8 تلميحات لكل جولة</p>
+                    </div>
+                </div>
+                <button type="button" onclick="hideModal('wordGuessModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Idle state -->
+            <div id="wordGuessIdleView">
+                <p class="text-xs text-slate-400 mb-4 text-center">اضغط ابدأ وكل زملائك المتصلين هيلحقوا يلعبوا معاك فورًا.</p>
+                <button type="button" onclick="startWordGuessGame()" class="w-full py-3 rounded-xl bg-fuchsia-500 hover:bg-fuchsia-400 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-fuchsia-500/30 transition">
+                    <i data-lucide="play" class="w-4 h-4"></i>
+                    <span>ابدأ اللعبة</span>
+                </button>
+            </div>
+
+            <!-- Active question state -->
+            <div id="wordGuessQuestionView" class="hidden">
+                <div class="flex items-center justify-between mb-3 text-micro text-slate-400 font-bold">
+                    <span id="wordGuessProgress">سؤال 1 / 8</span>
+                    <span id="wordGuessRoundResult" class="text-emerald-400"></span>
+                </div>
+                <div class="p-5 rounded-2xl bg-slate-900 border border-fuchsia-500/30 text-center mb-4">
+                    <div id="wordGuessHintText" class="text-sm sm:text-base font-bold text-white leading-relaxed">--</div>
+                </div>
+                <form onsubmit="submitWordGuessAnswer(event)" class="flex items-center gap-2 mb-4">
+                    <input type="text" id="wordGuessAnswerInput" placeholder="إجابتك..." class="flex-1 bg-slate-900 border border-slate-800 focus:border-fuchsia-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none text-center" autocomplete="off" dir="rtl">
+                    <button type="submit" class="px-4 py-2.5 rounded-xl bg-fuchsia-500 hover:bg-fuchsia-400 text-white font-bold text-sm">إرسال</button>
+                </form>
+                <div id="wordGuessLiveScores" class="space-y-1 max-h-32 overflow-y-auto custom-scrollbar"></div>
+            </div>
+
+            <!-- Finished state -->
+            <div id="wordGuessFinishedView" class="hidden">
+                <div class="text-center mb-4">
+                    <i data-lucide="trophy" class="w-10 h-10 text-amber-400 mx-auto mb-2"></i>
+                    <h4 class="text-sm font-black text-white">انتهت اللعبة!</h4>
+                </div>
+                <div id="wordGuessFinalScores" class="space-y-1.5 mb-4"></div>
+                <button type="button" onclick="startWordGuessGame()" class="w-full py-2.5 rounded-xl bg-fuchsia-500 hover:bg-fuchsia-400 text-white font-black text-xs flex items-center justify-center gap-2">
+                    <i data-lucide="rotate-ccw" class="w-[14px] h-[14px]"></i>
+                    <span>لعبة جديدة</span>
                 </button>
             </div>
         </div>

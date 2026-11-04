@@ -2654,6 +2654,90 @@ function finishTypingRace() {
     io.emit('typing_race_state', { status: 'finished', finishers: typingRace.finishers });
 }
 
+// ---------------------- WORD GUESS (live competitive mini-game) ----------------------
+const WORD_GUESS_ITEMS = [
+    { hint: 'عاصمة جمهورية مصر العربية', answer: 'القاهرة' },
+    { hint: 'أطول نهر في العالم ويمر بمصر', answer: 'النيل' },
+    { hint: 'فاكهة صفراء طويلة الشكل', answer: 'الموز' },
+    { hint: 'النجم الذي تدور الأرض حوله', answer: 'الشمس' },
+    { hint: 'عدد أيام الأسبوع', answer: 'سبعة', alts: ['7'] },
+    { hint: 'أكبر محيط في العالم', answer: 'الهادي', alts: ['المحيط الهادي'] },
+    { hint: 'الحيوان الذي يسمى ملك الغابة', answer: 'الأسد' },
+    { hint: 'عضو الجسم المسؤول عن ضخ الدم', answer: 'القلب' },
+    { hint: 'الكوكب المعروف بالكوكب الأحمر', answer: 'المريخ' },
+    { hint: 'غاز يتنفسه الإنسان وضروري للحياة', answer: 'الأكسجين' },
+    { hint: 'عالم الفيزياء صاحب نظرية الجاذبية وقصة التفاحة', answer: 'نيوتن' },
+    { hint: 'لون السماء في يوم صافي', answer: 'الأزرق' },
+    { hint: 'عدد أرجل النملة', answer: 'ستة', alts: ['6'] },
+    { hint: 'الكوكب الأقرب للشمس', answer: 'عطارد' }
+];
+
+function normalizeArabicAnswer(str) {
+    return String(str || '')
+        .trim()
+        .replace(/[ً-ٰٟـ]/g, '')
+        .replace(/[إأآا]/g, 'ا')
+        .replace(/ى/g, 'ي')
+        .replace(/ة/g, 'ه')
+        .replace(/\s+/g, '')
+        .toLowerCase();
+}
+
+function generateWordGuessRounds(count = 8) {
+    const pool = [...WORD_GUESS_ITEMS];
+    for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, Math.min(count, pool.length));
+}
+
+const wordGuessGame = {
+    active: false,
+    rounds: [],
+    currentIndex: -1,
+    scores: {}, // nickname -> points
+    roundTimer: null,
+    answeredThisRound: false
+};
+
+function startWordGuessGame() {
+    wordGuessGame.active = true;
+    wordGuessGame.rounds = generateWordGuessRounds(8);
+    wordGuessGame.currentIndex = -1;
+    wordGuessGame.scores = {};
+    nextWordGuessRound();
+}
+
+function nextWordGuessRound() {
+    if (wordGuessGame.roundTimer) clearTimeout(wordGuessGame.roundTimer);
+    wordGuessGame.currentIndex++;
+    wordGuessGame.answeredThisRound = false;
+
+    if (wordGuessGame.currentIndex >= wordGuessGame.rounds.length) {
+        wordGuessGame.active = false;
+        const ranked = Object.entries(wordGuessGame.scores).sort((a, b) => b[1] - a[1]);
+        io.emit('word_guess_state', { status: 'finished', scores: ranked });
+        return;
+    }
+
+    io.emit('word_guess_state', {
+        status: 'question',
+        index: wordGuessGame.currentIndex,
+        total: wordGuessGame.rounds.length,
+        hint: wordGuessGame.rounds[wordGuessGame.currentIndex].hint,
+        scores: Object.entries(wordGuessGame.scores).sort((a, b) => b[1] - a[1])
+    });
+
+    // No one answered in time -> reveal and move on
+    wordGuessGame.roundTimer = setTimeout(() => {
+        if (!wordGuessGame.answeredThisRound) {
+            io.emit('word_guess_round_result', { winner: null, answer: wordGuessGame.rounds[wordGuessGame.currentIndex].answer });
+        }
+        setTimeout(nextWordGuessRound, 1800);
+    }, 15000);
+}
+
 io.use(async (socket, next) => {
     try {
         const origin = socket.handshake.headers.origin;
@@ -2750,6 +2834,43 @@ io.on('connection', async (socket) => {
         if (onlineUsers.size > 0 && typingRace.finishers.length >= onlineUsers.size) {
             finishTypingRace();
         }
+    });
+
+    // Word Guess — anyone can start a round; late joiners get the current hint.
+    if (wordGuessGame.active) {
+        socket.emit('word_guess_state', {
+            status: 'question',
+            index: wordGuessGame.currentIndex,
+            total: wordGuessGame.rounds.length,
+            hint: wordGuessGame.rounds[wordGuessGame.currentIndex].hint,
+            scores: Object.entries(wordGuessGame.scores).sort((a, b) => b[1] - a[1])
+        });
+    }
+
+    socket.on('word_guess_start', () => {
+        if (wordGuessGame.active) {
+            socket.emit('error_notification', { message: 'في لعبة تخمين شغالة بالفعل، شارك فيها واستنى نهايتها لبدء لعبة جديدة.' });
+            return;
+        }
+        startWordGuessGame();
+    });
+
+    socket.on('word_guess_answer', (data = {}) => {
+        if (!wordGuessGame.active || wordGuessGame.answeredThisRound) return;
+        const current = wordGuessGame.rounds[wordGuessGame.currentIndex];
+        if (!current) return;
+        const submitted = normalizeArabicAnswer(data.answer);
+        if (!submitted) return;
+        const acceptable = [current.answer, ...(current.alts || [])].map(normalizeArabicAnswer);
+        if (!acceptable.includes(submitted)) return;
+
+        wordGuessGame.answeredThisRound = true;
+        if (wordGuessGame.roundTimer) clearTimeout(wordGuessGame.roundTimer);
+        const nickname = socket.data.user.nickname;
+        wordGuessGame.scores[nickname] = (wordGuessGame.scores[nickname] || 0) + 1;
+
+        io.emit('word_guess_round_result', { winner: nickname, answer: current.answer });
+        setTimeout(nextWordGuessRound, 1800);
     });
 
     socket.on('tasbeeh_increment', (data = 1) => {

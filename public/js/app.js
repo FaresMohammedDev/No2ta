@@ -245,6 +245,78 @@ function handleTypingRaceFinisher(data) {
     renderTypingRaceFinishers('typingRaceFinishers', typingRaceFinishersList.filter(Boolean));
 }
 
+// ---------------------- Word Guess (live competitive mini-game) ----------------------
+function startWordGuessGame() {
+    if (!STATE.socket || !STATE.socket.connected) {
+        showNotification('الاتصال بالسيرفر مش جاهز. سجّل دخولك وانتظر الاتصال ثم جرّب تاني.');
+        return;
+    }
+    STATE.socket.emit('word_guess_start');
+}
+
+function submitWordGuessAnswer(e) {
+    e.preventDefault();
+    const input = document.getElementById('wordGuessAnswerInput');
+    if (!input || !input.value.trim()) return;
+    if (STATE.socket) {
+        STATE.socket.emit('word_guess_answer', { answer: input.value.trim() });
+    }
+    input.value = '';
+}
+
+function renderWordGuessScores(containerId, scores) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    if (!scores || scores.length === 0) {
+        el.innerHTML = `<p class="text-micro text-slate-500 text-center">لسه محدش سجل نقطة</p>`;
+        return;
+    }
+    el.innerHTML = scores.map(([name, pts], i) => `
+        <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg ${i === 0 ? 'bg-amber-500/15 border border-amber-500/30' : 'bg-slate-900/60'} text-xs">
+            <span class="font-bold text-slate-200">#${i + 1} ${escapeHtml(name)}</span>
+            <span class="font-mono font-black text-fuchsia-300">${pts}</span>
+        </div>
+    `).join('');
+}
+
+function handleWordGuessState(state) {
+    const idleView = document.getElementById('wordGuessIdleView');
+    const questionView = document.getElementById('wordGuessQuestionView');
+    const finishedView = document.getElementById('wordGuessFinishedView');
+    if (!idleView || !questionView || !finishedView) return;
+
+    if (state.status === 'question') {
+        idleView.classList.add('hidden');
+        finishedView.classList.add('hidden');
+        questionView.classList.remove('hidden');
+        document.getElementById('wordGuessProgress').textContent = `سؤال ${state.index + 1} / ${state.total}`;
+        document.getElementById('wordGuessHintText').textContent = state.hint;
+        document.getElementById('wordGuessRoundResult').textContent = '';
+        renderWordGuessScores('wordGuessLiveScores', state.scores);
+        const input = document.getElementById('wordGuessAnswerInput');
+        if (input) {
+            input.value = '';
+            if (!document.getElementById('wordGuessModal').classList.contains('hidden')) input.focus();
+        }
+        if (state.index === 0 && document.getElementById('wordGuessModal').classList.contains('hidden')) {
+            showNotification('بدأت لعبة خمّن الكلمة! افتحها من شريط أدوات الفصل للمشاركة.');
+        }
+    } else if (state.status === 'finished') {
+        idleView.classList.add('hidden');
+        questionView.classList.add('hidden');
+        finishedView.classList.remove('hidden');
+        renderWordGuessScores('wordGuessFinalScores', state.scores);
+    }
+}
+
+function handleWordGuessRoundResult(data) {
+    const resultEl = document.getElementById('wordGuessRoundResult');
+    if (!resultEl) return;
+    resultEl.textContent = data.winner
+        ? `${data.winner} جاوب صح! (${data.answer})`
+        : `محدش جاوب في الوقت (${data.answer})`;
+}
+
 // ---------------------------------------------------------------
 // Custom Dropdown — replaces the browser's native <select> popup
 // (whose look can't be themed) with a styled list matching the app,
@@ -1042,6 +1114,8 @@ function initSocket() {
     STATE.socket.on('math_game_round_result', (data) => handleMathGameRoundResult(data));
     STATE.socket.on('typing_race_state', (state) => handleTypingRaceState(state));
     STATE.socket.on('typing_race_finisher', (data) => handleTypingRaceFinisher(data));
+    STATE.socket.on('word_guess_state', (state) => handleWordGuessState(state));
+    STATE.socket.on('word_guess_round_result', (data) => handleWordGuessRoundResult(data));
 
     // 👁️ LIVE STORY VIEW UPDATE
     STATE.socket.on('story_view_updated', ({ storyId, viewsCount }) => {
