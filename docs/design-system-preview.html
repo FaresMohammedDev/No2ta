@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نظام تصميم نؤطة — معاينة بصرية v1.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --bg-canvas: #0A0F1C;
+        --bg-surface: #111827;
+        --bg-surface-raised: #161F32;
+        --bg-surface-sunken: #070B14;
+        --overlay-scrim: rgba(6,9,18,0.72);
+
+        --border-subtle: rgba(255,255,255,0.06);
+        --border-default: rgba(255,255,255,0.10);
+        --border-strong: rgba(255,255,255,0.18);
+        --border-accent: rgba(45,212,191,0.45);
+
+        --text-primary: #F1F5F9;
+        --text-secondary: #9AA7BD;
+        --text-tertiary: #64748B;
+        --text-on-accent: #06141A;
+
+        --primary-300: #5EEAD4;
+        --primary-500: #2DD4BF;
+        --primary-600: #14B8A6;
+        --primary-700: #0F9488;
+        --primary-surface: rgba(45,212,191,0.12);
+
+        --secondary-300: #F3D28C;
+        --secondary-500: #D4A24C;
+        --secondary-600: #B9843A;
+        --secondary-surface: rgba(212,162,76,0.14);
+
+        --success-500: #22C55E; --success-surface: rgba(34,197,94,0.12);
+        --warning-500: #F59E0B; --warning-surface: rgba(245,158,11,0.12);
+        --danger-500: #EF4444;  --danger-surface: rgba(239,68,68,0.12);
+        --info-500: #38BDF8;    --info-surface: rgba(56,189,248,0.12);
+
+        --tag-comms: #2DD4BF;
+        --tag-collab: #818CF8;
+        --tag-media: #F472B6;
+        --tag-faith: #D4A24C;
+        --tag-broadcast: #38BDF8;
+        --tag-admin: #FB923C;
+
+        --radius-xs: 8px; --radius-sm: 10px; --radius-md: 14px;
+        --radius-lg: 20px; --radius-xl: 28px; --radius-full: 9999px;
+
+        --shadow-1: 0 1px 2px rgba(0,0,0,.3);
+        --shadow-2: 0 4px 12px rgba(0,0,0,.35);
+        --shadow-3: 0 12px 32px rgba(0,0,0,.45);
+        --shadow-glow: 0 0 0 1px var(--border-accent), 0 4px 20px rgba(45,212,191,.25);
+
+        --ease: cubic-bezier(.4,0,.2,1);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+        background: var(--bg-canvas);
+        color: var(--text-primary);
+        font-family: 'Cairo', sans-serif;
+        line-height: 1.6;
+        padding: 32px 24px 80px;
+    }
+    .en { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; direction: ltr; unicode-bidi: isolate; }
+
+    .wrap { max-width: 1100px; margin: 0 auto; }
+
+    /* ---- Page Header ---- */
+    .page-head { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+    .logo-mark {
+        width: 48px; height: 48px; border-radius: var(--radius-md);
+        background: linear-gradient(135deg, var(--primary-500), var(--primary-700));
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 900; color: var(--text-on-accent); font-size: 20px;
+        box-shadow: var(--shadow-2);
+    }
+    h1.title { font-size: 26px; font-weight: 800; margin: 0; }
+    .version-pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: var(--primary-surface); color: var(--primary-300);
+        border: 1px solid var(--border-accent); border-radius: var(--radius-full);
+        padding: 4px 12px; font-size: 12px; font-weight: 700;
+    }
+    .page-sub { color: var(--text-secondary); font-size: 14px; margin: 6px 0 40px; max-width: 70ch; }
+
+    /* ---- Section scaffolding ---- */
+    section { margin-bottom: 56px; }
+    .sec-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 18px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px; }
+    .sec-num {
+        font-family: 'JetBrains Mono', monospace; direction: ltr;
+        color: var(--text-tertiary); font-size: 13px; font-weight: 700;
+    }
+    .sec-head h2 { font-size: 18px; font-weight: 800; margin: 0; }
+
+    /* ---- Color swatches ---- */
+    .swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+    .swatch {
+        border: 1px solid var(--border-default); border-radius: var(--radius-md);
+        overflow: hidden; background: var(--bg-surface);
+    }
+    .swatch-color { height: 64px; }
+    .swatch-meta { padding: 10px 12px; }
+    .swatch-name { font-size: 12.5px; font-weight: 700; margin: 0 0 2px; }
+    .swatch-hex { font-size: 11px; color: var(--text-tertiary); margin: 0; }
+
+    /* ---- Typography samples ---- */
+    .type-row { display: flex; align-items: baseline; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border-subtle); }
+    .type-row:last-child { border-bottom: none; }
+    .type-label { width: 150px; flex-shrink: 0; font-family: 'JetBrains Mono', monospace; direction: ltr; font-size: 11px; color: var(--text-tertiary); }
+    .t-display { font-size: 28px; font-weight: 800; }
+    .t-h1 { font-size: 20px; font-weight: 800; }
+    .t-h2 { font-size: 16px; font-weight: 700; }
+    .t-body-lg { font-size: 15px; font-weight: 600; }
+    .t-body { font-size: 13px; font-weight: 400; }
+    .t-caption { font-size: 12px; color: var(--text-secondary); }
+    .t-micro { font-size: 10.5px; color: var(--text-tertiary); }
+
+    /* ---- Radius / Shadow / Motion demos ---- */
+    .demo-row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .demo-box {
+        width: 96px; height: 96px; background: var(--bg-surface);
+        border: 1px solid var(--border-default);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 11px; color: var(--text-secondary); text-align: center; flex-direction: column; gap: 4px;
+    }
+    .demo-box span.mono { font-size: 11px; }
+
+    .live-dot {
+        width: 9px; height: 9px; border-radius: 50%; background: var(--danger-500);
+        box-shadow: 0 0 0 0 rgba(239,68,68,.5);
+        animation: pulse-ring 1.6s var(--ease) infinite;
+    }
+    @keyframes pulse-ring {
+        0% { box-shadow: 0 0 0 0 rgba(239,68,68,.5); }
+        70% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+        100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+    }
+
+    /* ---- Buttons ---- */
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .btn {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 10px 18px; border-radius: var(--radius-md);
+        font-size: 13px; font-weight: 700; border: 1px solid transparent;
+        cursor: pointer; transition: all var(--ease) .15s; font-family: inherit;
+    }
+    .btn-primary { background: var(--primary-500); color: var(--text-on-accent); }
+    .btn-primary:hover { background: var(--primary-600); }
+    .btn-secondary { background: var(--bg-surface-raised); color: var(--text-primary); border-color: var(--border-default); }
+    .btn-ghost { background: transparent; color: var(--text-secondary); }
+    .btn-ghost:hover { background: var(--border-subtle); }
+    .btn-danger { background: var(--danger-500); color: #fff; }
+    .btn-icon {
+        width: 36px; height: 36px; border-radius: var(--radius-full); padding: 0;
+        background: var(--bg-surface-raised); border-color: var(--border-default);
+        display: inline-flex; align-items: center; justify-content: center; color: var(--text-secondary);
+    }
+
+    /* ---- Inputs ---- */
+    .field { margin-bottom: 14px; max-width: 360px; }
+    .field label { display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; }
+    .field input, .field select {
+        width: 100%; height: 40px; background: var(--bg-surface-sunken);
+        border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+        color: var(--text-primary); padding: 0 14px; font-size: 13px; font-family: inherit;
+        outline: none; transition: border-color .15s, box-shadow .15s;
+    }
+    .field input:focus, .field select:focus {
+        border-color: var(--primary-500); box-shadow: 0 0 0 3px var(--primary-surface);
+    }
+
+    /* ---- Badges ---- */
+    .badge-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 5px 12px; border-radius: var(--radius-xs); font-size: 11.5px; font-weight: 700;
+        border: 1px solid transparent;
+    }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .badge-success { background: var(--success-surface); color: var(--success-500); }
+    .badge-warning { background: var(--warning-surface); color: var(--warning-500); }
+    .badge-danger { background: var(--danger-surface); color: var(--danger-500); }
+    .badge-info { background: var(--info-surface); color: var(--info-500); }
+
+    /* ---- Modal mockup ---- */
+    .modal-stage {
+        background: var(--overlay-scrim); border-radius: var(--radius-lg);
+        padding: 48px 24px; display: flex; justify-content: center;
+    }
+    .modal-card {
+        width: 100%; max-width: 420px; background: var(--bg-surface-raised);
+        border: 1px solid var(--border-default); border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-3); overflow: hidden;
+    }
+    .modal-head {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 24px 24px 16px; border-bottom: 1px solid var(--border-subtle);
+    }
+    .modal-head-title { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 800; }
+    .modal-body { padding: 24px; color: var(--text-secondary); font-size: 13px; }
+    .modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px 24px; }
+
+    /* ---- Header regroup mockup ---- */
+    .header-mock {
+        background: var(--bg-surface); border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg); padding: 12px 16px;
+        display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    }
+    .hm-group { display: flex; align-items: center; gap: 8px; }
+    .hm-icon-btn {
+        width: 36px; height: 36px; border-radius: var(--radius-sm);
+        background: var(--bg-surface-raised); border: 1px solid var(--border-default);
+        display: flex; align-items: center; justify-content: center; font-size: 15px; color: var(--text-secondary);
+    }
+    .hm-pill {
+        display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+        border-radius: var(--radius-full); background: var(--bg-surface-raised);
+        border: 1px solid var(--border-default); font-size: 12px; font-family: 'JetBrains Mono', monospace; direction: ltr;
+    }
+    .hm-group-label { font-size: 10px; color: var(--text-tertiary); margin-bottom: 6px; font-weight: 700; }
+
+    .before-after { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 720px) { .before-after { grid-template-columns: 1fr; } }
+    .ba-card { border-radius: var(--radius-lg); padding: 18px; border: 1px solid var(--border-default); }
+    .ba-label { font-size: 11px; font-weight: 800; margin-bottom: 10px; display: inline-block; padding: 3px 10px; border-radius: var(--radius-full); }
+    .ba-before { background: #0D0604; }
+    .ba-before .ba-label { background: rgba(239,68,68,.15); color: #FCA5A5; }
+    .ba-after { background: var(--bg-surface); }
+    .ba-after .ba-label { background: var(--primary-surface); color: var(--primary-300); }
+
+    .old-chaos-btn {
+        display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 10px;
+        font-size: 11px; font-weight: 700; margin: 3px; border: 1px solid;
+    }
+
+    footer.note {
+        margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--border-subtle);
+        color: var(--text-tertiary); font-size: 12px;
+    }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <div class="page-head">
+        <div class="logo-mark">نـ</div>
+        <h1 class="title">نظام تصميم نؤطة</h1>
+        <span class="version-pill">● v1.0 — مُقترَح للموافقة</span>
+    </div>
+    <p class="page-sub">معاينة بصرية حية لكل قيم وتوكينز نظام التصميم الموصوف في <span class="mono">docs/DESIGN_SYSTEM.md</span>. هذه الصفحة ليست جزء من التطبيق الفعلي — هي مرجع للمراجعة والموافقة فقط.</p>
+
+    <!-- 1. Colors -->
+    <section>
+        <div class="sec-head"><span class="sec-num">§1</span><h2>الألوان — الخلفيات والحدود والنصوص</h2></div>
+        <div class="swatch-grid">
+            <div class="swatch"><div class="swatch-color" style="background:var(--bg-canvas)"></div><div class="swatch-meta"><p class="swatch-name">bg-canvas</p><p class="swatch-hex mono">#0A0F1C</p></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--bg-surface)"></div><div class="swatch-meta"><p class="swatch-name">bg-surface</p><p class="swatch-hex mono">#111827</p></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--bg-surface-raised)"></div><div class="swatch-meta"><p class="swatch-name">bg-surface-raised</p><p class="swatch-hex mono">#161F32</p></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--bg-surface-sunken)"></div><div class="swatch-meta"><p class="swatch-name">bg-surface-sunken</p><p class="swatch-hex mono">#070B14</p></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--text-primary)"></div><div class="swatch-meta"><p class="swatch-name" style="color:#000">text-primary</p><p class="swatch-hex mono" style="color:#333">#F1F5F9</p></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--text-secondary)"></div><div class="swatch-meta"><p class="swatch-name">text-secondary</p><p class="swatch-hex mono">#9AA7BD</p></div></div>
+        </div>
+    </section>
+
+    <section>
+        <div class="sec-head"><span class="sec-num">§1.4-1.5</span><h2>الأساسي (Primary) والثانوي (Secondary)</h2></div>
+        <div class="swatch-grid">
+            <div class="swatch"><div class="swatch-color" style="background:var(--primary-500)"></div><div class="swatch-meta"><p class="swatch-name">primary-500 ⭐ الأساسي</p><p class="swatch-hex mono">#2DD4BF</p></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--primary-600)"></div><div class="swatch-meta"><p class="swatch-name">primary-600 (hover)</p><p class="swatch-hex mono">#14B8A6</p></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--primary-700)"></div><div class="swatch-meta"><p class="swatch-name">primary-700 (active)</p><p class="swatch-hex mono">#0F9488</p></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--secondary-500)"></div><div class="swatch-meta"><p class="swatch-name">secondary-500 🔥🕌📿</p><p class="swatch-hex mono">#D4A24C</p></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--secondary-600)"></div><div class="swatch-meta"><p class="swatch-name">secondary-600 (hover)</p><p class="swatch-hex mono">#B9843A</p></div></div>
+        </div>
+    </section>
+
+    <section>
+        <div class="sec-head"><span class="sec-num">§1.6</span><h2>الألوان الدلالية (معنى ثابت دايمًا)</h2></div>
+        <div class="swatch-grid">
+            <div class="swatch"><div class="swatch-color" style="background:var(--success-500)"></div><div class="swatch-meta"><p class="swatch-name">success — نجاح/متصل</p><p class="swatch-hex mono">#22C55E</p></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--warning-500)"></div><div class="swatch-meta"><p class="swatch-name">warning — تحذير</p><p class="swatch-hex mono">#F59E0B</p></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--danger-500)"></div><div class="swatch-meta"><p class="swatch-name">danger — خطر/حذف</p><p class="swatch-hex mono">#EF4444</p></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--info-500)"></div><div class="swatch-meta"><p class="swatch-name">info — معلومة</p><p class="swatch-hex mono">#38BDF8</p></div></div>
+        </div>
+    </section>
+
+    <section>
+        <div class="sec-head"><span class="sec-num">§1.7</span><h2>ألوان تصنيف الأدوات (Feature Tags)</h2></div>
+        <div class="swatch-grid">
+            <div class="swatch"><div class="swatch-color" style="background:var(--tag-comms)"></div><div class="swatch-meta"><p class="swatch-name">comms — الشات والإذاعة</p><p class="swatch-hex mono">#2DD4BF</p></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--tag-collab)"></div><div class="swatch-meta"><p class="swatch-name">collab — السبورة والكود</p><p class="swatch-hex mono">#818CF8</p></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--tag-media)"></div><div class="swatch-meta"><p class="swatch-name">media — استوري وموسيقى</p><p class="swatch-hex mono">#F472B6</p></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--tag-faith)"></div><div class="swatch-meta"><p class="swatch-name">faith — صلاة وتسبيح</p><p class="swatch-hex mono">#D4A24C</p></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--tag-broadcast)"></div><div class="swatch-meta"><p class="swatch-name">broadcast — بث وراديو</p><p class="swatch-hex mono">#38BDF8</p></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--tag-admin)"></div><div class="swatch-meta"><p class="swatch-name">admin — أدوات الأدمن</p><p class="swatch-hex mono">#FB923C</p></div></div>
+        </div>
+    </section>
+
+    <!-- 2. Typography -->
+    <section>
+        <div class="sec-head"><span class="sec-num">§2</span><h2>السلّم النوعي (Typography Scale)</h2></div>
+        <div>
+            <div class="type-row"><span class="type-label">display / 28px</span><span class="t-display">دخول منصة نؤطة 🚀</span></div>
+            <div class="type-row"><span class="type-label">h1 / 20px</span><span class="t-h1">لوحة تحكم الأدمن</span></div>
+            <div class="type-row"><span class="type-label">h2 / 16px</span><span class="t-h2">الأجهزة المتصلة بالفصل</span></div>
+            <div class="type-row"><span class="type-label">body-lg / 15px</span><span class="t-body-lg">أحمد (كبير الفصل)</span></div>
+            <div class="type-row"><span class="type-label">body / 13px</span><span class="t-body">متاح لجميع الزملاء في الفصل</span></div>
+            <div class="type-row"><span class="type-label">caption / 12px</span><span class="t-caption">آخر ظهور منذ 3 دقائق</span></div>
+            <div class="type-row"><span class="type-label">micro / 10.5px (حد أدنى)</span><span class="t-micro mono">14:52:09</span></div>
+        </div>
+    </section>
+
+    <!-- 3. Radius / Shadow / Motion -->
+    <section>
+        <div class="sec-head"><span class="sec-num">§3-4</span><h2>الانحناءات، الظلال، والحركة</h2></div>
+        <div class="demo-row" style="margin-bottom:20px;">
+            <div class="demo-box" style="border-radius:var(--radius-xs)"><span>xs</span><span class="mono">8px</span></div>
+            <div class="demo-box" style="border-radius:var(--radius-sm)"><span>sm</span><span class="mono">10px</span></div>
+            <div class="demo-box" style="border-radius:var(--radius-md)"><span>md</span><span class="mono">14px</span></div>
+            <div class="demo-box" style="border-radius:var(--radius-lg)"><span>lg</span><span class="mono">20px</span></div>
+            <div class="demo-box" style="border-radius:var(--radius-xl)"><span>xl (Modal)</span><span class="mono">28px</span></div>
+        </div>
+        <div class="demo-row" style="margin-bottom:20px;">
+            <div class="demo-box" style="box-shadow:var(--shadow-1)"><span>shadow-1</span></div>
+            <div class="demo-box" style="box-shadow:var(--shadow-2)"><span>shadow-2</span></div>
+            <div class="demo-box" style="box-shadow:var(--shadow-3)"><span>shadow-3</span></div>
+            <div class="demo-box" style="box-shadow:var(--shadow-glow)"><span>live glow</span><div class="live-dot" style="margin-top:4px"></div></div>
+        </div>
+        <p class="t-caption">النقطة الحمراء النابضة هي الاستخدام الوحيد المسموح لـ pulse/ping — مؤشر "بث حي الآن" فقط، مش تزيين لأي زرار عادي.</p>
+    </section>
+
+    <!-- 5. Buttons -->
+    <section>
+        <div class="sec-head"><span class="sec-num">§7.1</span><h2>الأزرار</h2></div>
+        <div class="btn-row">
+            <button class="btn btn-primary">إرسال 🚀</button>
+            <button class="btn btn-secondary">إلغاء</button>
+            <button class="btn btn-ghost">تجاهل</button>
+            <button class="btn btn-danger">حذف الرسالة</button>
+            <button class="btn btn-icon" aria-label="إغلاق">✕</button>
+        </div>
+    </section>
+
+    <!-- 6. Inputs -->
+    <section>
+        <div class="sec-head"><span class="sec-num">§7.3</span><h2>حقول الإدخال</h2></div>
+        <div class="field">
+            <label>اسم الشهرة أو اللقب</label>
+            <input type="text" placeholder="مثال: الباشمهندس أحمد" value="دحيح الفيزيا">
+        </div>
+        <div class="field">
+            <label>عنوان IP سيرفر الأدمن (محتوى LTR داخل RTL)</label>
+            <input type="text" class="mono" value="192.168.20.54" dir="ltr">
+        </div>
+    </section>
+
+    <!-- 7. Badges -->
+    <section>
+        <div class="sec-head"><span class="sec-num">§7.4</span><h2>البادچ (Status vs Tag)</h2></div>
+        <p class="t-caption" style="margin-bottom:10px;">دلالية (معنى ثابت):</p>
+        <div class="badge-row" style="margin-bottom:18px;">
+            <span class="badge badge-success"><span class="badge-dot" style="background:var(--success-500)"></span> متصل الآن</span>
+            <span class="badge badge-warning"><span class="badge-dot" style="background:var(--warning-500)"></span> وضع التركيز مفعّل</span>
+            <span class="badge badge-danger"><span class="badge-dot" style="background:var(--danger-500)"></span> تم الحذف</span>
+            <span class="badge badge-info"><span class="badge-dot" style="background:var(--info-500)"></span> تحديث جديد</span>
+        </div>
+        <p class="t-caption" style="margin-bottom:10px;">تصنيف أداة:</p>
+        <div class="badge-row">
+            <span class="badge" style="background:rgba(45,212,191,.12); color:var(--tag-comms)"><span class="badge-dot" style="background:var(--tag-comms)"></span> شات</span>
+            <span class="badge" style="background:rgba(129,140,248,.12); color:var(--tag-collab)"><span class="badge-dot" style="background:var(--tag-collab)"></span> سبورة</span>
+            <span class="badge" style="background:rgba(244,114,182,.12); color:var(--tag-media)"><span class="badge-dot" style="background:var(--tag-media)"></span> استوري</span>
+            <span class="badge" style="background:rgba(212,162,76,.14); color:var(--tag-faith)"><span class="badge-dot" style="background:var(--tag-faith)"></span> تسبيح</span>
+        </div>
+    </section>
+
+    <!-- 8. Modal -->
+    <section>
+        <div class="sec-head"><span class="sec-num">§7.2</span><h2>القالب الموحّد للمودالز</h2></div>
+        <div class="modal-stage">
+            <div class="modal-card">
+                <div class="modal-head">
+                    <div class="modal-head-title"><span>⚡</span><span>Classroom AirDrop</span></div>
+                    <button class="btn btn-icon">✕</button>
+                </div>
+                <div class="modal-body">
+                    اضغط هنا أو اسحب أي ملف لمشاركته فوراً مع الفصل — نفس القالب (هيدر + محتوى + فوتر) يتكرر في كل مودال بالتطبيق بدل 20+ شكل مختلف حاليًا.
+                </div>
+                <div class="modal-foot">
+                    <button class="btn btn-secondary">إلغاء</button>
+                    <button class="btn btn-primary">رفع الملف</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 9. Header regroup -->
+    <section>
+        <div class="sec-head"><span class="sec-num">§7.5</span><h2>إعادة تنظيم الهيدر (3 مجموعات بدل صف طويل)</h2></div>
+        <div class="header-mock">
+            <div>
+                <div class="hm-group-label">أدوات الفصل</div>
+                <div class="hm-group">
+                    <div class="hm-icon-btn">⚡</div>
+                    <div class="hm-icon-btn">🎨</div>
+                    <div class="hm-icon-btn">💻</div>
+                    <div class="hm-icon-btn">🖥️</div>
+                    <div class="hm-icon-btn">⋯</div>
+                </div>
+            </div>
+            <div>
+                <div class="hm-group-label" style="text-align:center">الوقت</div>
+                <div class="hm-pill">🕒 14:52:09</div>
+            </div>
+            <div>
+                <div class="hm-group-label" style="text-align:left">حسابي والأدمن</div>
+                <div class="hm-group">
+                    <div class="hm-icon-btn" style="color:var(--secondary-500)">👑</div>
+                    <div class="hm-icon-btn" style="background:var(--bg-surface-raised)">🚀</div>
+                    <button class="btn btn-danger" style="padding:8px 14px;">🚨 البشمهندسة</button>
+                </div>
+            </div>
+        </div>
+        <p class="t-caption" style="margin-top:12px;">زر البشمهندسة يبقى دايمًا آخر عنصر منفرد لأنه الأهم أمنيًا — لا يتزاحم مع باقي الأدوات.</p>
+    </section>
+
+    <!-- 10. Before / After -->
+    <section>
+        <div class="sec-head"><span class="sec-num">—</span><h2>قبل / بعد (مثال واقعي من الكود الحالي)</h2></div>
+        <div class="before-after">
+            <div class="ba-card ba-before">
+                <span class="ba-label">قبل (حالي)</span>
+                <div>
+                    <span class="old-chaos-btn" style="background:rgba(6,182,212,.1); border-color:rgba(6,182,212,.3); color:#22d3ee;">⚡ AirDrop</span>
+                    <span class="old-chaos-btn" style="background:rgba(168,85,247,.1); border-color:rgba(168,85,247,.3); color:#d8b4fe;">🎨 السبورة</span>
+                    <span class="old-chaos-btn" style="background:rgba(99,102,241,.1); border-color:rgba(99,102,241,.3); color:#a5b4fc;">💻 كشكول الأكواد</span>
+                    <span class="old-chaos-btn" style="background:rgba(236,72,153,.1); border-color:rgba(236,72,153,.3); color:#f9a8d4;">🎵📻 أغاني الفصل</span>
+                    <span class="old-chaos-btn" style="background:rgba(245,158,11,.1); border-color:rgba(245,158,11,.3); color:#fcd34d;">📿 السبحة</span>
+                </div>
+                <p class="t-caption" style="margin-top:10px;">6 ألوان مختلفة بدون نظام، كل واحد لوحده.</p>
+            </div>
+            <div class="ba-card ba-after">
+                <span class="ba-label">بعد (مُقترَح)</span>
+                <div class="hm-group">
+                    <div class="hm-icon-btn">⚡</div>
+                    <div class="hm-icon-btn">🎨</div>
+                    <div class="hm-icon-btn">💻</div>
+                    <div class="hm-icon-btn">🎵</div>
+                    <div class="hm-icon-btn">📿</div>
+                </div>
+                <p class="t-caption" style="margin-top:10px;">خلفية موحّدة واحدة، أيقونة فقط بدون نص مكرر، نظام واحد للعين تقرأه بسرعة.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer class="note">
+        هذه الصفحة جزء من <span class="mono">docs/</span> في المشروع وليست مرتبطة بالتطبيق الفعلي — راجع <span class="mono">docs/DESIGN_SYSTEM.md</span> للتفاصيل الكاملة و<span class="mono">public/css/design-tokens.css</span> للقيم الجاهزة للتنفيذ.
+    </footer>
+
+</div>
+</body>
+</html>

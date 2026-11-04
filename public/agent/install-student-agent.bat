@@ -6,7 +6,15 @@ echo   [No2ta] NetSupport Student Silent Agent Installer
 echo ========================================================
 echo.
 
-set "SERVER_URL=http://192.168.20.54:5000"
+echo [*] Searching the local network for the teacher's No2ta server...
+set "SERVER_URL="
+for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "try { $u = New-Object System.Net.Sockets.UdpClient(5055); $u.Client.ReceiveTimeout = 3000; $e = New-Object System.Net.IPEndPoint([System.Net.IPAddress]::Any, 0); $b = $u.Receive([ref]$e); $u.Close(); $j = [System.Text.Encoding]::UTF8.GetString($b) | ConvertFrom-Json; if ($j.app -eq 'no2ta' -and $j.hostIp) { $url = \"http://$($j.hostIp):$($j.port)\"; Set-Content -Path \"$env:TEMP\no2ta_last_host.txt\" -Value $url -Force; Write-Output $url } elseif (Test-Path \"$env:TEMP\no2ta_last_host.txt\") { (Get-Content \"$env:TEMP\no2ta_last_host.txt\" -Raw).Trim() } } catch { if (Test-Path \"$env:TEMP\no2ta_last_host.txt\") { (Get-Content \"$env:TEMP\no2ta_last_host.txt\" -Raw).Trim() } }"`) do set "SERVER_URL=%%A"
+if "%SERVER_URL%"=="" (
+    echo [X] Could not find the teacher's server on the network. Make sure it's running and try again.
+    pause
+    exit /b
+)
+echo [+] Found server: %SERVER_URL%
 set "TARGET_DIR=%APPDATA%\No2taAgent"
 if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
 

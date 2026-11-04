@@ -54,6 +54,9 @@
                 <button onclick="toggleAllAnswers()" id="toggle-answers-btn" class="px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 transition text-xs font-bold flex items-center gap-1 cursor-pointer">
                     👁️ <span class="hidden sm:inline">إظهار كافة الإجابات</span>
                 </button>
+                <button onclick="toggleLeaderboard()" id="leaderboard-toggle-btn" class="px-2.5 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 transition text-xs font-bold flex items-center gap-1 cursor-pointer">
+                    🏆 <span class="hidden sm:inline">المتصدرين</span>
+                </button>
                 <button onclick="resetQuiz()" title="إعادة الاختبار بالكامل" class="px-2.5 py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition text-xs font-bold flex items-center gap-1 cursor-pointer">
                     🔄 <span class="hidden sm:inline">إعادة</span>
                 </button>
@@ -63,6 +66,15 @@
         <!-- Progress Bar -->
         <div class="max-w-6xl mx-auto mt-2.5 w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
             <div id="quiz-progress-bar" class="bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 h-full w-0 transition-all duration-300"></div>
+        </div>
+
+        <!-- Leaderboard Panel -->
+        <div id="leaderboard-panel" class="hidden max-w-6xl mx-auto mt-3 p-4 rounded-2xl bg-gray-950 border border-purple-500/30 shadow-xl">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-black text-white flex items-center gap-1.5">🏆 لوحة المتصدرين</h3>
+                <button onclick="toggleLeaderboard()" class="w-7 h-7 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-300 flex items-center justify-center text-xs">✕</button>
+            </div>
+            <div id="leaderboard-content" class="text-xs text-gray-400">جاري التحميل...</div>
         </div>
     </header>
 
@@ -241,8 +253,78 @@
             correct: 0,
             wrong: 0,
             userAnswers: {},
-            showAllAnswers: false
+            showAllAnswers: false,
+            scoreSubmitted: false
         };
+
+        // ---------------- Quiz score persistence + leaderboard ----------------
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = String(str == null ? '' : str);
+            return div.innerHTML;
+        }
+
+        function getCurrentNo2taUser() {
+            try {
+                const raw = localStorage.getItem('no2ta_user');
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) { return null; }
+        }
+
+        async function submitQuizScoreIfComplete() {
+            if (state.scoreSubmitted) return;
+            if (state.answered < state.totalQuestions) return;
+            state.scoreSubmitted = true;
+            const user = getCurrentNo2taUser();
+            try {
+                await fetch('/api/quiz/submit-score', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: user ? user.id : null,
+                        nickname: user ? user.nickname : 'طالب',
+                        score: state.score,
+                        total: state.totalQuestions,
+                        quizId: 'flutter_competency'
+                    })
+                });
+            } catch (e) { console.warn('Quiz score submit failed:', e); }
+        }
+
+        function toggleLeaderboard() {
+            const panel = document.getElementById('leaderboard-panel');
+            if (!panel) return;
+            const willShow = panel.classList.contains('hidden');
+            panel.classList.toggle('hidden');
+            if (willShow) loadLeaderboard();
+        }
+
+        async function loadLeaderboard() {
+            const el = document.getElementById('leaderboard-content');
+            if (!el) return;
+            el.textContent = 'جاري التحميل...';
+            try {
+                const data = await fetch('/api/quiz/leaderboard?quizId=flutter_competency').then(r => r.json());
+                if (!data.success) throw new Error('failed');
+                const row = (label, entry) => entry
+                    ? `<div class="flex items-center justify-between py-1.5 border-b border-gray-800"><span class="text-gray-400">${label}</span><span class="font-bold text-white">${escapeHtml(entry.nickname)} — ${entry.score}/${entry.total_questions} (${entry.percentage}%)</span></div>`
+                    : `<div class="flex items-center justify-between py-1.5 border-b border-gray-800"><span class="text-gray-400">${label}</span><span class="text-gray-600">لا يوجد بعد</span></div>`;
+
+                let html = row('أعلى درجة اليوم', data.topToday) + row('أعلى درجة على الإطلاق', data.topAllTime);
+                if (data.topTen && data.topTen.length) {
+                    html += '<div class="mt-3 mb-1.5 text-gray-300 font-bold">أفضل 10 نتائج</div>';
+                    html += data.topTen.map((e, i) => `
+                        <div class="flex items-center justify-between py-1 text-xs">
+                            <span class="text-gray-500">#${i + 1} ${escapeHtml(e.nickname)}</span>
+                            <span class="font-mono text-cyan-300">${e.score}/${e.total_questions} (${e.percentage}%)</span>
+                        </div>
+                    `).join('');
+                }
+                el.innerHTML = html;
+            } catch (e) {
+                el.textContent = 'تعذر تحميل لوحة المتصدرين';
+            }
+        }
 
         // 1. DATA: Complete Section (121 - 130) - EXACT FILE ANSWERS
         const COMPLETE_QUESTIONS = [
@@ -675,6 +757,7 @@
             const pct = state.totalQuestions > 0 ? Math.round((state.score / state.totalQuestions) * 100) : 0;
             document.getElementById('percentage-badge').textContent = pct + '%';
             document.getElementById('quiz-progress-bar').style.width = Math.min(100, Math.round((state.answered / state.totalQuestions) * 100)) + '%';
+            submitQuizScoreIfComplete();
         }
 
         function checkComplete(id) {
@@ -967,6 +1050,7 @@
                 state.correct = 0;
                 state.wrong = 0;
                 state.userAnswers = {};
+                state.scoreSubmitted = false;
                 renderAllSections();
                 updateScoreHeader();
             }

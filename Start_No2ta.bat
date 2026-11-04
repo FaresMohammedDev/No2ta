@@ -20,9 +20,23 @@ if %errorlevel% equ 0 (
 
 :STUDENT_CLIENT_MODE
 echo  [+] تم فحص الجهاز عبر كارت الشبكة: جهاز طالب في الفصل.
-echo  [+] جاري فتح المتصفح والدخول المباشر للشات مع زملائك...
+echo  [+] جاري البحث التلقائي عن سيرفر الفصل على الشبكة...
 echo.
-start "" "http://192.168.20.54:5000"
+
+set "HOST_URL="
+for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0services\discover-host.ps1"`) do set "HOST_URL=%%A"
+
+if "%HOST_URL%"=="" set "HOST_URL=NOTFOUND"
+if "%HOST_URL%"=="NOTFOUND" (
+    echo  [X] مفيش سيرفر فصل شغال على الشبكة دلوقتي!
+    echo      تأكد إن جهاز الأدمن شغّل السيرفر وإنك على نفس شبكة الواي فاي/الكابل.
+    pause
+    exit /b
+)
+
+echo  [+] تم إيجاد سيرفر الفصل: %HOST_URL%
+echo  [+] جاري فتح المتصفح والدخول المباشر للشات مع زملائك...
+start "" "%HOST_URL%"
 timeout /t 2 /nobreak >nul
 exit /b
 

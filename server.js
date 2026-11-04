@@ -13,6 +13,7 @@ const CryptoJS = require('crypto-js');
 const { db, run, get, all, initDB } = require('./data/db');
 const { cleanIP, getServerLanIPs, resolveMacAddress } = require('./services/network');
 const { recordInteraction, getStreakBetween, getAllUserStreaks, isWeekendFreeze } = require('./services/streaks');
+const { QURAN_RECITERS, getReciterById, getSurahAudioUrl, getSurahName } = require('./data/quran-reciters');
 
 let startBeacon = () => {};
 try {
@@ -325,12 +326,121 @@ app.get('/api/tts', (req, res) => {
     }
 });
 
+// ---------------------- 📻 CAIRO QURAN RADIO LIVE RELAY ----------------------
+// The school's web filter (FortiGuard) blocks the radio domains directly on every
+// student PC, so each browser's <audio> tag can never reach them on its own - even
+// from the admin machine, since it sits on the same filtered school network.
+// Fix: the Node server itself fetches the live stream once (direct, then falling back
+// to the same Vercel CORS proxies already used for the music feature to dodge the
+// filter), and re-broadcasts ("relays") those bytes to every classroom device over
+// the plain LAN address they already use to load the app - which the filter never
+// touches because it is not an external domain.
+const QURAN_LIVE_SOURCES = [
+    'https://stream.radiojar.com/8s5u5tpdtwzuv',
+    'http://n12.radiojar.com/8s5u5tpdtwzuv',
+    'http://n0e.radiojar.com/8s5u5tpdtwzuv',
+    'https://stream.zeno.fm/8t42gV/qrc',
+    'http://66.45.232.131:9994/;stream.mp3'
+];
+
+const quranRelay = {
+    active: false,          // true while the admin has broadcast turned on
+    upstreamReq: null,      // current outgoing http(s) request to the radio source
+    subscribers: new Set(), // express `res` objects: one per classroom device listening
+    sourceIdx: 0,
+    viaProxy: false,
+    reconnectTimer: null
+};
+
+function quranRelayWriteChunk(chunk) {
+    for (const res of quranRelay.subscribers) {
+        try { res.write(chunk); } catch (e) { quranRelay.subscribers.delete(res); }
+    }
+}
+
+function scheduleQuranReconnect() {
+    if (!quranRelay.active || quranRelay.reconnectTimer) return;
+    quranRelay.sourceIdx++;
+    if (quranRelay.sourceIdx % QURAN_LIVE_SOURCES.length === 0) {
+        // Cycled through every direct source once - switch to the firewall-bypass proxy
+        quranRelay.viaProxy = !quranRelay.viaProxy;
+    }
+    quranRelay.reconnectTimer = setTimeout(() => {
+        quranRelay.reconnectTimer = null;
+        connectQuranUpstream();
+    }, 800);
+}
+
+function connectQuranUpstream() {
+    if (!quranRelay.active) return;
+    if (quranRelay.upstreamReq) {
+        try { quranRelay.upstreamReq.destroy(); } catch (e) {}
+        quranRelay.upstreamReq = null;
+    }
+
+    const rawUrl = QURAN_LIVE_SOURCES[quranRelay.sourceIdx % QURAN_LIVE_SOURCES.length];
+    const targetUrl = quranRelay.viaProxy ? (VERCEL_PROXIES[0] + encodeURIComponent(rawUrl)) : rawUrl;
+    const client = targetUrl.startsWith('https') ? https : http;
+
+    console.log(`📻 [QURAN RELAY] Connecting upstream ${quranRelay.viaProxy ? '(via firewall-bypass proxy)' : '(direct)'}: ${rawUrl}`);
+
+    const req = client.get(targetUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, rejectUnauthorized: false, timeout: 15000 }, (upstreamRes) => {
+        if (upstreamRes.statusCode && upstreamRes.statusCode >= 400) {
+            upstreamRes.resume();
+            return scheduleQuranReconnect();
+        }
+        upstreamRes.on('data', quranRelayWriteChunk);
+        upstreamRes.on('end', scheduleQuranReconnect);
+        upstreamRes.on('error', scheduleQuranReconnect);
+    });
+
+    req.on('error', scheduleQuranReconnect);
+    req.on('timeout', () => { req.destroy(); scheduleQuranReconnect(); });
+
+    quranRelay.upstreamReq = req;
+}
+
+function startQuranRelay() {
+    if (quranRelay.active) return;
+    quranRelay.active = true;
+    quranRelay.sourceIdx = 0;
+    quranRelay.viaProxy = false;
+    if (quranRelay.reconnectTimer) { clearTimeout(quranRelay.reconnectTimer); quranRelay.reconnectTimer = null; }
+    connectQuranUpstream();
+}
+
+function stopQuranRelay() {
+    quranRelay.active = false;
+    if (quranRelay.reconnectTimer) { clearTimeout(quranRelay.reconnectTimer); quranRelay.reconnectTimer = null; }
+    if (quranRelay.upstreamReq) {
+        try { quranRelay.upstreamReq.destroy(); } catch (e) {}
+        quranRelay.upstreamReq = null;
+    }
+    for (const res of quranRelay.subscribers) {
+        try { res.end(); } catch (e) {}
+    }
+    quranRelay.subscribers.clear();
+}
+
+// Classroom devices point their <audio> tag at this LAN-local endpoint instead of the
+// blocked external radio domains. One shared upstream connection feeds every listener.
+app.get('/api/quran/live-relay', (req, res) => {
+    res.writeHead(200, {
+        'Content-Type': 'audio/mpeg',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Connection': 'keep-alive'
+    });
+    quranRelay.subscribers.add(res);
+    if (!quranRelay.active) startQuranRelay();
+    req.on('close', () => quranRelay.subscribers.delete(res));
+});
+
 // ---------------------- 📻 CAIRO QURAN RADIO REST API ----------------------
 app.get('/api/quran/radio-info', (req, res) => {
     res.json({
         name: 'إذاعة القرآن الكريم من القاهرة',
         frequency: '98.2 FM',
-        streamUrl: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
+        streamUrl: '/api/quran/live-relay',
         backupUrls: [
             'http://n12.radiojar.com/8s5u5tpdtwzuv',
             'http://n0e.radiojar.com/8s5u5tpdtwzuv',
@@ -348,22 +458,24 @@ app.get('/api/quran/radio-info', (req, res) => {
 app.post('/api/quran/broadcast', (req, res) => {
     const action = (req.body && req.body.action) ? req.body.action : 'play';
     const isCurrentlyPlaying = activeRadioTrack && activeRadioTrack.track && activeRadioTrack.track.id === 'quran_cairo_live' && activeRadioTrack.isPlaying;
-    
+
     if (action === 'stop' || (action === 'toggle' && isCurrentlyPlaying)) {
         activeRadioTrack = null;
+        stopQuranRelay();
         io.emit('radio_sync_state', null);
         console.log('📻 [QURAN RADIO] Broadcast stopped across all devices via REST API');
         return res.json({ success: true, isBroadcasting: false, message: 'تم إيقاف البث لجميع الأجهزة' });
     }
-    
+
+    startQuranRelay();
     activeRadioTrack = {
         track: {
             id: 'quran_cairo_live',
             title: 'إذاعة القرآن الكريم من القاهرة',
             artist: 'بث حي مباشر 24/7 • مصر 98.2 FM 📻 (holyquranradio.com)',
             cover: '',
-            audioUrl: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
-            file_url: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
+            audioUrl: '/api/quran/live-relay',
+            file_url: '/api/quran/live-relay',
             isLive: true,
             duration: 'مباشر'
         },
@@ -377,6 +489,151 @@ app.post('/api/quran/broadcast', (req, res) => {
     res.json({ success: true, isBroadcasting: true, track: activeRadioTrack.track });
 });
 
+// ---------------------- 📿 QURAN RECITATION LIBRARY (mp3quran.net — reliable, not a live stream) ----------------------
+// Full recorded surahs by well-known reciters (Minshawy, Abdul Basit...). Static files behave like
+// any other classroom track, so they get the exact same currentTime sync + drift-correction as music
+// instead of the live-relay's best-effort buffering — this is what actually keeps devices together.
+const QURAN_CACHE_DIR = path.join(__dirname, 'uploads', 'quran');
+if (!fs.existsSync(QURAN_CACHE_DIR)) fs.mkdirSync(QURAN_CACHE_DIR, { recursive: true });
+
+let quranAutoAdvance = { reciterId: null, surahNumber: null, lastAdvanceAt: 0 };
+
+app.get('/api/quran/library/reciters', (req, res) => {
+    res.json({ success: true, reciters: QURAN_RECITERS.map(r => ({ id: r.id, name: r.name })) });
+});
+
+app.get('/api/quran/library/surahs', (req, res) => {
+    const { SURAH_NAMES } = require('./data/quran-reciters');
+    res.json({ success: true, surahs: SURAH_NAMES.map((name, i) => ({ number: i + 1, name })) });
+});
+
+// Streams one surah file: tries the CDN directly first (it's not on any school blocklist we've
+// seen), caches it to disk on first play, and falls back to the firewall-bypass proxy if the
+// direct connection ever fails. Every later play of the same surah is served instantly from disk.
+app.get('/api/quran/library/stream', async (req, res) => {
+    try {
+        const { reciter, surah } = req.query;
+        const audioUrl = getSurahAudioUrl(reciter, surah);
+        if (!audioUrl) return res.status(400).send('Invalid reciter/surah');
+
+        const cachePath = path.join(QURAN_CACHE_DIR, `${reciter}_${String(surah).padStart(3, '0')}.mp3`);
+
+        if (fs.existsSync(cachePath)) {
+            const stat = fs.statSync(cachePath);
+            const fileSize = stat.size;
+            const range = req.headers.range;
+            if (range) {
+                const parts = range.replace(/bytes=/, '').split('-');
+                const start = parseInt(parts[0], 10);
+                const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+                res.writeHead(206, {
+                    'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+                    'Accept-Ranges': 'bytes',
+                    'Content-Length': (end - start) + 1,
+                    'Content-Type': 'audio/mpeg',
+                });
+                return fs.createReadStream(cachePath, { start, end }).pipe(res);
+            }
+            res.writeHead(200, { 'Content-Length': fileSize, 'Content-Type': 'audio/mpeg', 'Accept-Ranges': 'bytes' });
+            return fs.createReadStream(cachePath).pipe(res);
+        }
+
+        const fetchAndCache = (url, isProxied) => {
+            const client = url.startsWith('https') ? https : http;
+            const freq = client.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, rejectUnauthorized: false, timeout: 15000 }, (upstreamRes) => {
+                if (upstreamRes.statusCode !== 200) {
+                    upstreamRes.resume();
+                    if (!isProxied) return fetchAndCache(VERCEL_PROXIES[0] + encodeURIComponent(audioUrl), true);
+                    return res.status(502).send('Quran CDN unreachable');
+                }
+                res.setHeader('Content-Type', 'audio/mpeg');
+                upstreamRes.pipe(res);
+                const fileStream = fs.createWriteStream(cachePath);
+                upstreamRes.pipe(fileStream);
+                fileStream.on('error', () => { try { fs.unlinkSync(cachePath); } catch (e) {} });
+            });
+            freq.on('error', () => {
+                if (!isProxied) return fetchAndCache(VERCEL_PROXIES[0] + encodeURIComponent(audioUrl), true);
+                if (!res.headersSent) res.status(502).send('Quran CDN unreachable');
+            });
+            freq.on('timeout', () => freq.destroy());
+        };
+        fetchAndCache(audioUrl, false);
+    } catch (err) {
+        if (!res.headersSent) res.status(500).send(err.message);
+    }
+});
+
+function buildQuranLibraryTrack(reciterId, surahNumber, djName) {
+    const reciter = getReciterById(reciterId);
+    if (!reciter) return null;
+    const n = parseInt(surahNumber, 10);
+    const streamUrl = `/api/quran/library/stream?reciter=${encodeURIComponent(reciterId)}&surah=${n}`;
+    return {
+        track: {
+            id: `quran_surah_${reciterId}_${n}`,
+            title: `سورة ${getSurahName(n)}`,
+            artist: reciter.name,
+            cover: '',
+            audioUrl: streamUrl,
+            file_url: streamUrl,
+            isLive: false,
+            reciterId,
+            surahNumber: n
+        },
+        currentTime: 0,
+        isPlaying: true,
+        startedAt: Date.now(),
+        djName: djName || 'المشرف'
+    };
+}
+
+app.post('/api/quran/library/broadcast', (req, res) => {
+    const { reciterId, surahNumber, userName, action } = req.body || {};
+
+    if (action === 'stop') {
+        activeRadioTrack = null;
+        quranAutoAdvance = { reciterId: null, surahNumber: null, lastAdvanceAt: 0 };
+        io.emit('radio_sync_state', null);
+        return res.json({ success: true, isBroadcasting: false });
+    }
+
+    const state = buildQuranLibraryTrack(reciterId, surahNumber, userName);
+    if (!state) return res.status(400).json({ success: false, error: 'قارئ أو سورة غير معروفة' });
+
+    activeRadioTrack = state;
+    quranAutoAdvance = { reciterId, surahNumber: parseInt(surahNumber, 10), lastAdvanceAt: Date.now() };
+    io.emit('radio_sync_state', activeRadioTrack);
+    console.log(`📿 [QURAN LIBRARY] Broadcasting ${state.track.title} (${state.track.artist}) by ${state.djName}`);
+    res.json({ success: true, isBroadcasting: true, track: state.track });
+});
+
+// Any client's <audio> firing 'ended' tells the server the surah finished, so it can advance
+// the whole classroom to the next one automatically (continuous "radio" feel). Debounced so a
+// burst of near-simultaneous 'ended' events from every synced device only advances once.
+function advanceQuranSurah() {
+    if (!quranAutoAdvance.reciterId || !quranAutoAdvance.surahNumber) return;
+    if (Date.now() - quranAutoAdvance.lastAdvanceAt < 3000) return; // debounce
+    const nextSurah = quranAutoAdvance.surahNumber >= 114 ? 1 : quranAutoAdvance.surahNumber + 1;
+    const state = buildQuranLibraryTrack(quranAutoAdvance.reciterId, nextSurah, activeRadioTrack?.djName);
+    if (!state) return;
+    activeRadioTrack = state;
+    quranAutoAdvance = { reciterId: quranAutoAdvance.reciterId, surahNumber: nextSurah, lastAdvanceAt: Date.now() };
+    io.emit('radio_sync_state', activeRadioTrack);
+    console.log(`📿 [QURAN LIBRARY] Auto-advanced to ${state.track.title}`);
+}
+
+// Periodic drift-correction heartbeat: every classroom device's <audio> element drifts a little
+// from the others over time (different buffering/decode speed). Re-broadcasting the server's
+// authoritative currentTime every 20s lets the existing >2s correction in the client snap
+// everyone back together, continuously, without anyone noticing.
+setInterval(() => {
+    if (!activeRadioTrack || !activeRadioTrack.isPlaying) return;
+    if (activeRadioTrack.track?.isLive) return; // live streams have no meaningful currentTime
+    const currentTime = (Date.now() - activeRadioTrack.startedAt) / 1000;
+    io.emit('radio_sync_state', { ...activeRadioTrack, currentTime });
+}, 20000);
+
 app.post('/api/salawat/trigger', (req, res) => {
     const soundType = (req.body && req.body.soundType) ? req.body.soundType : 'salawat';
     io.emit('salawat_broadcast', {
@@ -386,6 +643,60 @@ app.post('/api/salawat/trigger', (req, res) => {
         timestamp: Date.now()
     });
     res.json({ success: true, message: 'تم إرسال تذكير صلِّ على محمد لجميع الأجهزة!' });
+});
+
+// ---------------------- 🏆 INTERACTIVE QUIZ SCORES & LEADERBOARD (stealth quiz) ----------------------
+app.post('/api/quiz/submit-score', async (req, res) => {
+    try {
+        const { userId, nickname, score, total, quizId } = req.body || {};
+        const totalQuestions = parseInt(total, 10);
+        const finalScore = parseInt(score, 10);
+        if (!nickname || !Number.isFinite(finalScore) || !Number.isFinite(totalQuestions) || totalQuestions <= 0) {
+            return res.status(400).json({ success: false, error: 'بيانات النتيجة غير مكتملة' });
+        }
+        const percentage = Math.round((finalScore / totalQuestions) * 1000) / 10;
+
+        await run(
+            `INSERT INTO quiz_scores (user_id, nickname, quiz_id, score, total_questions, percentage) VALUES (?, ?, ?, ?, ?, ?)`,
+            [userId || null, nickname, quizId || 'flutter_competency', finalScore, totalQuestions, percentage]
+        );
+
+        io.emit('quiz_score_submitted', { nickname, score: finalScore, total: totalQuestions, percentage });
+        res.json({ success: true, percentage });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/quiz/leaderboard', async (req, res) => {
+    try {
+        const quizId = req.query.quizId || 'flutter_competency';
+
+        const topToday = await get(
+            `SELECT nickname, score, total_questions, percentage, submitted_at FROM quiz_scores
+             WHERE quiz_id = ? AND date(submitted_at) = date('now') ORDER BY percentage DESC, submitted_at ASC LIMIT 1`,
+            [quizId]
+        );
+        const topAllTime = await get(
+            `SELECT nickname, score, total_questions, percentage, submitted_at FROM quiz_scores
+             WHERE quiz_id = ? ORDER BY percentage DESC, submitted_at ASC LIMIT 1`,
+            [quizId]
+        );
+        const recent = await all(
+            `SELECT nickname, score, total_questions, percentage, submitted_at FROM quiz_scores
+             WHERE quiz_id = ? ORDER BY submitted_at DESC LIMIT 10`,
+            [quizId]
+        );
+        const topTen = await all(
+            `SELECT nickname, score, total_questions, percentage, submitted_at FROM quiz_scores
+             WHERE quiz_id = ? ORDER BY percentage DESC, submitted_at ASC LIMIT 10`,
+            [quizId]
+        );
+
+        res.json({ success: true, topToday: topToday || null, topAllTime: topAllTime || null, recent, topTen });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
 });
 
 // 2. Authentication & Auto-Login
@@ -399,7 +710,7 @@ app.post('/api/auth/login', async (req, res) => {
         const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
 
         if (password !== MASTER_PASSWORD) {
-            return res.status(401).json({ error: 'كلمة السر غير صحيحة! الباسوورد هو SdSdSdSd' });
+            return res.status(401).json({ error: 'كلمة السر غير صحيحة، حاول تاني 🔒' });
         }
 
         const effectiveDeviceId = deviceId || (clientMac ? `mac_${clientMac}` : `ip_${clientIp}`);
@@ -1384,7 +1695,7 @@ async function searchOnlineSongs(query) {
     try {
         const data = await fetchJsonOnline(`https://jiosaavn-api-2.vercel.app/search/songs?query=${encodeURIComponent(q)}`, 7000);
         const results = data.results || [];
-        return results.map(s => {
+        const mapped = results.map(s => {
             let streamUrl = null;
             if (Array.isArray(s.downloadUrl)) {
                 const high = s.downloadUrl.find(u => u.quality === '320kbps' || u.quality === '160kbps') || s.downloadUrl[s.downloadUrl.length - 1];
@@ -1405,8 +1716,30 @@ async function searchOnlineSongs(query) {
                 streamUrl
             };
         }).filter(s => s.streamUrl);
+        if (mapped.length > 0) return mapped;
     } catch (err) {
         console.warn('⚠️ [ONLINE MUSIC] JioSaavn-2 search fallback failed:', err.message);
+    }
+
+    // 3. Last-resort Fallback: Deezer's free public search (no key needed, excellent Arabic/
+    // Egyptian catalog coverage) — only returns a 30-second preview, not the full track, but
+    // that's better than finding nothing at all. Clearly marked as a preview for the UI.
+    try {
+        const data = await fetchJsonOnline(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=15`, 7000);
+        const results = data.data || [];
+        return results.filter(s => s.preview).map(s => ({
+            id: 'dz_' + s.id,
+            title: s.title || 'أغنية',
+            artist: (s.artist && s.artist.name) || 'فنان',
+            album: (s.album && s.album.title) || '',
+            duration: '0:30 (معاينة)',
+            isPreview: true,
+            cover: (s.album && s.album.cover_medium) || '',
+            rawCover: (s.album && s.album.cover_medium) || '',
+            streamUrl: s.preview
+        }));
+    } catch (err) {
+        console.warn('⚠️ [ONLINE MUSIC] Deezer preview fallback failed:', err.message);
         return [];
     }
 }
@@ -2159,6 +2492,74 @@ app.post('/api/netsupport/control', async (req, res) => {
 
 // ---------------------- SOCKET.IO REALTIME ENGINE ----------------------
 
+// ---------------------- 🎮 QUICK MATH CHALLENGE (live competitive mini-game) ----------------------
+const mathGame = {
+    active: false,
+    questions: [],
+    currentIndex: -1,
+    scores: {}, // nickname -> points
+    questionTimer: null,
+    answeredThisRound: false
+};
+
+function generateMathQuestions(count = 8) {
+    const ops = ['+', '-', '×'];
+    const qs = [];
+    for (let i = 0; i < count; i++) {
+        const op = ops[Math.floor(Math.random() * ops.length)];
+        let a, b, answer;
+        if (op === '×') {
+            a = Math.floor(Math.random() * 11) + 2;
+            b = Math.floor(Math.random() * 11) + 2;
+            answer = a * b;
+        } else {
+            a = Math.floor(Math.random() * 80) + 10;
+            b = Math.floor(Math.random() * 80) + 10;
+            if (op === '-' && b > a) [a, b] = [b, a];
+            answer = op === '+' ? a + b : a - b;
+        }
+        qs.push({ text: `${a} ${op} ${b}`, answer });
+    }
+    return qs;
+}
+
+function startMathGame() {
+    mathGame.active = true;
+    mathGame.questions = generateMathQuestions(8);
+    mathGame.currentIndex = -1;
+    mathGame.scores = {};
+    nextMathQuestion();
+}
+
+function nextMathQuestion() {
+    if (mathGame.questionTimer) clearTimeout(mathGame.questionTimer);
+    mathGame.currentIndex++;
+    mathGame.answeredThisRound = false;
+
+    if (mathGame.currentIndex >= mathGame.questions.length) {
+        mathGame.active = false;
+        const ranked = Object.entries(mathGame.scores).sort((a, b) => b[1] - a[1]);
+        io.emit('math_game_state', { status: 'finished', scores: ranked });
+        return;
+    }
+
+    io.emit('math_game_state', {
+        status: 'question',
+        index: mathGame.currentIndex,
+        total: mathGame.questions.length,
+        question: mathGame.questions[mathGame.currentIndex].text,
+        scores: Object.entries(mathGame.scores).sort((a, b) => b[1] - a[1])
+    });
+
+    // No one answered in time -> reveal and move on
+    mathGame.questionTimer = setTimeout(() => {
+        if (!mathGame.answeredThisRound) {
+            io.emit('math_game_round_result', { winner: null, answer: mathGame.questions[mathGame.currentIndex].answer });
+        }
+        setTimeout(nextMathQuestion, 1500);
+    }, 8000);
+}
+
 io.on('connection', async (socket) => {
     const rawIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
     const clientIp = cleanIP(rawIp);
@@ -2166,6 +2567,37 @@ io.on('connection', async (socket) => {
 
     // Send current classroom tasbeeh total
     socket.emit('tasbeeh_global_update', { total: classroomTotalTasbeeh });
+
+    // Quick Math Challenge — anyone can start a round; late joiners get the current state.
+    if (mathGame.active) {
+        socket.emit('math_game_state', {
+            status: 'question',
+            index: mathGame.currentIndex,
+            total: mathGame.questions.length,
+            question: mathGame.questions[mathGame.currentIndex].text,
+            scores: Object.entries(mathGame.scores).sort((a, b) => b[1] - a[1])
+        });
+    }
+
+    socket.on('math_game_start', () => {
+        startMathGame();
+    });
+
+    socket.on('math_game_answer', (data = {}) => {
+        if (!mathGame.active || mathGame.answeredThisRound) return;
+        const current = mathGame.questions[mathGame.currentIndex];
+        if (!current) return;
+        const submitted = parseInt(data.answer, 10);
+        if (submitted !== current.answer) return;
+
+        mathGame.answeredThisRound = true;
+        if (mathGame.questionTimer) clearTimeout(mathGame.questionTimer);
+        const nickname = data.nickname || 'لاعب';
+        mathGame.scores[nickname] = (mathGame.scores[nickname] || 0) + 1;
+
+        io.emit('math_game_round_result', { winner: nickname, answer: current.answer });
+        setTimeout(nextMathQuestion, 1800);
+    });
 
     socket.on('tasbeeh_increment', (data = 1) => {
         const count = (typeof data === 'number') ? data : (data?.count || 1);
@@ -2208,17 +2640,19 @@ io.on('connection', async (socket) => {
         const isCurrentlyPlaying = activeRadioTrack && activeRadioTrack.track && activeRadioTrack.track.id === 'quran_cairo_live' && activeRadioTrack.isPlaying;
         if (data.action === 'stop' || (data.action === 'toggle' && isCurrentlyPlaying)) {
             activeRadioTrack = null;
+            stopQuranRelay();
             io.emit('radio_sync_state', null);
             console.log('📻 [QURAN RADIO] Broadcast stopped for all devices by socket');
         } else {
+            startQuranRelay();
             activeRadioTrack = {
                 track: {
                     id: 'quran_cairo_live',
                     title: 'إذاعة القرآن الكريم من القاهرة',
                     artist: 'بث حي مباشر 24/7 • مصر 98.2 FM 📻 (holyquranradio.com)',
                     cover: '',
-                    audioUrl: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
-                    file_url: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
+                    audioUrl: '/api/quran/live-relay',
+                    file_url: '/api/quran/live-relay',
                     isLive: true,
                     duration: 'مباشر'
                 },
@@ -2618,6 +3052,12 @@ socket.on('admin_trigger_salawat', (data = {}) => {
     socket.on('radio_stop', () => {
         activeRadioTrack = null;
         io.emit('radio_sync_state', null);
+    });
+
+    // A classroom device's <audio> reached the end of the current Quran surah —
+    // advance everyone to the next one (debounced server-side against duplicate events).
+    socket.on('quran_track_ended', () => {
+        advanceQuranSurah();
     });
 
     // NetSupport client screen frame stream

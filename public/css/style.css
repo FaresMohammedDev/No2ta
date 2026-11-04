@@ -1,12 +1,14 @@
 /* No2ta Custom Glassmorphic Styles */
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
-    --bg-primary: #070a13;
-    --bg-secondary: #0c1222;
-    --bg-card: rgba(15, 23, 42, 0.75);
-    --border-color: rgba(255, 255, 255, 0.08);
-    --accent-cyan: #06b6d4;
+    /* Aliased to the No2ta Design System tokens (design-tokens.css) —
+       kept for backward compatibility with any var(--bg-primary) etc. usage. */
+    --bg-primary: var(--no2ta-bg-canvas, #0A0F1C);
+    --bg-secondary: var(--no2ta-bg-surface, #111827);
+    --bg-card: var(--no2ta-bg-surface-raised, rgba(15, 23, 42, 0.75));
+    --border-color: var(--no2ta-border-default, rgba(255, 255, 255, 0.08));
+    --accent-cyan: var(--no2ta-primary-500, #06b6d4);
     --accent-purple: #8b5cf6;
     --accent-pink: #ec4899;
 }
@@ -14,7 +16,7 @@
 body {
     font-family: 'Cairo', sans-serif;
     background-color: var(--bg-primary);
-    color: #f8fafc;
+    color: var(--no2ta-text-primary, #f8fafc);
     overflow-x: hidden;
 }
 
@@ -38,31 +40,31 @@ body {
     background: rgba(255, 255, 255, 0.25);
 }
 
-/* Glassmorphism */
+/* Glassmorphism — Midnight & Brass tones (see design-tokens.css) */
 .glass-panel {
-    background: rgba(13, 20, 36, 0.75);
+    background: color-mix(in srgb, var(--no2ta-bg-surface, #161310) 85%, transparent);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--no2ta-border-subtle, rgba(214, 178, 110, 0.08));
 }
 
 .glass-panel-elevated {
-    background: rgba(18, 28, 51, 0.85);
+    background: color-mix(in srgb, var(--no2ta-bg-surface-raised, #1F1A15) 92%, transparent);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--no2ta-border-default, rgba(214, 178, 110, 0.16));
+    box-shadow: var(--no2ta-shadow-3, 0 20px 50px -12px rgba(0, 0, 0, 0.6));
 }
 
 .glass-button {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--no2ta-border-subtle, rgba(214, 178, 110, 0.08));
     backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--no2ta-border-default, rgba(214, 178, 110, 0.16));
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .glass-button:hover {
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--no2ta-border-default, rgba(214, 178, 110, 0.16));
+    border-color: var(--no2ta-border-strong, rgba(214, 178, 110, 0.32));
     transform: translateY(-1px);
 }
 
@@ -105,17 +107,17 @@ body {
 
 /* Chat Bubbles */
 .chat-bubble-outgoing {
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    background: linear-gradient(135deg, var(--no2ta-primary-600, #14B8A6) 0%, var(--no2ta-primary-700, #0F9488) 100%);
     color: #ffffff;
     border-radius: 18px 18px 4px 18px;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    box-shadow: 0 4px 12px rgba(45, 212, 191, 0.2);
 }
 
 .chat-bubble-incoming {
-    background: rgba(30, 41, 59, 0.85);
-    color: #f1f5f9;
+    background: var(--no2ta-bg-surface-raised, rgba(30, 41, 59, 0.85));
+    color: var(--no2ta-text-primary, #f1f5f9);
     border-radius: 18px 18px 18px 4px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--no2ta-border-subtle, rgba(255, 255, 255, 0.08));
 }
 
 /* Audio Player Waveform Visualizer Simulation */

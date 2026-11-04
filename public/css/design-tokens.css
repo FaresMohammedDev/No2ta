@@ -1,0 +1,103 @@
+/* ==========================================================================
+   No2ta Design System — Tokens (v1.1 — "Midnight & Brass")
+   المصدر الوحيد لقيم الألوان/الخطوط/المسافات/الظلال في المنصة.
+   راجع docs/DESIGN_SYSTEM.md للشرح الكامل وقواعد الاستخدام.
+
+   v1.1: استبدال اتجاه "Ink Blue + Teal" بـ"ليلي وبراص" (Midnight & Brass) —
+   خلفيات غرافيت دافئة شبه سوداء + ذهبي/براص كلون أساسي واحد، بعد مراجعة
+   المستخدم للاتجاهات الثلاثة في docs/design-direction-preview-v2.html
+   واختياره الاتجاه الأول. كل الإيموجي استُبدل بأيقونات Lucide (راجع §5).
+   ========================================================================== */
+
+:root {
+    /* ---------- 1.1 Surfaces ---------- */
+    --no2ta-bg-canvas: #0B0A09;
+    --no2ta-bg-surface: #161310;
+    --no2ta-bg-surface-raised: #1F1A15;
+    --no2ta-bg-surface-sunken: #060504;
+    --no2ta-bg-overlay-scrim: rgba(5, 4, 3, 0.78);
+
+    /* ---------- 1.2 Borders (ذهبية خفيفة بدل الأبيض الشفاف) ---------- */
+    --no2ta-border-subtle: rgba(214, 178, 110, 0.08);
+    --no2ta-border-default: rgba(214, 178, 110, 0.16);
+    --no2ta-border-strong: rgba(214, 178, 110, 0.32);
+    --no2ta-border-accent: rgba(214, 178, 110, 0.5);
+
+    /* ---------- 1.3 Text ---------- */
+    --no2ta-text-primary: #F5EFE4;
+    --no2ta-text-secondary: #B8AC97;
+    --no2ta-text-tertiary: #7C7363;
+    --no2ta-text-disabled: rgba(124, 115, 99, 0.5);
+    --no2ta-text-on-accent: #1A1308;
+
+    /* ---------- 1.4 Primary — Brass Gold ---------- */
+    --no2ta-primary-50: #FBF3E3;
+    --no2ta-primary-300: #E8C988;
+    --no2ta-primary-500: #D6B26E;
+    --no2ta-primary-600: #C49A4E;
+    --no2ta-primary-700: #A67E39;
+    --no2ta-primary-surface: rgba(214, 178, 110, 0.12);
+
+    /* ---------- 1.5 Secondary — Muted Sage ---------- */
+    --no2ta-secondary-300: #AAB8A0;
+    --no2ta-secondary-500: #8A9A8C;
+    --no2ta-secondary-600: #71806F;
+    --no2ta-secondary-surface: rgba(138, 154, 140, 0.14);
+
+    /* ---------- 1.6 Semantic ---------- */
+    --no2ta-success-500: #7FAE63;
+    --no2ta-success-surface: rgba(127, 174, 99, 0.14);
+    --no2ta-warning-500: #E08A3C;
+    --no2ta-warning-surface: rgba(224, 138, 60, 0.14);
+    --no2ta-danger-500: #E0604A;
+    --no2ta-danger-surface: rgba(224, 96, 74, 0.14);
+    --no2ta-info-500: #6FA8C9;
+    --no2ta-info-surface: rgba(111, 168, 201, 0.14);
+
+    /* ---------- 1.7 Feature Tags ---------- */
+    --no2ta-tag-comms: #D6B26E;
+    --no2ta-tag-collab: #7C8FBD;
+    --no2ta-tag-media: #C98BA0;
+    --no2ta-tag-faith: #B5693F;
+    --no2ta-tag-broadcast: #6E8CA6;
+    --no2ta-tag-admin: #CC7A3D;
+
+    /* ---------- 2. Typography ---------- */
+    --no2ta-font-arabic: 'Cairo', sans-serif;
+    --no2ta-font-latin: 'Plus Jakarta Sans', sans-serif;
+    --no2ta-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+    --no2ta-text-display: 1.75rem;   /* 28px */
+    --no2ta-text-h1: 1.25rem;        /* 20px */
+    --no2ta-text-h2: 1rem;           /* 16px */
+    --no2ta-text-body-lg: 0.9375rem; /* 15px */
+    --no2ta-text-body: 0.8125rem;    /* 13px */
+    --no2ta-text-caption: 0.75rem;   /* 12px */
+    --no2ta-text-micro: 0.656rem;    /* 10.5px — absolute floor, never smaller */
+
+    /* ---------- 3.2 Radius ---------- */
+    --no2ta-radius-xs: 8px;
+    --no2ta-radius-sm: 10px;
+    --no2ta-radius-md: 14px;
+    --no2ta-radius-lg: 20px;
+    --no2ta-radius-xl: 28px;
+    --no2ta-radius-full: 9999px;
+
+    /* ---------- 3.3 Elevation (ظلال أعمق ودافئة تناسب الخلفية الغرافيتية) ---------- */
+    --no2ta-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --no2ta-shadow-2: 0 6px 16px rgba(0, 0, 0, 0.45);
+    --no2ta-shadow-3: 0 20px 50px -12px rgba(0, 0, 0, 0.6);
+    --no2ta-shadow-glow-accent: 0 0 0 1px var(--no2ta-border-accent), 0 4px 20px rgba(214, 178, 110, 0.25);
+
+    /* ---------- 4. Motion ---------- */
+    --no2ta-duration-fast: 120ms;
+    --no2ta-duration-base: 200ms;
+    --no2ta-duration-slow: 320ms;
+    --no2ta-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* ---------- 5. Icons (Lucide — بديل الإيموجي، راجع DESIGN_SYSTEM.md §5) ---------- */
+    --no2ta-icon-sm: 15px;
+    --no2ta-icon-md: 17px;
+    --no2ta-icon-lg: 20px;
+    --no2ta-icon-stroke: 2;
+}

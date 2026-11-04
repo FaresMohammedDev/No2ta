@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نؤطة — اتجاهات بصرية جديدة (بدون إيموجي)</title>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
+
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    font-family: 'Cairo', sans-serif;
+    transition: background .35s ease, color .35s ease;
+    min-height: 100vh;
+}
+
+/* ============ THEME A: Midnight & Brass (دافئ وداكن وفخم) ============ */
+[data-theme="midnight"] {
+    --bg: #0B0A09;
+    --surface: #161310;
+    --surface-raised: #1F1A15;
+    --surface-sunken: #060504;
+    --border: rgba(214, 178, 110, 0.16);
+    --border-strong: rgba(214, 178, 110, 0.32);
+    --text-primary: #F5EFE4;
+    --text-secondary: #B8AC97;
+    --text-tertiary: #7C7363;
+    --primary: #D6B26E;
+    --primary-hover: #E8C988;
+    --primary-surface: rgba(214, 178, 110, 0.12);
+    --on-primary: #1A1308;
+    --secondary: #8A9A8C;
+    --danger: #E0604A;
+    --shadow: 0 20px 50px -12px rgba(0,0,0,0.6);
+}
+
+/* ============ THEME B: Ivory & Navy (فاتح وأنيق) ============ */
+[data-theme="ivory"] {
+    --bg: #F6F2EA;
+    --surface: #FFFFFF;
+    --surface-raised: #FFFFFF;
+    --surface-sunken: #EFE9DC;
+    --border: rgba(16, 24, 48, 0.08);
+    --border-strong: rgba(16, 24, 48, 0.16);
+    --text-primary: #10182F;
+    --text-secondary: #565F7A;
+    --text-tertiary: #8991A8;
+    --primary: #10182F;
+    --primary-hover: #1C2745;
+    --primary-surface: rgba(16, 24, 48, 0.06);
+    --on-primary: #F6F2EA;
+    --secondary: #B8862F;
+    --danger: #C94A36;
+    --shadow: 0 16px 40px -10px rgba(16,24,48,0.14);
+}
+
+/* ============ THEME C: Espresso Glass (هايبرد: داكن دافئ أفتح شوية) ============ */
+[data-theme="espresso"] {
+    --bg: #171212;
+    --surface: #221B19;
+    --surface-raised: #2C2320;
+    --surface-sunken: #110D0C;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --text-primary: #F3ECE6;
+    --text-secondary: #C2B2A7;
+    --text-tertiary: #8A796E;
+    --primary: #4FA392;
+    --primary-hover: #63BCA9;
+    --primary-surface: rgba(79, 163, 146, 0.14);
+    --on-primary: #06211C;
+    --secondary: #D6924C;
+    --danger: #E0604A;
+    --shadow: 0 20px 50px -12px rgba(0,0,0,0.55);
+}
+
+body { background: var(--bg); color: var(--text-primary); }
+
+/* ---------- Theme Switcher ---------- */
+.switcher {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; gap: 8px; padding: 14px 20px;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(16px);
+}
+.switcher button {
+    font-family: 'Cairo', sans-serif;
+    border: 1px solid var(--border); background: transparent; color: var(--text-secondary);
+    padding: 8px 16px; border-radius: 999px; font-size: 13px; font-weight: 700; cursor: pointer;
+    transition: all .2s ease;
+}
+.switcher button.active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+.switcher .hint { margin-inline-start: auto; font-size: 12px; color: var(--text-tertiary); align-self: center; }
+
+.page { max-width: 980px; margin: 0 auto; padding: 28px 20px 80px; }
+.section-title { font-size: 13px; font-weight: 800; color: var(--text-tertiary); letter-spacing: .04em; margin: 36px 0 14px; text-transform: uppercase; }
+.section-title:first-child { margin-top: 0; }
+
+/* ---------- Mock App Header ---------- */
+.app-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+    padding: 10px 14px; box-shadow: var(--shadow);
+}
+.header-group { display: flex; align-items: center; gap: 6px; }
+.icon-btn {
+    display: flex; align-items: center; gap: 7px;
+    background: var(--surface-raised); border: 1px solid var(--border); color: var(--text-secondary);
+    padding: 9px 13px; border-radius: 12px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    transition: all .18s ease;
+}
+.icon-btn:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.icon-btn svg { width: 16px; height: 16px; stroke-width: 2; }
+.icon-btn.only svg { width: 17px; height: 17px; }
+.divider { width: 1px; height: 22px; background: var(--border); margin: 0 2px; }
+.pill {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface-raised); border: 1px solid var(--border);
+    padding: 8px 14px; border-radius: 12px; font-family: 'JetBrains Mono', monospace;
+}
+.pill svg { width: 15px; height: 15px; color: var(--primary); }
+.pill b { font-size: 13px; }
+.avatar {
+    width: 34px; height: 34px; border-radius: 50%; background: var(--primary); color: var(--on-primary);
+    display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px;
+}
+.panic-btn {
+    display: flex; align-items: center; gap: 7px;
+    background: var(--danger); color: #fff; border: none;
+    padding: 9px 15px; border-radius: 12px; font-size: 12.5px; font-weight: 800; cursor: pointer;
+}
+.panic-btn svg { width: 16px; height: 16px; }
+
+/* ---------- Buttons ---------- */
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'Cairo', sans-serif; font-weight: 700; font-size: 13.5px;
+    padding: 10px 20px; border-radius: 12px; border: 1px solid transparent; cursor: pointer;
+}
+.btn svg { width: 16px; height: 16px; }
+.btn-primary { background: var(--primary); color: var(--on-primary); }
+.btn-secondary { background: var(--surface-raised); color: var(--text-primary); border-color: var(--border-strong); }
+.btn-ghost { background: transparent; color: var(--text-secondary); }
+.btn-danger { background: var(--danger); color: #fff; }
+
+/* ---------- Modal mock ---------- */
+.modal-mock {
+    background: var(--surface-raised); border: 1px solid var(--border); border-radius: 22px;
+    box-shadow: var(--shadow); max-width: 420px; overflow: hidden;
+}
+.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+.modal-head .title { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 15px; }
+.modal-head .title svg { width: 19px; height: 19px; color: var(--primary); }
+.modal-close {
+    width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: var(--surface-sunken); color: var(--text-secondary); border: 1px solid var(--border); cursor: pointer;
+}
+.modal-close svg { width: 15px; height: 15px; }
+.modal-body { padding: 18px 20px; font-size: 13.5px; color: var(--text-secondary); line-height: 1.8; }
+.modal-body .row { display: flex; align-items: center; gap: 10px; background: var(--surface-sunken); border: 1px solid var(--border); padding: 12px 14px; border-radius: 14px; margin-top: 10px; }
+.modal-body .row svg { width: 17px; height: 17px; color: var(--primary); }
+
+/* ---------- Cards ---------- */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 16px; }
+.card .top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.card .top .ic { width: 38px; height: 38px; border-radius: 11px; background: var(--primary-surface); color: var(--primary); display: flex; align-items: center; justify-content: center; }
+.card .top .ic svg { width: 19px; height: 19px; }
+.card h4 { margin: 0 0 4px; font-size: 14px; }
+.card p { margin: 0; font-size: 12.5px; color: var(--text-secondary); line-height: 1.6; }
+.card .live { display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; font-size: 11px; color: var(--primary); font-weight: 700; }
+.card .live .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); animation: pulse 1.4s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+</style>
+</head>
+<body data-theme="midnight">
+
+<div class="switcher">
+    <button data-t="midnight" class="active">١ — ليلي وبراص (داكن فخم)</button>
+    <button data-t="ivory">٢ — عاجي وكحلي (فاتح أنيق)</button>
+    <button data-t="espresso">٣ — إسبريسو زجاجي (هايبرد دافئ)</button>
+    <span class="hint">كله من غير أي إيموجي — أيقونات حقيقية بس</span>
+</div>
+
+<div class="page">
+
+    <div class="section-title">الهيدر — نفس الأزرار، أيقونات بدل الإيموجي</div>
+    <div class="app-header">
+        <div class="header-group">
+            <button class="icon-btn only" title="AirDrop"><i data-lucide="send"></i></button>
+            <button class="icon-btn only" title="السبورة"><i data-lucide="pen-tool"></i></button>
+            <button class="icon-btn only" title="كشكول الأكواد"><i data-lucide="code-2"></i></button>
+            <span class="divider"></span>
+            <button class="icon-btn only" title="بث الشاشة"><i data-lucide="monitor-play"></i></button>
+            <button class="icon-btn only" title="إذاعة القرآن"><i data-lucide="radio"></i></button>
+            <button class="icon-btn only" title="أغاني الفصل"><i data-lucide="music-2"></i></button>
+            <button class="icon-btn only" title="السبحة"><i data-lucide="circle-dot-dashed"></i></button>
+        </div>
+        <div class="header-group">
+            <div class="pill"><i data-lucide="clock"></i><b>05:08</b></div>
+            <button class="icon-btn only" title="الأدمن"><i data-lucide="crown"></i></button>
+            <div class="avatar">ع</div>
+            <span class="divider"></span>
+            <button class="panic-btn"><i data-lucide="siren"></i>البشمهندسة</button>
+        </div>
+    </div>
+
+    <div class="section-title">الأزرار</div>
+    <div class="btn-row">
+        <button class="btn btn-primary"><i data-lucide="check"></i>تأكيد</button>
+        <button class="btn btn-secondary"><i data-lucide="arrow-right"></i>رجوع</button>
+        <button class="btn btn-ghost"><i data-lucide="settings"></i>إعدادات</button>
+        <button class="btn btn-danger"><i data-lucide="trash-2"></i>حذف</button>
+    </div>
+
+    <div class="section-title">نموذج مودال موحّد</div>
+    <div class="modal-mock">
+        <div class="modal-head">
+            <div class="title"><i data-lucide="send"></i>مشاركة الملفات — AirDrop</div>
+            <div class="modal-close"><i data-lucide="x"></i></div>
+        </div>
+        <div class="modal-body">
+            اسحب أي ملف هنا أو اضغط للاختيار، هيوصل لكل زمايلك في الفصل فورًا.
+            <div class="row"><i data-lucide="file-text"></i> ملخص_الفيزياء.pdf</div>
+            <div class="row"><i data-lucide="image"></i> سبورة_الحصة.png</div>
+        </div>
+    </div>
+
+    <div class="section-title">كروت / لوحات</div>
+    <div class="cards">
+        <div class="card">
+            <div class="top"><div class="ic"><i data-lucide="radio"></i></div></div>
+            <h4>إذاعة القرآن الكريم</h4>
+            <p>بث مباشر من القاهرة لكل الفصل دفعة واحدة.</p>
+            <div class="live"><span class="dot"></span> شغالة الآن</div>
+        </div>
+        <div class="card">
+            <div class="top"><div class="ic"><i data-lucide="monitor-play"></i></div></div>
+            <h4>بث الشاشة</h4>
+            <p>شارك شاشتك أو تابع بث زميلك في الوقت الفعلي.</p>
+        </div>
+        <div class="card">
+            <div class="top"><div class="ic"><i data-lucide="users"></i></div></div>
+            <h4>زملاء الفصل</h4>
+            <p>24 متصل الآن — شوف مين فاتح معاك دلوقتي.</p>
+        </div>
+    </div>
+
+</div>
+
+<script>
+lucide.createIcons();
+document.querySelectorAll('.switcher button[data-t]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.body.setAttribute('data-theme', btn.dataset.t);
+        document.querySelectorAll('.switcher button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    });
+});
+</script>
+</body>
+</html>

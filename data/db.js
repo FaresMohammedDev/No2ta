@@ -214,6 +214,20 @@ const initDB = async () => {
     await run(`INSERT OR IGNORE INTO system_settings (key, value) VALUES ('whiteboard_locked', '0');`);
     await run(`INSERT OR IGNORE INTO system_settings (key, value) VALUES ('shared_codepad', '// كشكول الأكواد والنصوص المشترك للفصل 💻⚡\n// الصق أي كود أو مسألة برمجية هنا ليراها الجميع فوراً!');`);
 
+    // Interactive quiz scores (panic-button stealth quiz) — persisted so the classroom
+    // gets a real leaderboard instead of a score that vanishes the moment the tab closes.
+    await run(`CREATE TABLE IF NOT EXISTS quiz_scores (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT,
+        nickname TEXT NOT NULL,
+        quiz_id TEXT NOT NULL DEFAULT 'flutter_competency',
+        score INTEGER NOT NULL,
+        total_questions INTEGER NOT NULL,
+        percentage REAL NOT NULL,
+        submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );`);
+    await run(`CREATE INDEX IF NOT EXISTS idx_quiz_scores_quiz ON quiz_scores (quiz_id, percentage DESC);`);
+
     console.log('✅ SQLite Database & Tables Initialized Successfully');
 };
 
