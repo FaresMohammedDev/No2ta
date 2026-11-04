@@ -522,7 +522,9 @@
     <!-- 2. NETWORK & QR CODE MODAL -->
     <div id="networkModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
         <div class="glass-panel-elevated rounded-3xl p-6 max-w-sm w-full text-center relative border border-white/10">
-            <button onclick="hideModal('networkModal')" class="absolute top-4 left-4 text-slate-400 hover:text-white">✕</button>
+            <button onclick="hideModal('networkModal')" class="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
             <h3 class="text-base font-black text-white mb-1 flex items-center justify-center gap-1.5"><i data-lucide="wifi" class="w-4 h-4"></i> دخول الزملاء عبر الـ Wi-Fi</h3>
             <p class="text-xs text-slate-400 mb-4">امسح الكود بكاميرا الموبايل للدخول المباشر للشات</p>
 
@@ -541,13 +543,15 @@
 
     <!-- 3. AIRDROP MODAL -->
     <div id="airdropModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-        <div class="glass-panel-elevated rounded-3xl p-6 max-w-xl w-full border border-white/10 flex flex-col max-h-[85vh]">
+        <div class="glass-panel-elevated rounded-3xl p-6 max-w-lg w-full border border-white/10 flex flex-col max-h-[85vh]">
             <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
                 <div class="flex items-center gap-2">
                     <i data-lucide="send" class="w-5 h-5 text-cyan-400"></i>
                     <h3 class="text-base font-black text-white">Classroom AirDrop (مشاركة الملفات السريعة)</h3>
                 </div>
-                <button onclick="hideModal('airdropModal')" class="text-slate-400 hover:text-white">✕</button>
+                <button type="button" onclick="hideModal('airdropModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
             </div>
 
             <!-- Drag and drop zone -->
@@ -572,7 +576,7 @@
 
     <!-- 4. LIVE WHITEBOARD MODAL -->
     <div id="whiteboardModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4">
-        <div class="glass-panel-elevated rounded-3xl p-4 max-w-4xl w-full border border-white/10 flex flex-col h-[90vh]">
+        <div class="glass-panel-elevated rounded-3xl p-4 max-w-5xl w-full border border-white/10 flex flex-col h-[90vh]">
             <!-- Whiteboard Toolbar -->
             <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10 mb-2">
                 <div class="flex items-center gap-2">
@@ -600,7 +604,9 @@
                         <i data-lucide="download" class="w-3 h-3"></i> تصدير
                     </button>
                     <!-- Close -->
-                    <button onclick="hideModal('whiteboardModal')" class="text-slate-400 hover:text-white px-2">✕</button>
+                    <button type="button" onclick="hideModal('whiteboardModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
                 </div>
             </div>
 
@@ -613,7 +619,7 @@
 
     <!-- 4b. COLLABORATIVE LIVE CODEPAD MODAL (Plain Text / Code Bin) -->
     <div id="codepadModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4">
-        <div class="glass-panel-elevated rounded-3xl p-4 sm:p-5 max-w-4xl w-full border border-indigo-500/30 flex flex-col h-[90vh]">
+        <div class="glass-panel-elevated rounded-3xl p-4 sm:p-5 max-w-5xl w-full border border-indigo-500/30 flex flex-col h-[90vh]">
             <!-- CodePad Header & Actions Toolbar -->
             <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10 mb-2">
                 <div class="flex items-center gap-2">
@@ -648,7 +654,9 @@
                     </button>
 
                     <!-- Close -->
-                    <button onclick="hideModal('codepadModal')" class="text-slate-400 hover:text-white px-2 py-1 text-sm font-bold">✕</button>
+                    <button type="button" onclick="hideModal('codepadModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
                 </div>
             </div>
 
@@ -673,15 +681,18 @@
 
     <!-- 4c. IN-CHAT CODE SNIPPET SHARING MODAL -->
     <div id="codeSnippetModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-        <div class="glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-xl w-full border border-cyan-500/30 flex flex-col relative">
-            <button onclick="hideModal('codeSnippetModal')" class="absolute top-4 left-4 text-slate-400 hover:text-white">✕</button>
-            
-            <div class="flex items-center gap-2 mb-3">
-                <span class="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-mono font-black text-sm">&lt;/&gt;</span>
-                <div>
-                    <h3 class="text-sm font-black text-white">مشاركة كود برمجى أو نص خام (Code Snippet)</h3>
-                    <p class="text-[11px] text-slate-400">سيتم إرساله للشات مع زر نسخ سريع مخصص لكل الطلاب</p>
+        <div class="glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-lg w-full border border-cyan-500/30 flex flex-col relative">
+            <div class="flex items-center justify-between gap-2 mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-mono font-black text-sm">&lt;/&gt;</span>
+                    <div>
+                        <h3 class="text-sm font-black text-white">مشاركة كود برمجى أو نص خام (Code Snippet)</h3>
+                        <p class="text-[11px] text-slate-400">سيتم إرساله للشات مع زر نسخ سريع مخصص لكل الطلاب</p>
+                    </div>
                 </div>
+                <button type="button" onclick="hideModal('codeSnippetModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
             </div>
 
             <form id="codeSnippetForm" class="space-y-3">
@@ -727,8 +738,10 @@
     <!-- 5. STORY CREATOR MODAL -->
     <div id="storyCreatorModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
         <div class="glass-panel-elevated rounded-3xl p-6 max-w-md w-full border border-white/10 relative">
-            <button onclick="hideModal('storyCreatorModal')" class="absolute top-4 left-4 text-slate-400 hover:text-white">✕</button>
-            <h3 class="text-base font-black text-white mb-3">نشر استوري جديد 📸</h3>
+            <button type="button" onclick="hideModal('storyCreatorModal')" class="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0 z-10">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+            <h3 class="text-base font-black text-white mb-3 flex items-center gap-1.5"><i data-lucide="camera" class="w-[18px] h-[18px] text-pink-400"></i> نشر استوري جديد</h3>
 
             <form id="storyCreateForm" class="space-y-4">
                 <div>
@@ -750,22 +763,24 @@
                     <label class="block text-xs font-bold text-slate-300 mb-1">رفع صورة أو فيديو للاستوري (من جهازك):</label>
                     <div id="storyDropZone" onclick="document.getElementById('storyFileInput').click()" class="border-2 border-dashed border-slate-700 hover:border-cyan-500 rounded-2xl p-4 text-center cursor-pointer transition-all bg-slate-950/50">
                         <div id="storyFileEmptyState">
-                            <span class="text-3xl block mb-1">📷</span>
+                            <i data-lucide="image-plus" class="w-8 h-8 mx-auto mb-1 text-slate-500"></i>
                             <p class="text-xs font-bold text-cyan-300">اضغط هنا لاختيار صورة من جهازك</p>
                             <p class="text-micro text-slate-400">يدعم الصور من الكمبيوتر أو الموبايل</p>
                         </div>
                         <div id="storyFilePreviewState" class="hidden flex flex-col items-center gap-2">
                             <img id="storyImagePreview" class="max-h-40 rounded-xl object-contain shadow-lg border border-white/10" />
-                            <button type="button" onclick="event.stopPropagation(); removeStorySelectedFile();" class="text-xs text-red-400 hover:text-red-300 font-bold bg-slate-900 px-3 py-1 rounded-lg border border-red-500/30">
-                                إلغاء الصورة ✕
+                            <button type="button" onclick="event.stopPropagation(); removeStorySelectedFile();" class="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 font-bold bg-slate-900 px-3 py-1 rounded-lg border border-red-500/30">
+                                <span>إلغاء الصورة</span>
+                                <i data-lucide="x" class="w-3 h-3"></i>
                             </button>
                         </div>
                         <input type="file" id="storyFileInput" accept="image/*,video/*" class="hidden">
                     </div>
                 </div>
 
-                <button type="submit" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold text-sm transition-all shadow-lg">
-                    نشر في الاستوري الآن 🔥
+                <button type="submit" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold text-sm transition-all shadow-lg flex items-center justify-center gap-1.5">
+                    <i data-lucide="send" class="w-4 h-4"></i>
+                    <span>نشر في الاستوري الآن</span>
                 </button>
             </form>
         </div>
@@ -787,10 +802,12 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <button id="deleteStoryBtn" onclick="deleteCurrentActiveStory()" class="hidden px-2.5 py-1 rounded-xl bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white text-xs font-bold transition-all flex items-center gap-1" title="حذف هذا الاستوري">
-                        <span>🗑️</span>
+                        <i data-lucide="trash-2" class="w-3 h-3"></i>
                         <span>مسح</span>
                     </button>
-                    <button onclick="hideModal('storyViewerModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center font-bold">✕</button>
+                    <button type="button" onclick="hideModal('storyViewerModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
                 </div>
             </div>
 
@@ -826,7 +843,9 @@
                     <h3 class="text-sm font-bold text-white">مشاهدو الاستوري</h3>
                     <span id="storyViewsModalCount" class="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 font-bold">0</span>
                 </div>
-                <button onclick="hideModal('storyViewsModal')" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs">✕</button>
+                <button type="button" onclick="hideModal('storyViewsModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
             </div>
             <!-- List of viewers -->
             <div id="storyViewersList" class="overflow-y-auto space-y-2 flex-1 pr-1 custom-scrollbar">
@@ -837,13 +856,13 @@
 
     <!-- 7. ADMIN DASHBOARD MODAL -->
     <div id="adminModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-        <div class="glass-panel-elevated rounded-3xl p-6 max-w-3xl w-full border border-white/10 max-h-[85vh] flex flex-col">
+        <div class="glass-panel-elevated rounded-3xl p-6 max-w-5xl w-full border border-white/10 max-h-[85vh] flex flex-col">
             <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
                 <div class="flex items-center gap-2">
                     <i data-lucide="crown" class="w-5 h-5 text-amber-400"></i>
                     <h3 class="text-base font-black text-amber-400">لوحة تحكم وفيتشرات الأدمن الخارقة</h3>
                 </div>
-                <button onclick="hideModal('adminModal')" class="text-slate-400 hover:text-white">
+                <button type="button" onclick="hideModal('adminModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
             </div>
@@ -891,7 +910,7 @@
 
     <!-- 8. GLOBAL ANNOUNCEMENT MODAL -->
     <div id="announcementModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-        <div class="glass-panel-elevated rounded-3xl p-6 sm:p-8 max-w-md w-full border border-amber-500/40 text-center relative shadow-2xl shadow-amber-500/20">
+        <div class="glass-panel-elevated rounded-3xl p-6 sm:p-8 max-w-sm w-full border border-amber-500/40 text-center relative shadow-2xl shadow-amber-500/20">
             <i data-lucide="megaphone" class="w-9 h-9 text-amber-400 mx-auto mb-2"></i>
             <h3 id="announcementTitle" class="text-lg font-black text-amber-400 mb-2">إذاعة الفصل العامة</h3>
             <p id="announcementText" class="text-sm text-white font-semibold leading-relaxed mb-4 bg-slate-950/70 p-4 rounded-2xl border border-white/5"></p>
@@ -906,8 +925,10 @@
     <!-- 10. PROFILE EDIT MODAL -->
     <div id="profileModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
         <div class="glass-panel-elevated rounded-3xl p-6 max-w-md w-full border border-white/10 relative">
-            <button onclick="hideModal('profileModal')" class="absolute top-4 left-4 text-slate-400 hover:text-white">✕</button>
-            <h3 class="text-base font-black text-white mb-3">تعديل ملفي الشخصي 👤</h3>
+            <button type="button" onclick="hideModal('profileModal')" class="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0 z-10">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+            <h3 class="text-base font-black text-white mb-3 flex items-center gap-1.5"><i data-lucide="user-cog" class="w-[18px] h-[18px] text-cyan-400"></i> تعديل ملفي الشخصي</h3>
 
             <form id="profileEditForm" class="space-y-4">
                 <div>
@@ -967,9 +988,11 @@
     <!-- 11. CONNECT TO HOST MODAL -->
     <div id="connectHostModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
         <div class="glass-panel-elevated rounded-3xl p-6 max-w-md w-full border border-white/10 relative text-right">
-            <button onclick="hideModal('connectHostModal')" class="absolute top-4 left-4 text-slate-400 hover:text-white">✕</button>
+            <button type="button" onclick="hideModal('connectHostModal')" class="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0 z-10">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
             <div class="text-center mb-4">
-                <span class="text-4xl block mb-2">🔗</span>
+                <i data-lucide="link-2" class="w-9 h-9 text-cyan-400 mx-auto mb-2"></i>
                 <h3 class="text-lg font-black text-white">الاتصال بسيرفر الفصل الرئيسي</h3>
                 <p class="text-xs text-slate-400 mt-1">يجب أن يكون جميع الطلاب متصلين بنفس الـ IP الخاص بسيرفر الأدمن لتروا بعضكم وتتحدثوا معاً!</p>
             </div>
@@ -981,12 +1004,13 @@
                 </div>
 
                 <div class="p-3 bg-slate-950/60 rounded-xl border border-white/5 text-[11px] text-slate-400 space-y-1">
-                    <p>💡 <b class="text-white">كيف تعرف IP السيرفر؟</b></p>
+                    <p class="flex items-center gap-1"><i data-lucide="lightbulb" class="w-3.5 h-3.5 shrink-0"></i> <b class="text-white">كيف تعرف IP السيرفر؟</b></p>
                     <p>انظر إلى شاشة جهاز زميلك (الأدمن) الذي شغل السيرفر عنده، ستجد الـ IP مكتوباً في أعلى الشاشة أو في الترمينال (مثلاً: <span class="text-cyan-400 font-mono font-bold">192.168.20.54</span>).</p>
                 </div>
 
-                <button onclick="connectToEnteredHost()" class="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-slate-950 font-black text-sm transition-all shadow-lg">
-                    اتصال ودخول المنصة فوراً 🚀
+                <button onclick="connectToEnteredHost()" class="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-slate-950 font-black text-sm transition-all shadow-lg flex items-center justify-center gap-1.5">
+                    <i data-lucide="rocket" class="w-4 h-4"></i>
+                    <span>اتصال ودخول المنصة فوراً</span>
                 </button>
             </div>
         </div>
@@ -1009,17 +1033,20 @@
             <!-- Playback Controls -->
             <div class="flex items-center gap-1.5 shrink-0">
                 <a id="quranExternalLinkBtn" href="https://www.holyquranradio.com/" target="_blank" rel="noopener noreferrer" class="hidden px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-xs font-bold transition-all shrink-0 flex items-center gap-1 shadow-sm" title="فتح موقع إذاعة القرآن الكريم المباشر holyquranradio.com">
-                    <span>📻 holyquranradio.com ↗</span>
+                    <i data-lucide="radio" class="w-3 h-3"></i>
+                    <span>holyquranradio.com</span>
+                    <i data-lucide="external-link" class="w-3 h-3"></i>
                 </a>
                 <button id="radioPlayPauseBtn" onclick="toggleRadioPlayPause()" class="w-9 h-9 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white flex items-center justify-center font-bold shadow-md shadow-pink-500/30 transition-all text-sm">
-                    <span id="radioPlayIcon">▶</span>
+                    <i id="radioPlayIconPlay" data-lucide="play" class="w-4 h-4"></i>
+                    <i id="radioPlayIconPause" data-lucide="pause" class="hidden w-4 h-4"></i>
                 </button>
                 <button onclick="openMusicModal()" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1 text-xs font-bold transition-all" title="فتح مكتبة الأغاني">
-                    <span>🎵</span>
+                    <i data-lucide="library" class="w-3 h-3"></i>
                     <span>المكتبة</span>
                 </button>
                 <button onclick="closeRadioBar()" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-xs" title="إيقاف ومغادرة الراديو">
-                    ✕
+                    <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
             </div>
         </div>
@@ -1106,16 +1133,20 @@
             <!-- Modal Header -->
             <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
                 <div class="flex items-center gap-2">
-                    <span class="text-2xl">📻</span>
+                    <div class="w-10 h-10 rounded-xl bg-pink-500/20 border border-pink-500/40 flex items-center justify-center shrink-0">
+                        <i data-lucide="radio" class="w-[18px] h-[18px] text-pink-300"></i>
+                    </div>
                     <div>
                         <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
                             <span>راديو وموسيقى نؤطة</span>
-                            <span class="text-micro px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold">بث متزامن للفصل ⚡</span>
+                            <span class="text-micro px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center gap-0.5"><i data-lucide="zap" class="w-3 h-3"></i> بث متزامن للفصل</span>
                         </h3>
                         <p class="text-micro text-slate-400">ابحث عن أي أغنية أونلاين أو شغل من مكتبة المعمل • صوت متزامن للكل!</p>
                     </div>
                 </div>
-                <button onclick="hideModal('musicSearchModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs">✕</button>
+                <button type="button" onclick="hideModal('musicSearchModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
             </div>
 
             <!-- Tabs Navigation -->
@@ -1230,16 +1261,20 @@
             <!-- Modal Header -->
             <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
                 <div class="flex items-center gap-2">
-                    <span class="text-2xl">👥</span>
+                    <div class="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center shrink-0">
+                        <i data-lucide="users" class="w-[18px] h-[18px] text-purple-300"></i>
+                    </div>
                     <div>
                         <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
                             <span>إنشاء جروب جديد</span>
-                            <span class="text-micro px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold">خاص بالفصل ⚡</span>
+                            <span class="text-micro px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold flex items-center gap-0.5"><i data-lucide="zap" class="w-3 h-3"></i> خاص بالفصل</span>
                         </h3>
                         <p class="text-micro text-slate-400">اجمع شلتك أو فريقك في شات مشترك!</p>
                     </div>
                 </div>
-                <button onclick="hideModal('createGroupModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs">✕</button>
+                <button type="button" onclick="hideModal('createGroupModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
             </div>
 
             <form id="createGroupForm" onsubmit="handleCreateGroupSubmit(event)" class="flex flex-col flex-1 min-h-0 space-y-3">
@@ -1314,13 +1349,15 @@
         <div class="glass-panel-elevated rounded-3xl p-5 max-w-sm w-full border border-purple-500/30 flex flex-col max-h-[80vh] shadow-2xl relative">
             <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
                 <div class="flex items-center gap-2">
-                    <span id="groupInfoModalIcon" class="text-2xl">👥</span>
+                    <span id="groupInfoModalIcon" class="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-lg shrink-0">👥</span>
                     <div>
                         <h3 id="groupInfoModalTitle" class="text-sm font-bold text-white">أعضاء الجروب</h3>
                         <p id="groupInfoModalDesc" class="text-micro text-slate-400"></p>
                     </div>
                 </div>
-                <button onclick="hideModal('groupMembersModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs">✕</button>
+                <button type="button" onclick="hideModal('groupMembersModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
             </div>
 
             <div id="groupMembersListModalContainer" class="flex-1 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
@@ -1334,13 +1371,17 @@
         <div class="glass-panel-elevated rounded-3xl p-5 max-w-sm w-full border border-amber-500/30 flex flex-col max-h-[80vh] shadow-2xl relative">
             <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
                 <div class="flex items-center gap-2">
-                    <span class="text-2xl">📩</span>
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
+                        <i data-lucide="user-plus" class="w-[18px] h-[18px] text-amber-300"></i>
+                    </div>
                     <div>
                         <h3 class="text-sm font-bold text-white">طلبات الانضمام للجروب</h3>
                         <p id="groupJoinRequestsSubtitle" class="text-micro text-slate-400">وافق أو ارفض طلبات الزملاء لدخول الجروب</p>
                     </div>
                 </div>
-                <button onclick="hideModal('groupJoinRequestsModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs">✕</button>
+                <button type="button" onclick="hideModal('groupJoinRequestsModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
             </div>
 
             <div id="groupJoinRequestsListContainer" class="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
@@ -1372,12 +1413,13 @@
     <!-- ⚠️ STUDENT DIRECT WARNING MODAL -->
     <div id="studentDirectWarningModal" class="hidden fixed inset-0 z-[95] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
         <div class="glass-panel-elevated rounded-3xl p-6 max-w-sm w-full border border-amber-500/50 text-center shadow-2xl relative">
-            <span class="text-4xl block mb-2 animate-bounce">⚠️</span>
+            <i data-lucide="triangle-alert" class="w-10 h-10 text-amber-400 mx-auto mb-2 animate-bounce"></i>
             <h3 id="studentDirectWarningTitle" class="text-base font-black text-amber-400 mb-2">تنبيه مباشر من الأستاذ!</h3>
             <p id="studentDirectWarningMsg" class="text-xs text-white font-bold leading-relaxed mb-4 bg-slate-950 p-3.5 rounded-xl border border-white/10"></p>
             <p id="studentDirectWarningTime" class="text-micro text-slate-400 mb-3"></p>
-            <button onclick="hideModal('studentDirectWarningModal')" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition">
-                علم، مفهوم يا أستاذ 🫡
+            <button type="button" onclick="hideModal('studentDirectWarningModal')" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition flex items-center justify-center gap-1.5">
+                <i data-lucide="check" class="w-[14px] h-[14px]"></i>
+                <span>علم، مفهوم يا أستاذ</span>
             </button>
         </div>
     </div>
@@ -1500,15 +1542,17 @@
         <!-- NETSUPPORT AGENT GUIDE MODAL -->
     <div id="netSupportAgentGuideModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
         <div class="glass-panel-elevated rounded-3xl p-6 max-w-lg w-full border border-cyan-500/40 shadow-2xl relative">
-            <button onclick="hideModal('netSupportAgentGuideModal')" class="absolute top-4 left-4 text-slate-400 hover:text-white text-base">
-                <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
-            <div class="flex items-center gap-2.5 mb-3">
-                <i data-lucide="monitor" class="w-6 h-6 text-cyan-400"></i>
-                <div>
-                    <h3 class="text-sm font-black text-white">مراقبة جهاز الطالب بالكامل (Windows Desktop)</h3>
-                    <p class="text-[11px] text-cyan-300">رؤية سطح المكتب، الألعاب، والبرامج الخارجية بدون طلب إذن</p>
+            <div class="flex items-center justify-between gap-2.5 mb-3">
+                <div class="flex items-center gap-2.5">
+                    <i data-lucide="monitor" class="w-6 h-6 text-cyan-400"></i>
+                    <div>
+                        <h3 class="text-sm font-black text-white">مراقبة جهاز الطالب بالكامل (Windows Desktop)</h3>
+                        <p class="text-[11px] text-cyan-300">رؤية سطح المكتب، الألعاب، والبرامج الخارجية بدون طلب إذن</p>
+                    </div>
                 </div>
+                <button type="button" onclick="hideModal('netSupportAgentGuideModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
             </div>
             <div class="space-y-3 text-xs text-slate-300">
                 <div class="p-3 bg-slate-950/80 rounded-2xl border border-white/5 space-y-2">
@@ -1550,16 +1594,18 @@
             <div class="absolute -bottom-16 -left-16 w-44 h-44 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none"></div>
 
             <!-- Close Button -->
-            <button onclick="hideModal('prayerTimesModal')" class="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition cursor-pointer z-10">✕</button>
+            <button type="button" onclick="hideModal('prayerTimesModal')" class="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition cursor-pointer z-10">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
 
             <!-- Modal Tabs Switcher -->
             <div class="flex items-center gap-1.5 p-1 rounded-2xl bg-black/50 border border-white/10 mb-4 text-xs font-bold">
                 <button id="tabBtnSchoolSchedule" onclick="switchTimetableTab('schedule')" class="flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-500/25 to-blue-500/25 text-cyan-300 border border-cyan-500/40 shadow-sm cursor-pointer">
-                    <span>🏫</span>
+                    <i data-lucide="school" class="w-[14px] h-[14px]"></i>
                     <span>جدول الحصص واليوم الدراسي</span>
                 </button>
                 <button id="tabBtnPrayerTimes" onclick="switchTimetableTab('prayers')" class="flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer">
-                    <span>🕌</span>
+                    <i data-lucide="moon-star" class="w-[14px] h-[14px]"></i>
                     <span>مواقيت الصلاة (الإسكندرية)</span>
                 </button>
             </div>
@@ -1570,7 +1616,7 @@
                 <div class="p-3.5 rounded-2xl bg-gradient-to-r from-cyan-950/60 via-slate-900/80 to-blue-950/60 border border-cyan-500/30">
                     <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-white/10">
                         <div class="flex items-center gap-2">
-                            <span class="text-xl">🏫</span>
+                            <i data-lucide="school" class="w-5 h-5 text-cyan-300"></i>
                             <div>
                                 <span class="font-black text-white text-sm block" id="modalSchoolCurrentStatus">--</span>
                                 <span class="text-micro text-slate-400" id="modalSchoolSessionInfo">الحصة 55 دقيقة • يبدأ اليوم 7:30 ص</span>
@@ -1581,15 +1627,15 @@
 
                     <div class="grid grid-cols-3 gap-1.5 text-center font-mono text-micro">
                         <div class="p-2 rounded-xl bg-black/40 border border-white/5">
-                            <span class="text-slate-400 text-micro block">☕ البريك (11:10)</span>
+                            <span class="text-slate-400 text-micro flex items-center justify-center gap-1"><i data-lucide="coffee" class="w-3 h-3"></i> البريك (11:10)</span>
                             <strong id="modalSchoolBreakTimer" class="text-amber-300 text-xs block mt-0.5">--</strong>
                         </div>
                         <div class="p-2 rounded-xl bg-black/40 border border-white/5">
-                            <span id="modalSchoolBionicHeader" class="text-slate-400 text-micro block">🔬 البايونيك (3:30)</span>
+                            <span class="text-slate-400 text-micro flex items-center justify-center gap-1"><i data-lucide="flask-conical" class="w-3 h-3"></i> <span id="modalSchoolBionicHeader">البايونيك (3:30)</span></span>
                             <strong id="modalSchoolBionicTimer" class="text-purple-300 text-xs block mt-0.5">--</strong>
                         </div>
                         <div class="p-2 rounded-xl bg-black/40 border border-white/5">
-                            <span id="modalSchoolDismissalHeader" class="text-slate-400 text-micro block">🏠 المرواح (4:00)</span>
+                            <span class="text-slate-400 text-micro flex items-center justify-center gap-1"><i data-lucide="home" class="w-3 h-3"></i> <span id="modalSchoolDismissalHeader">المرواح (4:00)</span></span>
                             <strong id="modalSchoolDismissalTimer" class="text-emerald-300 text-xs block mt-0.5">--</strong>
                         </div>
                     </div>
@@ -1599,7 +1645,7 @@
                 <div class="rounded-2xl border border-white/10 overflow-hidden bg-slate-950/70 shadow-lg">
                     <div class="p-3 bg-white/5 border-b border-white/10 flex items-center justify-between text-xs">
                         <div class="flex items-center gap-2 font-bold text-white">
-                            <span>📋</span>
+                            <i data-lucide="clipboard-list" class="w-[14px] h-[14px]"></i>
                             <span>جدول مواعيد اليوم الدراسي بالتفصيل</span>
                         </div>
                         <span id="modalScheduleDayBadge" class="text-micro px-2.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-bold">اليوم الدراسي</span>
@@ -1613,7 +1659,7 @@
 
                 <!-- Notes & Rules Box -->
                 <div class="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-2.5 text-[11px] text-amber-200">
-                    <span class="text-lg shrink-0">💡</span>
+                    <i data-lucide="lightbulb" class="w-[18px] h-[18px] shrink-0"></i>
                     <div class="leading-relaxed space-y-1">
                         <strong class="text-amber-300 block font-bold">قواعد توقيت اليوم الدراسي:</strong>
                         <div>• <strong>الحصص:</strong> 8 حصص دراسية، مدة كل حصة 55 دقيقة، البداية 7:30 صباحاً.</div>
@@ -1628,8 +1674,8 @@
             <div id="tabContentPrayerTimes" class="hidden space-y-3">
                 <!-- Modal Header -->
                 <div class="flex items-center gap-3">
-                    <div class="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-2xl shadow-inner">
-                        🕌
+                    <div class="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shadow-inner">
+                        <i data-lucide="moon-star" class="w-5 h-5 text-emerald-300"></i>
                     </div>
                     <div>
                         <div class="flex items-center gap-1.5">
@@ -1660,42 +1706,42 @@
                 <div class="space-y-1.5 text-xs">
                     <div id="modal_row_fajr" class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5 flex items-center justify-between transition-all">
                         <div class="flex items-center gap-2">
-                            <span class="text-base">🌅</span>
+                            <i data-lucide="sunrise" class="w-4 h-4"></i>
                             <span class="font-bold text-white">صلاة الفجر</span>
                         </div>
                         <span id="modal_time_fajr" class="font-mono font-bold text-slate-200">--:--</span>
                     </div>
                     <div id="modal_row_sunrise" class="p-2.5 rounded-xl bg-slate-900/40 border border-white/5 flex items-center justify-between text-slate-400 transition-all">
                         <div class="flex items-center gap-2">
-                            <span class="text-base">☀️</span>
+                            <i data-lucide="sun" class="w-4 h-4"></i>
                             <span>الشروق</span>
                         </div>
                         <span id="modal_time_sunrise" class="font-mono font-bold text-slate-400">--:--</span>
                     </div>
                     <div id="modal_row_dhuhr" class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5 flex items-center justify-between transition-all">
                         <div class="flex items-center gap-2">
-                            <span class="text-base">☀️</span>
+                            <i data-lucide="sun" class="w-4 h-4"></i>
                             <span class="font-bold text-white">صلاة الظهر</span>
                         </div>
                         <span id="modal_time_dhuhr" class="font-mono font-bold text-slate-200">--:--</span>
                     </div>
                     <div id="modal_row_asr" class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5 flex items-center justify-between transition-all">
                         <div class="flex items-center gap-2">
-                            <span class="text-base">🌤️</span>
+                            <i data-lucide="cloud-sun" class="w-4 h-4"></i>
                             <span class="font-bold text-white">صلاة العصر</span>
                         </div>
                         <span id="modal_time_asr" class="font-mono font-bold text-slate-200">--:--</span>
                     </div>
                     <div id="modal_row_maghrib" class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5 flex items-center justify-between transition-all">
                         <div class="flex items-center gap-2">
-                            <span class="text-base">🌇</span>
+                            <i data-lucide="sunset" class="w-4 h-4"></i>
                             <span class="font-bold text-white">صلاة المغرب</span>
                         </div>
                         <span id="modal_time_maghrib" class="font-mono font-bold text-slate-200">--:--</span>
                     </div>
                     <div id="modal_row_isha" class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5 flex items-center justify-between transition-all">
                         <div class="flex items-center gap-2">
-                            <span class="text-base">🌙</span>
+                            <i data-lucide="moon" class="w-4 h-4"></i>
                             <span class="font-bold text-white">صلاة العشاء</span>
                         </div>
                         <span id="modal_time_isha" class="font-mono font-bold text-slate-200">--:--</span>
@@ -1711,7 +1757,7 @@
 
                 <!-- Tasbeeh Quick Button in Prayer Modal -->
                 <button onclick="hideModal('prayerTimesModal'); openTasbeehModal();" class="w-full mt-1 py-2.5 px-3 rounded-2xl bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-amber-500/20 hover:from-amber-500/30 hover:to-emerald-500/30 border border-amber-500/40 text-amber-300 font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-amber-500/10">
-                    <span>📿</span>
+                    <i data-lucide="circle-dot-dashed" class="w-4 h-4"></i>
                     <span>فتح السبحة الإلكترونية للأذكار</span>
                     <span>✨</span>
                 </button>
@@ -1740,7 +1786,9 @@
                         <i id="tasbeehSoundIconOn" data-lucide="volume-2" class="w-4 h-4"></i>
                         <i id="tasbeehSoundIconOff" data-lucide="volume-x" class="hidden w-4 h-4"></i>
                     </button>
-                    <button onclick="hideModal('tasbeehModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition cursor-pointer">✕</button>
+                    <button type="button" onclick="hideModal('tasbeehModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition cursor-pointer">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
                 </div>
             </div>
 

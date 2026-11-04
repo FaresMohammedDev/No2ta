@@ -4759,7 +4759,8 @@ function handleRadioSyncState(state) {
     const titleEl = document.getElementById('radioTrackTitle');
     const artistEl = document.getElementById('radioTrackArtist');
     const coverWrapper = document.getElementById('radioCoverWrapper');
-    const playIcon = document.getElementById('radioPlayIcon');
+    const playIconPlay = document.getElementById('radioPlayIconPlay');
+    const playIconPause = document.getElementById('radioPlayIconPause');
 
     if (!state || !state.track) {
         STATE.radio.activeTrack = null;
@@ -4822,7 +4823,8 @@ function handleRadioSyncState(state) {
 
     if (titleEl) titleEl.textContent = state.track.title || 'أغنية الفصل';
     if (artistEl) artistEl.textContent = `${state.track.artist || 'موسيقى'} • مشغل بواسطة: ${state.djName || 'دي جي الفصل 🎧'}`;
-    if (playIcon) playIcon.textContent = state.isPlaying ? '⏸' : '▶';
+    if (playIconPlay) playIconPlay.classList.toggle('hidden', !!state.isPlaying);
+    if (playIconPause) playIconPause.classList.toggle('hidden', !state.isPlaying);
 
     if (coverWrapper) {
         if (state.track.cover) {
@@ -6748,8 +6750,8 @@ function updateSchoolScheduleUI(now = new Date()) {
     if (mBreak) mBreak.textContent = school.breakText;
     if (mBionic) mBionic.textContent = school.bionicText;
     if (mDismissal) mDismissal.textContent = school.dismissalText;
-    if (mBionicHeader) mBionicHeader.textContent = school.isThursday ? '🔬 مفيش بايونيك' : '🔬 البايونيك (3:30)';
-    if (mDismissalHeader) mDismissalHeader.textContent = school.isThursday ? '🏠 المرواح (3:30)' : '🏠 المرواح (4:00)';
+    if (mBionicHeader) mBionicHeader.textContent = school.isThursday ? 'مفيش بايونيك' : 'البايونيك (3:30)';
+    if (mDismissalHeader) mDismissalHeader.textContent = school.isThursday ? 'المرواح (3:30)' : 'المرواح (4:00)';
 
     // Render Full Timetable Table Rows
     const container = document.getElementById('modalScheduleRowsContainer');
