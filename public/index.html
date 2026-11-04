@@ -527,18 +527,18 @@
         <!-- Discreet Teacher Safety Top Bar -->
         <div class="bg-gray-900 border-b border-gray-800 px-4 py-2 flex items-center justify-between text-xs text-gray-400">
             <div class="flex items-center gap-2">
-                <span class="text-cyan-400 font-bold">📘</span>
+                <i data-lucide="book-marked" class="w-4 h-4 text-cyan-400"></i>
                 <span class="font-extrabold text-white">المركز القومي للمناهج والتقويم التربوي - بنك أسئلة ونموذج إجابة مادة تطبيقات الهاتف (Flutter Competency Model Revision)</span>
             </div>
             <div class="flex items-center gap-2">
                 <span class="text-gray-500 hidden sm:inline">Flutter Competency Assessment • Mobile App Development</span>
                 <!-- F3 Close on this device only (Requires Password) -->
-                <button onclick="promptLocalStealthUnlock()" class="px-2.5 py-1 rounded bg-gray-800 hover:bg-gray-700 text-cyan-400 hover:text-white transition-all text-[11px] font-mono font-bold" title="إغلاق التمويه على جهازك فقط (F3) بكلمة السر">
-                    F3 إغلاق عندي فقط (🔒)
+                <button onclick="promptLocalStealthUnlock()" class="px-2.5 py-1 rounded bg-gray-800 hover:bg-gray-700 text-cyan-400 hover:text-white transition-all text-[11px] font-mono font-bold flex items-center gap-1">
+                    <i data-lucide="lock" class="w-3 h-3"></i> F3 إغلاق عندي فقط
                 </button>
                 <!-- Admin Only Global Unlock -->
-                <button id="stealthGlobalUnlockBtn" onclick="promptGlobalStealthUnlock()" class="hidden px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 transition-all text-[11px] font-bold" title="فك وضع التمويه لجميع أجهزة الفصل (المضيف والأدمن فقط)">
-                    👑 فك للجميع
+                <button id="stealthGlobalUnlockBtn" onclick="promptGlobalStealthUnlock()" class="hidden px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 transition-all text-[11px] font-bold flex items-center gap-1">
+                    <i data-lucide="crown" class="w-3 h-3"></i> فك للجميع
                 </button>
             </div>
         </div>
@@ -606,8 +606,9 @@
 
                 <div id="authError" class="hidden text-xs text-red-400 font-bold bg-red-500/10 p-2.5 rounded-xl border border-red-500/20 text-center"></div>
 
-                <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-sm transition-all shadow-lg shadow-cyan-500/30">
-                    دخول المنصة 🚀
+                <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-sm transition-all shadow-lg shadow-cyan-500/30 flex items-center justify-center gap-2">
+                    <span>دخول المنصة</span>
+                    <i data-lucide="log-in" class="w-4 h-4"></i>
                 </button>
             </form>
         </div>
@@ -617,7 +618,7 @@
     <div id="networkModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
         <div class="glass-panel-elevated rounded-3xl p-6 max-w-sm w-full text-center relative border border-white/10">
             <button onclick="hideModal('networkModal')" class="absolute top-4 left-4 text-slate-400 hover:text-white">✕</button>
-            <h3 class="text-base font-black text-white mb-1">دخول الزملاء عبر الـ Wi-Fi 📱</h3>
+            <h3 class="text-base font-black text-white mb-1 flex items-center justify-center gap-1.5"><i data-lucide="wifi" class="w-4 h-4"></i> دخول الزملاء عبر الـ Wi-Fi</h3>
             <p class="text-xs text-slate-400 mb-4">امسح الكود بكاميرا الموبايل للدخول المباشر للشات</p>
 
             <div class="p-3 bg-white rounded-2xl inline-block mb-3 shadow-xl">
@@ -638,7 +639,7 @@
         <div class="glass-panel-elevated rounded-3xl p-6 max-w-xl w-full border border-white/10 flex flex-col max-h-[85vh]">
             <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
                 <div class="flex items-center gap-2">
-                    <span class="text-xl">⚡</span>
+                    <i data-lucide="send" class="w-5 h-5 text-cyan-400"></i>
                     <h3 class="text-base font-black text-white">Classroom AirDrop (مشاركة الملفات السريعة)</h3>
                 </div>
                 <button onclick="hideModal('airdropModal')" class="text-slate-400 hover:text-white">✕</button>
@@ -646,14 +647,14 @@
 
             <!-- Drag and drop zone -->
             <div id="airdropDropZone" class="border-2 border-dashed border-slate-700 hover:border-cyan-500 rounded-2xl p-6 text-center cursor-pointer transition-all mb-4 bg-slate-950/40">
-                <span class="text-3xl block mb-2">📁</span>
+                <i data-lucide="folder-up" class="w-8 h-8 mx-auto mb-2 text-slate-500"></i>
                 <p class="text-xs font-bold text-white mb-1">اضغط هنا أو اسحب أي ملف لمشاركته فوراً مع الفصل</p>
                 <p class="text-micro text-slate-400">بدون استهلاك باقة الإنترنت • مشاركة فائقة السرعة على شبكة الفصل</p>
                 <input type="file" id="airdropFileInput" class="hidden">
             </div>
 
             <div id="airdropUploadProgress" class="hidden text-xs text-cyan-400 font-bold text-center py-1">
-                جاري الرفع بسرعة الشبكة المحلية... ⏳
+                جاري الرفع بسرعة الشبكة المحلية...
             </div>
 
             <!-- Files List -->
@@ -670,10 +671,10 @@
             <!-- Whiteboard Toolbar -->
             <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10 mb-2">
                 <div class="flex items-center gap-2">
-                    <span class="text-lg">🎨</span>
+                    <i data-lucide="pen-tool" class="w-[18px] h-[18px] text-indigo-300"></i>
                     <h3 class="text-sm font-black text-white">السبورة التفاعلية الحية المشتركة</h3>
                 </div>
-                
+
                 <div class="flex items-center gap-2">
                     <!-- Color Palette -->
                     <div class="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
@@ -682,16 +683,16 @@
                         <button onclick="setWhiteboardColor('#22c55e')" class="w-6 h-6 rounded-full bg-emerald-500"></button>
                         <button onclick="setWhiteboardColor('#eab308')" class="w-6 h-6 rounded-full bg-yellow-500"></button>
                         <button onclick="setWhiteboardColor('#ffffff')" class="w-6 h-6 rounded-full bg-white"></button>
-                        <button onclick="setWhiteboardEraser()" class="px-2 py-0.5 text-xs text-slate-300 font-bold hover:text-white" title="ممحاة">🧹</button>
+                        <button onclick="setWhiteboardEraser()" class="px-2 py-0.5 text-xs text-slate-300 font-bold hover:text-white" title="ممحاة"><i data-lucide="eraser" class="w-[14px] h-[14px]"></i></button>
                     </div>
 
                     <!-- Clear Board -->
-                    <button onclick="emitClearWhiteboard()" class="px-2.5 py-1 rounded-lg bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white text-xs font-bold transition-all">
-                        مسح 🗑️
+                    <button onclick="emitClearWhiteboard()" class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white text-xs font-bold transition-all">
+                        <i data-lucide="trash-2" class="w-3 h-3"></i> مسح
                     </button>
                     <!-- Export Image -->
-                    <button onclick="exportWhiteboardImage()" class="px-2.5 py-1 rounded-lg bg-cyan-500 text-slate-950 text-xs font-bold transition-all">
-                        تصدير 📸
+                    <button onclick="exportWhiteboardImage()" class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500 text-slate-950 text-xs font-bold transition-all">
+                        <i data-lucide="download" class="w-3 h-3"></i> تصدير
                     </button>
                     <!-- Close -->
                     <button onclick="hideModal('whiteboardModal')" class="text-slate-400 hover:text-white px-2">✕</button>
@@ -711,12 +712,12 @@
             <!-- CodePad Header & Actions Toolbar -->
             <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10 mb-2">
                 <div class="flex items-center gap-2">
-                    <span class="text-xl">💻</span>
+                    <i data-lucide="code-2" class="w-5 h-5 text-indigo-300"></i>
                     <div>
                         <div class="flex items-center gap-2">
                             <h3 class="text-sm font-black text-white">كشكول الأكواد والنصوص المشترك (Live CodePad)</h3>
-                            <span class="px-2 py-0.5 rounded-full text-micro font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
-                                ⚡ تحديث حي لجميع الطلاب
+                            <span class="px-2 py-0.5 rounded-full text-micro font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 flex items-center gap-1">
+                                <i data-lucide="zap" class="w-3 h-3"></i> تحديث حي لجميع الطلاب
                             </span>
                         </div>
                         <p id="codepadStats" class="text-micro text-slate-400 font-mono mt-0.5">0 سطر • 0 حرف</p>
@@ -726,19 +727,19 @@
                 <div class="flex items-center flex-wrap gap-2">
                     <!-- Copy All Button -->
                     <button id="copyAllCodepadBtn" onclick="copyAllCodePadText()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-black transition-all shadow-md shadow-cyan-500/20">
-                        <span>📋</span>
+                        <i data-lucide="copy" class="w-[14px] h-[14px]"></i>
                         <span>نسخ كل الكود</span>
                     </button>
 
                     <!-- Send to Chat Button -->
                     <button onclick="shareCodePadToChat()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md shadow-indigo-600/20" title="إرسال محتوى الكشكول لغرفة الشات الحالية">
-                        <span>🚀</span>
+                        <i data-lucide="send" class="w-[14px] h-[14px]"></i>
                         <span>إرسال للشات</span>
                     </button>
 
                     <!-- Clear Scratchpad Button -->
-                    <button onclick="clearCodePadText()" class="px-2.5 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/30 text-red-400 hover:text-red-300 text-xs font-bold transition-all border border-red-500/30" title="تفريغ الكشكول">
-                        <span>🗑️ مسح</span>
+                    <button onclick="clearCodePadText()" class="px-2.5 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/30 text-red-400 hover:text-red-300 text-xs font-bold transition-all border border-red-500/30 flex items-center gap-1" title="تفريغ الكشكول">
+                        <i data-lucide="trash-2" class="w-[13px] h-[13px]"></i> مسح
                     </button>
 
                     <!-- Close -->
@@ -753,12 +754,13 @@
 
             <!-- CodePad Footer Tips -->
             <div class="pt-2 px-1 flex flex-wrap items-center justify-between text-[11px] text-slate-400 gap-2">
-                <div class="flex items-center gap-2">
-                    <span>💡 <b class="text-slate-300">نصيحة:</b> اضغط زر <b class="text-cyan-400">Tab</b> لعمل مسافات برمجية، واستخدم <b class="text-cyan-400">نسخ كل الكود</b> لنقله للمحرر عندك فوراً.</span>
+                <div class="flex items-center gap-1.5">
+                    <i data-lucide="lightbulb" class="w-3.5 h-3.5 text-amber-300 shrink-0"></i>
+                    <span><b class="text-slate-300">نصيحة:</b> اضغط زر <b class="text-cyan-400">Tab</b> لعمل مسافات برمجية، واستخدم <b class="text-cyan-400">نسخ كل الكود</b> لنقله للمحرر عندك فوراً.</span>
                 </div>
                 <span id="codepadSyncIndicator" class="text-micro text-emerald-400 flex items-center gap-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span>متصل ومتزامن ⚡</span>
+                    <span>متصل ومتزامن</span>
                 </span>
             </div>
         </div>
@@ -873,8 +875,8 @@
                     <div id="storyViewerAvatar" class="w-10 h-10 rounded-full bg-slate-800 border border-white/20 flex items-center justify-center text-lg overflow-hidden shrink-0"></div>
                     <div>
                         <h4 id="storyViewerName" class="text-sm font-bold text-white leading-tight"></h4>
-                        <button id="storyViewersBadge" onclick="openStoryViewsModal()" class="text-[11px] text-cyan-400 hover:text-cyan-300 bg-white/10 hover:bg-white/15 px-2.5 py-0.5 rounded-full font-bold transition-all flex items-center gap-1 cursor-pointer mt-0.5" title="اضغط لمعرفة من شاهد الاستوري 👀">
-                            👀 0 مشاهدة
+                        <button id="storyViewersBadge" onclick="openStoryViewsModal()" class="text-[11px] text-cyan-400 hover:text-cyan-300 bg-white/10 hover:bg-white/15 px-2.5 py-0.5 rounded-full font-bold transition-all flex items-center gap-1 cursor-pointer mt-0.5" title="اضغط لمعرفة من شاهد الاستوري">
+                            <i data-lucide="eye" class="w-3 h-3"></i> 0 مشاهدة
                         </button>
                     </div>
                 </div>
@@ -897,7 +899,7 @@
                 <!-- Big Prominent Viewers Button -->
                 <button onclick="openStoryViewsModal()" class="w-full py-2.5 px-3 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-cyan-300 text-xs font-bold flex items-center justify-between border border-cyan-500/30 transition-all cursor-pointer shadow-lg group">
                     <div class="flex items-center gap-2">
-                        <span class="text-base group-hover:scale-110 transition-transform">👀</span>
+                        <i data-lucide="eye" class="w-4 h-4 group-hover:scale-110 transition-transform"></i>
                         <span id="storyViewersBottomBtnText">المشاهدات (0) • اضغط لرؤية من شاهد الاستوري</span>
                     </div>
                     <span class="text-[11px] bg-cyan-500/20 px-2 py-0.5 rounded-full text-cyan-400 font-bold">عرض القائمة ◀</span>
@@ -915,7 +917,7 @@
         <div class="glass-panel-elevated rounded-3xl p-5 max-w-sm w-full border border-white/10 relative flex flex-col max-h-[75vh]">
             <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
                 <div class="flex items-center gap-2">
-                    <span class="text-xl">👀</span>
+                    <i data-lucide="eye" class="w-5 h-5 text-cyan-400"></i>
                     <h3 class="text-sm font-bold text-white">مشاهدو الاستوري</h3>
                     <span id="storyViewsModalCount" class="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 font-bold">0</span>
                 </div>
@@ -1126,8 +1128,8 @@
             <span class="w-2.5 h-2.5 rounded-full bg-pink-500 animate-ping shrink-0"></span>
             <span id="musicAutoplayTrackTitle" class="truncate text-pink-200">أغنية الفصل شغالة!</span>
         </div>
-        <button type="button" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-black text-xs shrink-0 shadow">
-            تشغيل الصوت 🔊
+        <button type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-black text-xs shrink-0 shadow">
+            <i data-lucide="volume-2" class="w-[14px] h-[14px]"></i> تشغيل الصوت
         </button>
     </div>
 
@@ -1802,7 +1804,7 @@
             <!-- Top bar -->
             <div class="flex items-center justify-between mb-3">
                 <div class="flex items-center gap-2">
-                    <span class="text-2xl">📿</span>
+                    <i data-lucide="circle-dot-dashed" class="w-6 h-6 text-amber-300"></i>
                     <div>
                         <h3 class="text-sm font-black text-white">السبحة الإلكترونية</h3>
                         <p class="text-micro text-amber-300/80">أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ</p>
@@ -1810,7 +1812,8 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <button id="tasbeehSoundToggleBtn" onclick="toggleTasbeehSound()" class="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs text-slate-300 transition" title="تشغيل / كتم صوت خرزات السبحة">
-                        <span id="tasbeehSoundIcon">🔊</span>
+                        <i id="tasbeehSoundIconOn" data-lucide="volume-2" class="w-4 h-4"></i>
+                        <i id="tasbeehSoundIconOff" data-lucide="volume-x" class="hidden w-4 h-4"></i>
                     </button>
                     <button onclick="hideModal('tasbeehModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition cursor-pointer">✕</button>
                 </div>

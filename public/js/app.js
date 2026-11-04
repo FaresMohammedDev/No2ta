@@ -508,7 +508,7 @@ function updateProfileUI() {
     if (nameEl) nameEl.textContent = STATE.user.nickname;
     if (avatarEl) avatarEl.innerHTML = renderAvatarHTML(STATE.user.avatar);
     if (roleEl) {
-        roleEl.textContent = STATE.user.role === 'admin' ? '👑 أدمن الفصل' : 'طالب عبقري ⚡';
+        roleEl.textContent = STATE.user.role === 'admin' ? 'أدمن الفصل' : 'طالب عبقري';
         roleEl.className = STATE.user.role === 'admin' 
             ? 'px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30'
             : 'px-2 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20';
@@ -761,7 +761,7 @@ function initSocket() {
         if (window.soundEngine && typeof window.soundEngine.playNotification === 'function') {
             window.soundEngine.playNotification();
         }
-        showNotification(`📩 طلب انضمام جديد من ${data.request?.nickname || 'زميل'} لجروب "${data.groupName}"!`);
+        showNotification(`طلب انضمام جديد من ${data.request?.nickname || 'زميل'} لجروب "${data.groupName}"!`);
         if (STATE.activeChat.type === 'group' && STATE.activeChat.group?.id === data.groupId) {
             const reqBtn = document.getElementById('groupHeaderJoinRequestsBtn');
             const reqCount = document.getElementById('groupHeaderJoinRequestsCount');
@@ -861,7 +861,7 @@ function initSocket() {
 
     STATE.socket.on('airdrop_download_incremented', ({ id, count }) => {
         const badge = document.getElementById(`airdrop-dl-${id}`);
-        if (badge) badge.textContent = `📥 ${count}`;
+        if (badge) badge.textContent = count;
     });
 
     STATE.socket.on('chat_focus_mode_changed', ({ isLocked }) => {
@@ -1300,14 +1300,15 @@ function switchSidebarTab(tabName) {
     if (tabName === 'groups') {
         if (usersContainer) usersContainer.classList.add('hidden');
         if (groupsContainer) groupsContainer.classList.remove('hidden');
-        if (sectionTitle) sectionTitle.textContent = 'جروبات الفصل 👥';
+        if (sectionTitle) sectionTitle.textContent = 'جروبات الفصل';
         if (sectionAction) {
             sectionAction.innerHTML = `
                 <button onclick="openCreateGroupModal()" class="px-2.5 py-1 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white text-[11px] font-bold shadow-md transition-all flex items-center gap-1">
-                    <span>➕</span>
+                    <i data-lucide="plus" class="w-3 h-3"></i>
                     <span>إنشاء جروب</span>
                 </button>
             `;
+            renderIcons();
         }
         renderGroupsList();
     } else {
@@ -1315,7 +1316,8 @@ function switchSidebarTab(tabName) {
         if (usersContainer) usersContainer.classList.remove('hidden');
         if (sectionTitle) sectionTitle.textContent = 'زملاء الفصل والـ Streaks';
         if (sectionAction) {
-            sectionAction.innerHTML = '<span class="text-micro text-cyan-400 font-normal">تحديث حي ⚡</span>';
+            sectionAction.innerHTML = '<span class="text-micro text-cyan-400 font-normal flex items-center gap-1"><i data-lucide="zap" class="w-3 h-3"></i> تحديث حي</span>';
+            renderIcons();
         }
         renderUsersList();
     }
@@ -1407,7 +1409,7 @@ function selectDirectChat(userId) {
 
     STATE.activeChat = { type: 'direct', recipient: target, group: null };
     document.getElementById('currentChatTitle').textContent = target.nickname;
-    document.getElementById('currentChatSubtitle').textContent = STATE.onlineUserIds.has(target.id) ? 'متصل الآن 🟢' : 'غير متصل حالياً';
+    document.getElementById('currentChatSubtitle').textContent = STATE.onlineUserIds.has(target.id) ? 'متصل الآن' : 'غير متصل حالياً';
     document.getElementById('currentChatAvatar').innerHTML = renderAvatarHTML(target.avatar);
 
     const streak = STATE.streaks.find(s => s.other_user_id === target.id);
@@ -1447,7 +1449,7 @@ function selectGroupChat(groupId) {
     if (isMember) {
         document.getElementById('currentChatSubtitle').textContent = `${memberCount} أعضاء • أنشأه: ${target.creator_name || 'زميلك'}`;
     } else {
-        document.getElementById('currentChatSubtitle').textContent = `🔒 جروب خاص • ${memberCount} أعضاء • المشرف: ${target.creator_name || 'زميلك'}`;
+        document.getElementById('currentChatSubtitle').textContent = `جروب خاص • ${memberCount} أعضاء • المشرف: ${target.creator_name || 'زميلك'}`;
     }
     document.getElementById('currentChatAvatar').innerHTML = `<span class="text-2xl">${target.icon || '👥'}</span>`;
 
@@ -1569,14 +1571,14 @@ function renderGroupsList() {
         } else if (isMember) {
             statusBadge = '<span class="text-micro px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">عضو ✅</span>';
         } else if (isPending) {
-            statusBadge = '<span class="text-micro px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 font-bold">⏳ معلق</span>';
+            statusBadge = '<span class="text-micro px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 font-bold">معلق</span>';
         } else {
             statusBadge = '<span class="text-micro px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400 font-bold border border-slate-700">🔒 خاص</span>';
         }
 
         let pendingBadge = '';
         if (isCreator && pendingCount > 0) {
-            pendingBadge = `<span class="text-micro px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 font-black animate-pulse shadow-sm" title="${pendingCount} طلبات معلقة">📩 ${pendingCount}</span>`;
+            pendingBadge = `<span class="text-micro px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 font-black animate-pulse shadow-sm" title="${pendingCount} طلبات معلقة">${pendingCount}</span>`;
         }
 
         html += `
@@ -1662,7 +1664,7 @@ function renderGroupMembersCheckboxes(filterText = '') {
                     <span class="text-xs font-bold text-white truncate">${escapeHtml(u.nickname)}</span>
                 </div>
                 <span class="text-micro px-1.5 py-0.5 rounded-full ${isOnline ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'}">
-                    ${isOnline ? 'متصل 🟢' : 'غير متصل'}
+                    ${isOnline ? 'متصل' : 'غير متصل'}
                 </span>
             </label>
         `;
@@ -1715,7 +1717,7 @@ async function handleCreateGroupSubmit(e) {
 
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = 'جاري الإنشاء... ⏳';
+        btn.innerHTML = 'جاري الإنشاء...';
     }
 
     try {
@@ -1745,7 +1747,7 @@ async function handleCreateGroupSubmit(e) {
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = '<span>إنشاء الجروب 🚀</span>';
+            btn.innerHTML = '<span>إنشاء الجروب</span>';
         }
     }
 }
@@ -1820,7 +1822,7 @@ function renderGroupLockedView(grp) {
                     ${isPending ? `
                         <span class="text-amber-400 font-bold flex items-center gap-1">
                             <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
-                            قيد المراجعة ⏳
+                            قيد المراجعة
                         </span>
                     ` : isRejected ? `
                         <span class="text-red-400 font-bold">مرفوض ❌</span>
@@ -1840,22 +1842,23 @@ function renderGroupLockedView(grp) {
                 </div>
             ` : isRejected ? `
                 <div class="w-full space-y-2">
-                    <div class="py-2.5 px-3 rounded-2xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs font-bold">
-                        ⚠️ رفض منشئ الجروب طلب انضمامك السابق.
+                    <div class="py-2.5 px-3 rounded-2xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs font-bold flex items-center gap-1.5">
+                        <i data-lucide="triangle-alert" class="w-3.5 h-3.5 shrink-0"></i> رفض منشئ الجروب طلب انضمامك السابق.
                     </div>
                     <button id="sendJoinReqBtn" onclick="sendGroupJoinRequest('${grp.id}')" class="w-full py-2.5 px-4 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-black text-xs shadow-lg shadow-purple-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer">
-                        <span>📩</span>
+                        <i data-lucide="send" class="w-[14px] h-[14px]"></i>
                         <span>إعادة إرسال طلب انضمام</span>
                     </button>
                 </div>
             ` : `
                 <button id="sendJoinReqBtn" onclick="sendGroupJoinRequest('${grp.id}')" class="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 hover:from-purple-400 hover:to-pink-400 text-white font-black text-xs shadow-lg shadow-purple-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer">
-                    <span>📩</span>
+                    <i data-lucide="send" class="w-[14px] h-[14px]"></i>
                     <span>إرسال طلب انضمام للمشرف (Join Request)</span>
                 </button>
             `}
         </div>
     `;
+    renderIcons();
 }
 
 async function sendGroupJoinRequest(groupId) {
@@ -1866,7 +1869,7 @@ async function sendGroupJoinRequest(groupId) {
     const btn = document.getElementById('sendJoinReqBtn');
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<span>جاري الإرسال... ⏳</span>';
+        btn.innerHTML = '<span>جاري الإرسال...</span>';
     }
 
     try {
@@ -1877,7 +1880,7 @@ async function sendGroupJoinRequest(groupId) {
         });
         const data = await res.json();
         if (res.ok) {
-            showNotification(data.message || '📩 تم إرسال طلب الانضمام للمشرف!');
+            showNotification(data.message || 'تم إرسال طلب الانضمام للمشرف!');
             const g = STATE.groups.find(item => item.id === groupId);
             if (g) {
                 g.request_status = 'pending';
@@ -1891,7 +1894,7 @@ async function sendGroupJoinRequest(groupId) {
             showNotification(data.error || 'فشل إرسال طلب الانضمام!');
             if (btn) {
                 btn.disabled = false;
-                btn.innerHTML = '<span>📩 إرسال طلب انضمام</span>';
+                btn.innerHTML = '<span>إرسال طلب انضمام</span>';
             }
         }
     } catch (err) {
@@ -1899,7 +1902,7 @@ async function sendGroupJoinRequest(groupId) {
         showNotification('حدث خطأ أثناء الاتصال بالخادم!');
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = '<span>📩 إرسال طلب انضمام</span>';
+            btn.innerHTML = '<span>إرسال طلب انضمام</span>';
         }
     }
 }
@@ -1914,7 +1917,7 @@ async function openGroupJoinRequestsModal() {
         subtitleEl.textContent = `طلبات الانضمام لجروب "${grp.name}"`;
     }
     if (listEl) {
-        listEl.innerHTML = '<div class="text-center py-6 text-slate-400 text-xs">جاري تحميل الطلبات... ⏳</div>';
+        listEl.innerHTML = '<div class="text-center py-6 text-slate-400 text-xs">جاري تحميل الطلبات...</div>';
     }
 
     showModal('groupJoinRequestsModal');
@@ -2044,7 +2047,7 @@ async function openGroupMembersModal() {
     if (descEl) descEl.textContent = grp.description || `أنشئ بواسطة: ${grp.creator_name || 'زميلك'}`;
 
     if (listEl) {
-        listEl.innerHTML = '<div class="text-center py-6 text-slate-400 text-xs">جاري تحميل الأعضاء... ⏳</div>';
+        listEl.innerHTML = '<div class="text-center py-6 text-slate-400 text-xs">جاري تحميل الأعضاء...</div>';
     }
 
     showModal('groupMembersModal');
@@ -2071,7 +2074,7 @@ async function openGroupMembersModal() {
                             </div>
                         </div>
                         <span class="text-micro px-2 py-0.5 rounded-full ${isOnline ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'}">
-                            ${isOnline ? 'متصل 🟢' : 'أوفلاين'}
+                            ${isOnline ? 'متصل' : 'أوفلاين'}
                         </span>
                     </div>
                 `;
@@ -2690,7 +2693,7 @@ function updateStoryViewsDisplay(count) {
     const badge = document.getElementById('storyViewersBadge');
     const bottomLabel = document.getElementById('storyViewersBottomBtnText');
     const displayCount = count !== undefined ? count : 1;
-    if (badge) badge.textContent = `👀 ${displayCount} مشاهدة`;
+    if (badge) { badge.innerHTML = `<i data-lucide="eye" class="w-3 h-3"></i> ${displayCount} مشاهدة`; renderIcons(); }
     if (bottomLabel) bottomLabel.textContent = `المشاهدات (${displayCount}) • اضغط لرؤية من شاهد الاستوري`;
 }
 
@@ -2704,7 +2707,7 @@ async function openStoryViewsModal() {
     const countEl = document.getElementById('storyViewsModalCount');
     if (!listEl) return;
 
-    listEl.innerHTML = `<div class="text-center py-6 text-slate-400 text-xs">جاري تحميل المشاهدات... ⏳</div>`;
+    listEl.innerHTML = `<div class="text-center py-6 text-slate-400 text-xs">جاري تحميل المشاهدات...</div>`;
     showModal('storyViewsModal');
 
     try {
@@ -2829,28 +2832,29 @@ function renderAirDropList() {
     if (!container) return;
 
     if (STATE.airdropFiles.length === 0) {
-        container.innerHTML = `<div class="p-6 text-center text-slate-500 text-xs">لا توجد ملفات مرفوعة على AirDrop بعد. اسحب ملفك وشاركه الآن! ⚡</div>`;
+        container.innerHTML = `<div class="p-6 text-center text-slate-500 text-xs">لا توجد ملفات مرفوعة على AirDrop بعد. اسحب ملفك وشاركه الآن!</div>`;
         return;
     }
 
     container.innerHTML = STATE.airdropFiles.map(f => `
         <div class="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-cyan-500/30 transition-all">
             <div class="flex items-center gap-3">
-                <span class="text-2xl">📦</span>
+                <i data-lucide="package" class="w-5 h-5 text-cyan-400 shrink-0"></i>
                 <div>
                     <h4 class="text-sm font-bold text-white truncate max-w-xs">${escapeHtml(f.file_name)}</h4>
                     <p class="text-[11px] text-slate-400">بواسطة: ${escapeHtml(f.sender_name)} • ${(f.file_size / (1024*1024)).toFixed(2)} MB</p>
                 </div>
             </div>
             <div class="flex items-center gap-3">
-                <span id="airdrop-dl-${f.id}" class="text-xs text-slate-400">📥 ${f.downloads_count || 0}</span>
+                <span id="airdrop-dl-${f.id}" class="text-xs text-slate-400 flex items-center gap-1"><i data-lucide="download" class="w-3 h-3"></i> ${f.downloads_count || 0}</span>
                 <a href="${f.file_url}" download="${f.file_name}" onclick="recordAirDropDownload('${f.id}')" class="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-bold text-xs hover:bg-cyan-400 transition-all flex items-center gap-1">
                     <span>تحميل فوري</span>
-                    <span>⚡</span>
+                    <i data-lucide="zap" class="w-3 h-3"></i>
                 </a>
             </div>
         </div>
     `).join('');
+    renderIcons();
 }
 
 async function recordAirDropDownload(id) {
@@ -3138,7 +3142,7 @@ function handleCodePadInput() {
             });
         }
         if (ind) {
-            ind.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>متصل ومتزامن ⚡</span>';
+            ind.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>متصل ومتزامن</span>';
         }
     }, 350);
 }
@@ -3472,7 +3476,7 @@ function openScreenSharePanel({ presenterName, isPresenter }) {
     if (nameEl) nameEl.textContent = isPresenter ? `${presenterName} (أنت)` : presenterName;
     if (controlBtnText) controlBtnText.textContent = isPresenter ? 'إيقاف البث' : 'خروج من المشاهدة';
     if (statusPill) {
-        statusPill.textContent = isPresenter ? '🔴 أنت تبث الآن' : '🔴 بث حي مباشر';
+        statusPill.textContent = isPresenter ? 'أنت تبث الآن' : 'بث حي مباشر';
     }
 
     updateScreenShareHeaderButton();
@@ -3506,7 +3510,7 @@ function updateScreenShareHeaderButton() {
         btn.classList.remove('bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-400');
         dot.classList.remove('hidden');
     } else if (STATE.screenShare.activeShareInfo) {
-        label.textContent = 'مشاهدة البث 🔴';
+        label.textContent = 'مشاهدة البث';
         btn.classList.add('bg-emerald-500/20', 'border-emerald-500/40', 'text-emerald-400');
         dot.classList.remove('hidden');
     } else {
@@ -3573,7 +3577,7 @@ function handleScreenShareStarted(shareInfo) {
         const banner = document.getElementById('screenShareJoinNotification');
         const textEl = document.getElementById('screenShareJoinText');
         if (banner && textEl) {
-            textEl.textContent = `🔴 ${shareInfo.presenterName} بدأ بث شاشته الآن! اضغط لمشاهدة البث مباشرة جنب الشات.`;
+            textEl.textContent = `${shareInfo.presenterName} بدأ بث شاشته الآن! اضغط لمشاهدة البث مباشرة جنب الشات.`;
             banner.classList.remove('hidden');
         }
         showNotification(`🖥️ ${shareInfo.presenterName} بدأ بث شاشته الآن!`);
@@ -4036,7 +4040,7 @@ function renderOnlineMusicResults(songs, query) {
                     <div class="min-w-0">
                         <div class="flex items-center gap-1.5">
                             <h4 class="text-xs font-bold text-white truncate max-w-[130px] sm:max-w-xs group-hover:text-pink-300 transition-colors">${escapeHtml(song.title)}</h4>
-                            ${isCurrentPlaying ? '<span class="text-micro px-1.5 py-0.2 rounded-full bg-pink-500/30 text-pink-300 font-bold animate-pulse">شغالة الآن 🔊</span>' : ''}
+                            ${isCurrentPlaying ? '<span class="text-micro px-1.5 py-0.2 rounded-full bg-pink-500/30 text-pink-300 font-bold animate-pulse">شغالة الآن</span>' : ''}
                         </div>
                         <p class="text-micro text-slate-400 truncate mt-0.5">
                             ${escapeHtml(song.artist || 'فنان')} 
@@ -4079,7 +4083,7 @@ async function playOnlineSongForEveryone(idx) {
         btn.innerHTML = `<span>جاري التشغيل... 🎵</span>`;
     }
 
-    showNotification(`جاري تشغيل "${song.title}" لجميع أجهزة المعمل... ⏳🎵`);
+    showNotification(`جاري تشغيل "${song.title}" لجميع أجهزة المعمل...`);
 
     try {
         const res = await fetch('/api/music/online/play', {
@@ -4203,7 +4207,7 @@ function renderMusicResults(tracks, query) {
                     <div class="min-w-0">
                         <div class="flex items-center gap-1.5">
                             <h4 class="text-xs font-bold text-white truncate max-w-[140px] sm:max-w-xs group-hover:text-pink-300 transition-colors">${escapeHtml(track.title)}</h4>
-                            ${isCurrentPlaying ? '<span class="text-micro px-1.5 py-0.2 rounded-full bg-pink-500/30 text-pink-300 font-bold animate-pulse">شغالة الآن 🔊</span>' : ''}
+                            ${isCurrentPlaying ? '<span class="text-micro px-1.5 py-0.2 rounded-full bg-pink-500/30 text-pink-300 font-bold animate-pulse">شغالة الآن</span>' : ''}
                         </div>
                         <p class="text-micro text-slate-400 truncate">
                             ${escapeHtml(track.artist || 'فنان')} 
@@ -4277,7 +4281,7 @@ async function handleRadioFileUpload(file) {
         showNotification('الرجاء اختيار ملف صوتي صالح!');
         return;
     }
-    showNotification(`جاري رفع "${file.name}" لمكتبة الفصل وتشغيلها... ⏳`);
+    showNotification(`جاري رفع "${file.name}" لمكتبة الفصل وتشغيلها...`);
 
     const formData = new FormData();
     formData.append('file', file);
@@ -4461,7 +4465,7 @@ function showAutoplayUnlockBanner(title) {
     const banner = document.getElementById('musicAutoplayUnlockBanner');
     const titleEl = document.getElementById('musicAutoplayTrackTitle');
     if (banner) {
-        if (titleEl && title) titleEl.textContent = `🎵 راديو الفصل: "${title}" • اضغط هنا للاستماع 🔊`;
+        if (titleEl && title) titleEl.textContent = `راديو الفصل: "${title}" • اضغط هنا للاستماع`;
         banner.classList.remove('hidden');
     }
 }
@@ -4792,7 +4796,7 @@ function setDisappearingTimer(seconds) {
             btn.innerHTML = `🔥 ${seconds}s`;
             btn.className = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30';
         } else {
-            btn.innerHTML = `⏳ مؤقت`;
+            btn.innerHTML = `مؤقت`;
             btn.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white border border-slate-700';
         }
     }
@@ -4973,7 +4977,7 @@ function setupEventListeners() {
             const formData = new FormData();
             formData.append('avatar', file);
             try {
-                showNotification('جاري رفع صورة البروفايل... ⏳');
+                showNotification('جاري رفع صورة البروفايل...');
                 const res = await fetch('/api/upload/avatar', { method: 'POST', body: formData });
                 const data = await res.json();
                 if (data.url) {
@@ -5150,7 +5154,7 @@ function renderNetSupportGrid(devices) {
         const isStealth = !!dev.isStealth;
         const hasFrame = !!dev.lastFrame;
         const lastSeenSec = dev.lastFrameAt ? Math.round((Date.now() - dev.lastFrameAt) / 1000) : null;
-        const timeAgoText = lastSeenSec !== null ? (lastSeenSec < 6 ? 'مباشر الآن 🟢' : `منذ ${lastSeenSec} ثانية`) : 'لا توجد لقطة';
+        const timeAgoText = lastSeenSec !== null ? (lastSeenSec < 6 ? 'مباشر الآن' : `منذ ${lastSeenSec} ثانية`) : 'لا توجد لقطة';
 
         // Resolve real student name from STATE.users or STATE.allUsers if dev.nickname is generic
         let studentName = dev.nickname;
@@ -5220,7 +5224,7 @@ function renderNetSupportGrid(devices) {
 
                     <!-- Bottom Info Banner on Image -->
                     <div class="absolute bottom-1 inset-x-1.5 px-2 py-0.8 rounded-lg bg-black/80 backdrop-blur-sm flex items-center justify-between text-micro text-slate-300 font-mono pointer-events-none">
-                        <span id="device_app_${dev.deviceId}" class="truncate max-w-[120px] text-slate-400" title="${safeApp}">🪟 ${safeApp}</span>
+                        <span id="device_app_${dev.deviceId}" class="truncate max-w-[120px] text-slate-400" title="${safeApp}">${safeApp}</span>
                         <span id="device_status_${dev.deviceId}" class="${hasFrame ? 'text-emerald-400 font-bold' : 'text-cyan-400/80'}">${timeAgoText}</span>
                     </div>
                 </div>
@@ -5430,11 +5434,11 @@ function handleNetSupportFrameUpdate(data) {
         if (overlay) overlay.classList.remove('hidden');
     }
     if (appEl && data.currentApp) {
-        appEl.textContent = '🪟 ' + data.currentApp;
+        appEl.textContent = data.currentApp;
         appEl.title = data.currentApp;
     }
     if (statusEl) {
-        statusEl.textContent = 'مباشر الآن 🟢';
+        statusEl.textContent = 'مباشر الآن';
         statusEl.className = 'text-emerald-400 font-bold';
     }
 }
@@ -5972,7 +5976,8 @@ function updateTasbeehUI() {
     const lifetimeEl = document.getElementById('tasbeehLifetimeCount');
     const classroomEl = document.getElementById('tasbeehClassroomTotal');
     const circleRing = document.getElementById('tasbeehProgressCircle');
-    const soundIcon = document.getElementById('tasbeehSoundIcon');
+    const soundIconOn = document.getElementById('tasbeehSoundIconOn');
+    const soundIconOff = document.getElementById('tasbeehSoundIconOff');
 
     if (titleEl) titleEl.textContent = currentDhikr.title;
     if (countEl) countEl.textContent = tasbeehState.currentCount;
@@ -5981,7 +5986,8 @@ function updateTasbeehUI() {
     if (todayEl) todayEl.textContent = tasbeehState.todayCount.toLocaleString('ar-EG');
     if (lifetimeEl) lifetimeEl.textContent = tasbeehState.lifetimeCount.toLocaleString('ar-EG');
     if (classroomEl) classroomEl.textContent = tasbeehState.classroomTotal.toLocaleString('ar-EG');
-    if (soundIcon) soundIcon.textContent = tasbeehState.soundEnabled ? '🔊' : '🔇';
+    if (soundIconOn) soundIconOn.classList.toggle('hidden', !tasbeehState.soundEnabled);
+    if (soundIconOff) soundIconOff.classList.toggle('hidden', tasbeehState.soundEnabled);
 
     [33, 100, 0].forEach(val => {
         const btn = document.getElementById(`targetBtn_${val}`);
@@ -6205,14 +6211,14 @@ function calculateSchoolSchedule(now = new Date()) {
     let breakText = '';
     let breakShortText = '';
     if (isWeekend) {
-        breakText = 'إجازة الويك إند 🏖️';
+        breakText = 'إجازة الويك إند';
         breakShortText = 'ويك إند';
     } else if (curSec < breakStart) {
         breakText = 'فاضل: ' + fmtRemaining(breakStart - curSec);
         breakShortText = 'البريك: ' + fmtRemaining(breakStart - curSec);
     } else if (curSec >= breakStart && curSec < breakEnd) {
         breakText = 'شغال الآن! (فاضل ' + fmtRemaining(breakEnd - curSec) + ')';
-        breakShortText = 'بريك ☕ (باقي ' + fmtRemaining(breakEnd - curSec) + ')';
+        breakShortText = 'بريك (باقي ' + fmtRemaining(breakEnd - curSec) + ')';
     } else {
         breakText = 'انتهى البريك اليوم';
         breakShortText = 'انتهى البريك';
@@ -6221,11 +6227,11 @@ function calculateSchoolSchedule(now = new Date()) {
     // 2. Dismissal text
     let dismissalText = '';
     if (isWeekend) {
-        dismissalText = 'إجازة الويك إند 🏖️';
+        dismissalText = 'إجازة الويك إند';
     } else if (curSec < dismissalSec) {
         dismissalText = 'فاضل: ' + fmtRemaining(dismissalSec - curSec);
     } else {
-        dismissalText = 'انتهى اليوم 🏠';
+        dismissalText = 'انتهى اليوم';
     }
 
     // 3. Bionic text
@@ -6248,8 +6254,8 @@ function calculateSchoolSchedule(now = new Date()) {
     let sessionShortBadge = '';
 
     if (isWeekend) {
-        statusBadge = 'إجازة نهاية الأسبوع 🏖️';
-        sessionShortBadge = 'ويك إند 🏖️';
+        statusBadge = 'إجازة نهاية الأسبوع';
+        sessionShortBadge = 'ويك إند';
         sessionTimer = 'نلقاكم الأحد بإذن الله';
     } else if (currentItem) {
         const rem = currentItem.endSec - curSec;
@@ -6355,7 +6361,7 @@ function updateSchoolScheduleUI(now = new Date()) {
             let rowBgClass = 'hover:bg-white/5 transition';
 
             if (school.isWeekend) {
-                statusBadge = '<span class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 text-micro">ويك إند 🏖️</span>';
+                statusBadge = '<span class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 text-micro">ويك إند</span>';
             } else if (isBionicOnThu) {
                 statusBadge = '<span class="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-300 text-micro border border-purple-500/20">❌ مفيش بايونيك الخميس</span>';
                 rowBgClass = 'opacity-40 line-through bg-black/20';
@@ -6368,7 +6374,7 @@ function updateSchoolScheduleUI(now = new Date()) {
                 rowBgClass = 'opacity-60';
             } else {
                 const until = school.fmtRemaining(item.startSec - school.curSec);
-                statusBadge = `<span class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 text-micro border border-white/5">⏳ قادمة (بعد ${until})</span>`;
+                statusBadge = `<span class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 text-micro border border-white/5">قادمة (بعد ${until})</span>`;
             }
 
             const nameColor = item.type === 'break' ? 'text-amber-300 font-bold' : (item.type === 'bionic' ? 'text-purple-300 font-bold' : (item.type === 'dismissal' ? 'text-emerald-300 font-bold' : 'text-white font-medium'));
@@ -6394,7 +6400,7 @@ function updateSchoolScheduleUI(now = new Date()) {
     const dayBadge = document.getElementById('modalScheduleDayBadge');
     if (dayBadge) {
         if (school.isWeekend) {
-            dayBadge.textContent = 'إجازة الويك إند 🏖️';
+            dayBadge.textContent = 'إجازة الويك إند';
             dayBadge.className = 'text-micro px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-white/10 font-bold';
         } else if (school.isThursday) {
             dayBadge.textContent = 'يوم الخميس • المرواح 3:30 م (بدون بايونيك)';
@@ -6525,7 +6531,8 @@ function showDhikrFloatingToast(data) {
         document.body.appendChild(toast);
     }
 
-    toast.innerHTML = `<span class="text-base">📿</span> <span>${data.senderName || 'زميل'}:</span> <span class="text-emerald-300 font-black text-sm">${data.dhikrTitle}</span>`;
+    toast.innerHTML = `<i data-lucide="circle-dot-dashed" class="w-4 h-4 text-emerald-400 shrink-0"></i> <span>${data.senderName || 'زميل'}:</span> <span class="text-emerald-300 font-black text-sm">${data.dhikrTitle}</span>`;
+    renderIcons();
     toast.classList.remove('opacity-0', '-translate-y-2');
     toast.classList.add('opacity-100', 'translate-y-0');
 
