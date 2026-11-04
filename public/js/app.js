@@ -86,7 +86,11 @@ function renderIcons() {
 
 // ---------------------- Quick Math Challenge (live competitive mini-game) ----------------------
 function startMathGame() {
-    if (STATE.socket) STATE.socket.emit('math_game_start');
+    if (!STATE.socket || !STATE.socket.connected) {
+        showNotification('الاتصال بالسيرفر مش جاهز. سجّل دخولك وانتظر الاتصال ثم جرّب تاني.');
+        return;
+    }
+    STATE.socket.emit('math_game_start');
 }
 
 function submitMathAnswer(e) {
@@ -132,7 +136,13 @@ function handleMathGameState(state) {
         document.getElementById('mathGameRoundResult').textContent = '';
         renderMathGameScores('mathGameLiveScores', state.scores);
         const input = document.getElementById('mathGameAnswerInput');
-        if (input) { input.value = ''; input.focus(); }
+        if (input) {
+            input.value = '';
+            if (!document.getElementById('mathGameModal').classList.contains('hidden')) input.focus();
+        }
+        if (state.index === 0 && document.getElementById('mathGameModal').classList.contains('hidden')) {
+            showNotification('بدأ تحدي الرياضيات! افتحه من شريط أدوات الفصل للمشاركة.');
+        }
     } else if (state.status === 'finished') {
         idleView.classList.add('hidden');
         questionView.classList.add('hidden');
@@ -240,6 +250,18 @@ function refreshSelectLabel(selectId) {
 
 document.addEventListener('DOMContentLoaded', async () => {
     renderIcons();
+    document.getElementById('messagesContainer').addEventListener('scroll', event => {
+        if (event.target.scrollTop < 40) loadMessages(true);
+    });
+    // Dynamic lists can introduce icons after the initial page render.
+    let iconsPending = false;
+    new MutationObserver(records => {
+        const hasNewIcons = records.some(record => Array.from(record.addedNodes).some(node =>
+            node.nodeType === 1 && (node.matches('i[data-lucide]') || node.querySelector('i[data-lucide]'))));
+        if (!hasNewIcons || iconsPending) return;
+        iconsPending = true;
+        requestAnimationFrame(() => { iconsPending = false; renderIcons(); });
+    }).observe(document.body, { childList: true, subtree: true });
     enhanceSelect('snippetLanguageSelect');
 
     // Alexandria Live Clock & Prayer Times Engine
@@ -422,18 +444,18 @@ async function fetchNetworkInfo() {
     }
 }
 
-function checkExistingAuth() {
-    const saved = localStorage.getItem('no2ta_user');
-    if (saved) {
-        try {
-            STATE.user = JSON.parse(saved);
+async function checkExistingAuth() {
+    try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+            STATE.user = (await response.json()).user;
+            localStorage.setItem('no2ta_user', JSON.stringify(STATE.user));
             finishLoginSuccess();
             return;
-        } catch (e) {
-            localStorage.removeItem('no2ta_user');
         }
-    }
-    // Show Login Modal
+    } catch {}
+    localStorage.removeItem('no2ta_user');
+    STATE.user = null;
     showModal('authModal');
 }
 
@@ -449,11 +471,6 @@ async function handleLoginSubmit(e) {
     const nickname = nickInput.value.trim();
     const avatar = STATE.pendingAuthAvatarUrl || (avatarInput ? avatarInput.value : '🚀');
 
-    if (password !== MASTER_PASSWORD) {
-        errorEl.textContent = 'كلمة السر غير صحيحة! الباسوورد هو SdSdSdSd';
-        errorEl.classList.remove('hidden');
-        return;
-    }
 
     try {
         const res = await fetch('/api/auth/login', {
@@ -474,6 +491,19 @@ async function handleLoginSubmit(e) {
             return;
         }
 
+        if (STATE.pendingAuthAvatarFile) {
+            try {
+                const form = new FormData();
+                form.append('avatar', STATE.pendingAuthAvatarFile);
+                const uploaded = await fetch('/api/upload/avatar', {method:'POST', body:form});
+                if (!uploaded.ok) throw new Error('upload failed');
+                const avatar = (await uploaded.json()).url;
+                const profile = await fetch('/api/users/profile', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:data.user.id,avatar})});
+                if (!profile.ok) throw new Error('profile failed');
+                data.user = (await profile.json()).user;
+                STATE.pendingAuthAvatarFile = null;
+            } catch { showNotification('تم الدخول، لكن الصورة ما اترفعتش. جرّب من البروفايل.'); }
+        }
         STATE.user = data.user;
         localStorage.setItem('no2ta_user', JSON.stringify(data.user));
         localStorage.setItem('no2ta_device_id', data.user.device_id || `dev_${Date.now()}`);
@@ -547,6 +577,17 @@ function updateProfileUI() {
 function initSocket() {
     if (STATE.socket) return;
     STATE.socket = io({ reconnection: true });
+    STATE.socket.on('disconnect', reason => {
+        if (reason === 'io server disconnect') {
+            STATE.socket = null;
+            STATE.user = null;
+            localStorage.removeItem('no2ta_user');
+            showModal('authModal');
+        }
+    });
+    STATE.socket.on('connect_error', err => {
+        if (err.message === 'Unauthorized') { STATE.socket.disconnect(); STATE.socket = null; showModal('authModal'); }
+    });
 
     STATE.socket.on('connect', () => {
         console.log('⚡ Connected to No2ta Socket Engine');
@@ -2088,10 +2129,19 @@ async function openGroupMembersModal() {
 // ----------------------------------------------------
 // 5. Messages Feed & Actions
 // ----------------------------------------------------
-async function loadMessages() {
+let messageLoadVersion = 0;
+let olderMessagesLoading = false;
+let hasOlderMessages = false;
+let oldestMessageSequence = null;
+async function loadMessages(older = false) {
+    if (older && (olderMessagesLoading || !hasOlderMessages || !oldestMessageSequence)) return;
+    const version = older ? messageLoadVersion : ++messageLoadVersion;
+    olderMessagesLoading = true;
+    if (!older) { hasOlderMessages = false; oldestMessageSequence = null; }
     if (STATE.activeChat.type === 'group' && STATE.activeChat.group) {
         if (!STATE.activeChat.group.is_member) {
             renderGroupLockedView(STATE.activeChat.group);
+            olderMessagesLoading = false;
             return;
         }
     }
@@ -2109,7 +2159,9 @@ async function loadMessages() {
             params.append('group_id', STATE.activeChat.group.id);
         }
 
+        if (older) params.set('before', oldestMessageSequence);
         const res = await fetch(`/api/messages?${params.toString()}`);
+        if (version !== messageLoadVersion) return;
         if (res.status === 403) {
             const errData = await res.json().catch(() => ({}));
             if (STATE.activeChat.group) {
@@ -2121,12 +2173,25 @@ async function loadMessages() {
             }
             return;
         }
+        if (!res.ok) throw new Error('تعذر تحميل الرسائل');
         const data = await res.json();
-        STATE.messages = Array.isArray(data) ? data : [];
+        if (version !== messageLoadVersion) return;
+        const page = Array.isArray(data) ? data : [];
+        hasOlderMessages = page.length === 150;
+        oldestMessageSequence = page[0]?.sequence || oldestMessageSequence;
+        const container = document.getElementById('messagesContainer');
+        const oldHeight = container.scrollHeight;
+        const oldTop = container.scrollTop;
+        const seen = new Set(STATE.messages.map(m => m.id));
+        STATE.messages = older ? [...page.filter(m => !seen.has(m.id)), ...STATE.messages] : page;
         renderMessagesFeed();
-        scrollToBottom();
+        if (older) container.scrollTop = oldTop + container.scrollHeight - oldHeight;
+        else scrollToBottom();
     } catch (e) {
         console.error('Failed to load messages:', e);
+        if (version === messageLoadVersion) showNotification('تعذر تحميل الرسائل، جرّب تاني.');
+    } finally {
+        if (version === messageLoadVersion) olderMessagesLoading = false;
     }
 }
 
@@ -5004,19 +5069,8 @@ function setupEventListeners() {
             };
             reader.readAsDataURL(file);
 
-            const formData = new FormData();
-            formData.append('avatar', file);
-            try {
-                const res = await fetch('/api/upload/avatar', { method: 'POST', body: formData });
-                const data = await res.json();
-                if (data.url) {
-                    STATE.pendingAuthAvatarUrl = data.url;
-                    document.querySelectorAll('input[name="authAvatar"]').forEach(r => r.checked = false);
-                    showNotification('تم اختيار صورتك الشخصية بنجاح! 📷');
-                }
-            } catch (err) {
-                alert('فشل رفع الصورة!');
-            }
+            STATE.pendingAuthAvatarFile = file;
+            showNotification('تم اختيار الصورة، هتترفع بعد تسجيل الدخول.');
         });
     }
 
@@ -5080,8 +5134,10 @@ function setupEventListeners() {
     }
 }
 
-function logoutCurrentUser() {
+async function logoutCurrentUser() {
     if (confirm('هل تريد تسجيل الخروج من نؤطة؟')) {
+        const result = await fetch('/api/auth/logout', { method: 'POST' });
+        if (!result.ok) { showNotification('تعذر تسجيل الخروج، جرّب تاني'); return; }
         localStorage.removeItem('no2ta_user');
         window.location.reload();
     }

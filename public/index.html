@@ -6,71 +6,14 @@
     <title>نؤطة (No2ta) - شبكة الفصل الاجتماعية</title>
     <link id="appFavicon" rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><rect width=%2224%22 height=%2224%22 rx=%226%22 fill=%22%23161310%22/><path d=%22M13 2 4 14h6l-1 8 9-12h-6l1-8z%22 fill=%22%23D6B26E%22/></svg>">
 
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons — replaces all functional emoji, see docs/DESIGN_SYSTEM.md §5 -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script>
-        /* No2ta Design System v1.1 "Midnight & Brass" — see docs/DESIGN_SYSTEM.md
-           Remaps Tailwind's existing color scales onto the new warm-dark
-           Midnight & Brass tokens so every existing utility class across
-           the app picks up the new identity instantly, no markup rewrite. */
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        slate: { // neutrals -> warm graphite
-                            50: '#FBF8F2', 100: '#F5EFE4', 200: '#E3D9C8',
-                            300: '#CFC3AE', 400: '#B8AC97', 500: '#7C7363',
-                            600: '#3D3226', 700: '#2A231C', 800: '#1F1A15',
-                            850: '#1F1A15', 900: '#161310', 950: '#060504',
-                        },
-                        cyan: { // primary action accent -> brass gold
-                            200: '#F3E4C4', 300: '#E8C988', 400: '#DEBD7C',
-                            500: '#D6B26E', 600: '#A67E39', 950: '#241B0C',
-                        },
-                        amber: { // faith / warm tag accent -> terracotta
-                            200: '#E3BBA0', 300: '#D6A17D', 400: '#C68961',
-                            500: '#B5693F', 600: '#8F4F2C', 950: '#1D0F08',
-                        },
-                        pink: { // media tag -> dusty rose
-                            200: '#E7C5D1', 300: '#DBAFBE', 400: '#D29CB1', 500: '#C98BA0',
-                        },
-                        sky: { // broadcast tag -> slate blue
-                            300: '#9BB3C4', 400: '#85A3B9', 500: '#6E8CA6',
-                        },
-                        blue: { // was paired with cyan in gradients -> warm bronze, keeps the brass gradient warm
-                            500: '#A86B35', 600: '#8C5A2B', 950: '#241708',
-                        },
-                        indigo: { // collab tag -> dusty blue
-                            300: '#A3B0D2', 500: '#7C8FBD', 600: '#65759E',
-                        },
-                        red: { // danger -> muted terracotta red
-                            400: '#E8806C', 500: '#E0604A', 600: '#C04F3B', 800: '#5C2419',
-                        },
-                        no2ta: {
-                            bg: 'var(--no2ta-bg-canvas)',
-                            surface: 'var(--no2ta-bg-surface)',
-                            primary: 'var(--no2ta-primary-500)',
-                            secondary: 'var(--no2ta-secondary-500)',
-                        }
-                    },
-                    fontFamily: {
-                        mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
-                    },
-                    fontSize: {
-                        micro: ['0.656rem', { lineHeight: '1.3' }],
-                    }
-                }
-            }
-        }
-    </script>
+    <!-- Built assets are served by the classroom host, including offline. -->
+    <link rel="stylesheet" href="/css/tailwind.css?v=20261104-1">
+    <script src="/js/vendor/lucide.min.js?v=0.468.0"></script>
 
     <!-- No2ta Design System Tokens -->
     <link rel="stylesheet" href="/css/design-tokens.css">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/style.css?v=20261104-1">
     <!-- Socket.IO Client -->
     <script src="/socket.io/socket.io.js"></script>
     <!-- Audio Synthesizer -->
@@ -79,11 +22,11 @@
 <body class="bg-[var(--no2ta-bg-canvas)] text-slate-100 min-h-screen flex flex-col antialiased selection:bg-cyan-500 selection:text-black">
 
     <!-- 🌟 TOP GLOBAL HEADER — 3 Groups: Collaboration · Broadcast/Faith · Identity, Panic isolated last (DESIGN_SYSTEM.md §7.5) -->
-    <header class="sticky top-0 z-40 bg-[var(--no2ta-bg-surface)]/90 backdrop-blur-xl border-b border-white/10 px-4 py-2">
+    <header id="classroomHeader" class="sticky top-0 z-40 bg-[var(--no2ta-bg-surface)]/90 backdrop-blur-xl border-b border-white/10 px-4 py-2">
         <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
 
             <!-- Group 1: Collaboration Tools -->
-            <div class="flex items-center gap-2 overflow-x-auto custom-scrollbar py-0.5">
+            <div class="classroom-tools flex items-center gap-2 py-0.5">
                 <!-- AirDrop Button -->
                 <button onclick="showModal('airdropModal')" class="flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-xs font-bold transition-all shadow-sm shrink-0" title="مشاركة الملفات السريعة في الفصل">
                     <i data-lucide="send" class="w-[15px] h-[15px]"></i>
@@ -134,7 +77,7 @@
                 <!-- Quick Math Challenge Button (Collab tag) -->
                 <button onclick="showModal('mathGameModal')" class="flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold transition-all shadow-sm shrink-0" title="تحدي الرياضيات السريع">
                     <i data-lucide="swords" class="w-[15px] h-[15px]"></i>
-                    <span class="hidden xl:inline">تحدي سريع</span>
+                    <span class="hidden xl:inline">تحدي الرياضيات</span>
                 </button>
 
                 <!-- Weekend Freeze Badge (Hidden unless active) -->
@@ -235,82 +178,20 @@
                 </div>
             </div>
 
-            <!-- Alexandria Prayer Times & Live Clock Sidebar Widget -->
-            <div id="sidebarAlexandriaWidget" class="p-2.5 border-b border-white/10 bg-gradient-to-b from-slate-900/90 via-slate-900/60 to-emerald-950/20 shrink-0">
-                <div class="flex items-center justify-between gap-1.5 mb-2 cursor-pointer group" onclick="openPrayerTimesModal()" title="اضغط لعرض جدول مواقيت الصلاة الكامل في الإسكندرية">
-                    <div class="flex items-center gap-1.5 min-w-0">
-                        <i data-lucide="moon-star" class="w-[15px] h-[15px] text-emerald-300 shrink-0"></i>
-                        <div class="min-w-0">
-                            <div class="flex items-center gap-1">
-                                <span class="text-[11px] font-bold text-white group-hover:text-emerald-300 transition">مواقيت الصلاة</span>
-                                <span class="text-micro px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">الإسكندرية</span>
-                            </div>
-                            <p id="sidebarAlexandriaDate" class="text-micro text-slate-400 truncate">--</p>
-                        </div>
-                    </div>
-                    <div class="text-left font-mono shrink-0">
-                        <div id="sidebarAlexandriaClock" class="text-xs font-black text-cyan-300 tracking-tight">--:--:--</div>
-                        <div id="sidebarAlexandriaNextCountdown" class="text-micro text-amber-300 font-bold">باقي: --:--</div>
-                    </div>
+            <!-- Alexandria Prayer Times & School Schedule — a single compact row.
+                 Not core chat functionality, so it is a button into the full modal (prayerTimesModal)
+                 instead of a dedicated space-eating panel; keeps the sidebar focused on classmates/chats. -->
+            <button type="button" onclick="openPrayerTimesModal()" class="w-full flex items-center justify-between gap-2 px-2.5 py-2 border-b border-white/10 bg-slate-900/40 hover:bg-slate-900/70 transition-all shrink-0 text-right group" title="اضغط لعرض مواقيت الصلاة وجدول الحصص والبريك بالتفصيل">
+                <div class="flex items-center gap-1.5 min-w-0">
+                    <i data-lucide="moon-star" class="w-[15px] h-[15px] text-emerald-300 shrink-0"></i>
+                    <span class="text-[11px] font-bold text-slate-300 group-hover:text-emerald-300 transition truncate">مواقيت الصلاة وجدول اليوم</span>
                 </div>
-
-                <!-- 5 Prayers Grid (3 cols so Arabic names never crowd/wrap) -->
-                <div class="grid grid-cols-3 gap-1.5 text-center font-mono">
-                    <div id="prayer_card_fajr" class="p-1.5 rounded-lg bg-black/40 border border-white/5 transition-all">
-                        <div class="text-[11px] text-slate-400 truncate">الفجر</div>
-                        <div id="prayer_time_fajr" class="text-[11px] font-bold text-slate-200 mt-0.5">--:--</div>
-                    </div>
-                    <div id="prayer_card_dhuhr" class="p-1.5 rounded-lg bg-black/40 border border-white/5 transition-all">
-                        <div class="text-[11px] text-slate-400 truncate">الظهر</div>
-                        <div id="prayer_time_dhuhr" class="text-[11px] font-bold text-slate-200 mt-0.5">--:--</div>
-                    </div>
-                    <div id="prayer_card_asr" class="p-1.5 rounded-lg bg-black/40 border border-white/5 transition-all">
-                        <div class="text-[11px] text-slate-400 truncate">العصر</div>
-                        <div id="prayer_time_asr" class="text-[11px] font-bold text-slate-200 mt-0.5">--:--</div>
-                    </div>
-                    <div id="prayer_card_maghrib" class="p-1.5 rounded-lg bg-black/40 border border-white/5 transition-all">
-                        <div class="text-[11px] text-slate-400 truncate">المغرب</div>
-                        <div id="prayer_time_maghrib" class="text-[11px] font-bold text-slate-200 mt-0.5">--:--</div>
-                    </div>
-                    <div id="prayer_card_isha" class="p-1.5 rounded-lg bg-black/40 border border-white/5 transition-all">
-                        <div class="text-[11px] text-slate-400 truncate">العشاء</div>
-                        <div id="prayer_time_isha" class="text-[11px] font-bold text-slate-200 mt-0.5">--:--</div>
-                    </div>
+                <div class="flex items-center gap-1.5 shrink-0 font-mono">
+                    <span id="sidebarAlexandriaClock" class="text-[11px] font-black text-cyan-300 tracking-tight">--:--:--</span>
+                    <span id="sidebarAlexandriaNextCountdown" class="hidden sm:inline text-micro text-amber-300 font-bold">باقي: --:--</span>
+                    <i data-lucide="chevron-left" class="w-[13px] h-[13px] text-slate-500 group-hover:text-emerald-300 transition"></i>
                 </div>
-
-                <!-- School Sessions & Break Live Card 🔔 -->
-                <div class="mt-2.5 pt-2 border-t border-white/10 text-xs">
-                    <div class="flex items-center justify-between mb-1.5 cursor-pointer" onclick="openPrayerTimesModal()">
-                        <div class="flex items-center gap-1.5 min-w-0">
-                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0"></span>
-                            <span id="sidebarSchoolSessionBadge" class="text-[11px] font-black text-emerald-300 truncate">الحصة --</span>
-                        </div>
-                        <span id="sidebarSchoolSessionCountdown" class="text-micro font-mono font-bold text-cyan-300 shrink-0">باقي: --</span>
-                    </div>
-
-                    <!-- 3 School Countdowns Grid: Break, Bionic, Dismissal -->
-                    <div class="grid grid-cols-3 gap-1 text-center font-mono text-micro">
-                        <div class="p-1 rounded-lg bg-black/50 border border-white/5 flex flex-col justify-between">
-                            <div class="text-slate-400 flex items-center justify-center gap-1"><i data-lucide="coffee" class="w-3 h-3"></i> البريك (11:10)</div>
-                            <div id="sidebarSchoolBreakCountdown" class="font-bold text-amber-300 mt-0.5">باقي: --</div>
-                        </div>
-                        <div class="p-1 rounded-lg bg-black/50 border border-white/5 flex flex-col justify-between">
-                            <div class="text-slate-400 flex items-center justify-center gap-1"><i data-lucide="flask-conical" class="w-3 h-3"></i> <span id="sidebarSchoolBionicLabel">البايونيك (3:30)</span></div>
-                            <div id="sidebarSchoolBionicCountdown" class="font-bold text-purple-300 mt-0.5">باقي: --</div>
-                        </div>
-                        <div class="p-1 rounded-lg bg-black/50 border border-white/5 flex flex-col justify-between">
-                            <div class="text-slate-400 flex items-center justify-center gap-1"><i data-lucide="home" class="w-3 h-3"></i> <span id="sidebarSchoolDismissalLabel">المرواح (4:00)</span></div>
-                            <div id="sidebarSchoolDismissalCountdown" class="font-bold text-emerald-300 mt-0.5">باقي: --</div>
-                        </div>
-                    </div>
-
-                    <!-- School Timetable Full Button -->
-                    <button onclick="openSchoolScheduleModal()" class="w-full mt-2 py-1.5 px-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-micro font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm">
-                        <i data-lucide="calendar-days" class="w-[13px] h-[13px]"></i>
-                        <span>عرض جدول مواعيد اليوم والحصص</span>
-                    </button>
-                </div>
-            </div>
+            </button>
 
             <!-- Classmates / Groups List Header -->
             <div class="px-3 py-2 flex items-center justify-between text-xs text-slate-400 font-bold border-b border-white/5">
@@ -1950,7 +1831,7 @@
                     <span id="mathGameRoundResult" class="text-emerald-400"></span>
                 </div>
                 <div class="p-6 rounded-2xl bg-slate-900 border border-indigo-500/30 text-center mb-4">
-                    <div id="mathGameQuestionText" class="text-4xl font-black text-white font-mono">-- + --</div>
+                    <div id="mathGameQuestionText" dir="ltr" class="text-4xl font-black text-white font-mono">-- + --</div>
                 </div>
                 <form onsubmit="submitMathAnswer(event)" class="flex items-center gap-2 mb-4">
                     <input type="number" id="mathGameAnswerInput" placeholder="إجابتك..." class="flex-1 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none text-center font-mono" autocomplete="off">
@@ -1994,6 +1875,6 @@
 
     <!-- Main Application Scripts -->
     <script src="/js/html2canvas.min.js"></script>
-    <script src="/js/app.js?v=4.6.7"></script>
+    <script src="/js/app.js?v=20261104-1"></script>
 </body>
 </html>

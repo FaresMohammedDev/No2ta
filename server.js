@@ -11,6 +11,7 @@ const crypto = require('crypto');
 const CryptoJS = require('crypto-js');
 
 const { db, run, get, all, initDB } = require('./data/db');
+const sessions = require('./services/sessions');
 const { cleanIP, getServerLanIPs, resolveMacAddress } = require('./services/network');
 const { recordInteraction, getStreakBetween, getAllUserStreaks, isWeekendFreeze } = require('./services/streaks');
 const { QURAN_RECITERS, getReciterById, getSurahAudioUrl, getSurahName } = require('./data/quran-reciters');
@@ -54,6 +55,39 @@ function isHostAdmin(clientIp, clientMac) {
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+// Browser requests must originate on this host. Native LAN clients have no Origin.
+app.use((req, res, next) => {
+    if (req.headers.origin) {
+        try { if (new URL(req.headers.origin).host !== req.headers.host) return res.status(403).json({ error: 'Origin not allowed' }); }
+        catch { return res.sendStatus(403); }
+    }
+    next();
+});
+app.use('/api', async (req, res, next) => {
+    // Agent pairing is a separate migration; its legacy frame intake remains isolated here.
+    if (['/auth/login', '/network-info', '/alexandria-prayers', '/tasbeeh', '/netsupport/frame'].includes(req.path)) return next();
+    req.authUser = await sessions.resolve(req.headers);
+    if (!req.authUser) return res.status(401).json({ error: 'سجّل الدخول من جديد' });
+    if ((req.path.startsWith('/admin/') || req.path.startsWith('/netsupport/')) && req.authUser.role !== 'admin') return res.sendStatus(403);
+    const actorKeys = ['userId', 'user_id', 'currentUserId', 'creatorId', 'uploaderId', 'djId'];
+    for (const source of [req.query, req.body || {}]) {
+        if (actorKeys.some(key => source[key] && source[key] !== req.authUser.id)) return res.status(403).json({ error: 'هوية المستخدم لا تطابق الجلسة' });
+    }
+    if (req.path === '/messages/mark-read' && req.body.recipientId !== req.authUser.id) return res.sendStatus(403);
+    next();
+});
+app.get('/api/auth/me', (req, res) => {
+    const { session_hash, ...user } = req.authUser;
+    res.json({ user });
+});
+app.post('/api/auth/logout', async (req, res) => {
+    await run('DELETE FROM auth_sessions WHERE token_hash = ?', [req.authUser.session_hash]);
+    for (const socket of io.sockets.sockets.values()) {
+        if (socket.data.sessionHash === req.authUser.session_hash) socket.disconnect(true);
+    }
+    res.clearCookie('no2ta_session', { path: '/' });
+    res.json({ success: true });
+});
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -108,6 +142,16 @@ const storage = multer.diskStorage({
     }
 });
 const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } }); // 100MB
+const uploadSingle = upload.single.bind(upload);
+upload.single = field => (req, res, next) => uploadSingle(field)(req, res, error => {
+    if (error) return next(error);
+    const actor = req.body.userId || req.body.senderId || req.body.uploaderId;
+    if (actor && actor !== req.authUser?.id) {
+        if (req.file) fs.unlink(req.file.path, () => {});
+        return res.sendStatus(403);
+    }
+    next();
+});
 
 // In-Memory Real-time State
 const onlineUsers = new Map(); // socketId -> { userId, ip, mac, nickname, role, ping }
@@ -124,7 +168,7 @@ let activeRadioTrack = null; // { track: { id, title, artist, cover, audioUrl },
 // 1. Network Info & QR Code
 app.get('/api/network-info', async (req, res) => {
     try {
-        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientIp = cleanIP(req.socket.remoteAddress);
         const clientMac = await resolveMacAddress(clientIp);
         const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
 
@@ -703,7 +747,7 @@ app.get('/api/quiz/leaderboard', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { password, nickname, avatar, bio, deviceId } = req.body;
-        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientIp = cleanIP(req.socket.remoteAddress);
         const clientMac = await resolveMacAddress(clientIp);
 
         // Hardware-based Admin detection: ONLY physical MAC D0:8E:79:18:9F:A0 is Admin!
@@ -713,10 +757,12 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(401).json({ error: 'كلمة السر غير صحيحة، حاول تاني 🔒' });
         }
 
-        const effectiveDeviceId = deviceId || (clientMac ? `mac_${clientMac}` : `ip_${clientIp}`);
+        let deviceToken = sessions.cookie(req.headers, 'no2ta_device');
+        if (!/^[a-f0-9]{64}$/.test(deviceToken)) deviceToken = crypto.randomBytes(32).toString('hex');
+        const effectiveDeviceId = sessions.hash(deviceToken);
 
         // Check if user already exists
-        let user = await get(`SELECT * FROM users WHERE device_id = ? OR mac_address = ?`, [effectiveDeviceId, clientMac]);
+        let user = await get(`SELECT * FROM users WHERE device_id = ?`, [effectiveDeviceId]);
 
         const defaultNickname = isDeviceAdmin ? 'كبير الفصل (الأدمن)' : `عبقري_${clientIp.split('.').pop()}`;
         const chosenNickname = nickname ? nickname.trim() : (user ? user.nickname : defaultNickname);
@@ -742,6 +788,8 @@ app.post('/api/auth/login', async (req, res) => {
             user = await get(`SELECT * FROM users WHERE id = ?`, [newId]);
         }
 
+        await sessions.issue(res, user, req.secure);
+        res.cookie('no2ta_device', deviceToken, { httpOnly: true, sameSite: 'strict', secure: req.secure, maxAge: 365*86400000, path: '/' });
         res.json({
             success: true,
             user,
@@ -848,6 +896,8 @@ app.post('/api/users/profile', async (req, res) => {
 app.get('/api/messages', async (req, res) => {
     try {
         const { chat_type = 'general', recipient_id, group_id, user_id } = req.query;
+        const before = req.query.before === undefined ? Number.MAX_SAFE_INTEGER : Number(req.query.before);
+        if (!Number.isSafeInteger(before) || before < 1) return res.status(400).json({ error: 'Invalid message cursor' });
 
         // Clean up expired disappearing messages before query
         await run(`DELETE FROM messages WHERE is_disappearing = 1 AND expires_at < CURRENT_TIMESTAMP`);
@@ -855,23 +905,23 @@ app.get('/api/messages', async (req, res) => {
         let messages = [];
         if (chat_type === 'general') {
             messages = await all(
-                `SELECT m.*, u.nickname as sender_name, u.avatar as sender_avatar, u.role as sender_role
+                `SELECT m.*, m.rowid as sequence, u.nickname as sender_name, u.avatar as sender_avatar, u.role as sender_role
                  FROM messages m
                  JOIN users u ON m.sender_id = u.id
-                 WHERE m.chat_type = 'general'
-                 ORDER BY m.created_at ASC
-                 LIMIT 150`
+                 WHERE m.chat_type = 'general' AND m.rowid < ?
+                 ORDER BY m.rowid DESC
+                 LIMIT 150`, [before]
             );
         } else if (chat_type === 'direct' && recipient_id && user_id) {
             messages = await all(
-                `SELECT m.*, u.nickname as sender_name, u.avatar as sender_avatar, u.role as sender_role
+                `SELECT m.*, m.rowid as sequence, u.nickname as sender_name, u.avatar as sender_avatar, u.role as sender_role
                  FROM messages m
                  JOIN users u ON m.sender_id = u.id
-                 WHERE m.chat_type = 'direct' AND
+                 WHERE m.chat_type = 'direct' AND m.rowid < ? AND
                  ((m.sender_id = ? AND m.recipient_id = ?) OR (m.sender_id = ? AND m.recipient_id = ?))
-                 ORDER BY m.created_at ASC
+                 ORDER BY m.rowid DESC
                  LIMIT 150`,
-                [user_id, recipient_id, recipient_id, user_id]
+                [before, user_id, recipient_id, recipient_id, user_id]
             );
 
             // Auto-mark incoming direct messages as read
@@ -909,16 +959,17 @@ app.get('/api/messages', async (req, res) => {
             }
 
             messages = await all(
-                `SELECT m.*, u.nickname as sender_name, u.avatar as sender_avatar, u.role as sender_role
+                `SELECT m.*, m.rowid as sequence, u.nickname as sender_name, u.avatar as sender_avatar, u.role as sender_role
                  FROM messages m
                  JOIN users u ON m.sender_id = u.id
-                 WHERE m.chat_type = 'group' AND m.recipient_id = ?
-                 ORDER BY m.created_at ASC
+                 WHERE m.chat_type = 'group' AND m.recipient_id = ? AND m.rowid < ?
+                 ORDER BY m.rowid DESC
                  LIMIT 150`,
-                [targetGroupId]
+                [targetGroupId, before]
             );
         }
 
+        messages.reverse(); // Oldest to newest within the latest requested page.
         // Attach reactions
         const msgIds = messages.map(m => m.id);
         let reactionsMap = {};
@@ -952,7 +1003,7 @@ app.delete('/api/messages/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { userId } = req.body;
-        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientIp = cleanIP(req.socket.remoteAddress);
         const clientMac = await resolveMacAddress(clientIp);
         const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
 
@@ -1103,7 +1154,7 @@ app.delete('/api/stories/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { userId } = req.body;
-        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientIp = cleanIP(req.socket.remoteAddress);
         const clientMac = await resolveMacAddress(clientIp);
         const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
 
@@ -1212,7 +1263,7 @@ app.post('/api/airdrop/download/:id', async (req, res) => {
 app.get('/api/groups', async (req, res) => {
     try {
         const userId = req.query.userId;
-        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientIp = cleanIP(req.socket.remoteAddress);
         const clientMac = await resolveMacAddress(clientIp);
         const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
 
@@ -1291,7 +1342,7 @@ app.get('/api/groups/:id/members', async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.query.userId;
-        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientIp = cleanIP(req.socket.remoteAddress);
         const clientMac = await resolveMacAddress(clientIp);
         const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
 
@@ -1370,7 +1421,7 @@ app.get('/api/groups/:id/join-requests', async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.query.userId;
-        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientIp = cleanIP(req.socket.remoteAddress);
         const clientMac = await resolveMacAddress(clientIp);
         const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
 
@@ -1401,7 +1452,7 @@ app.post('/api/groups/:id/join-requests/:requestId/respond', async (req, res) =>
     try {
         const { id, requestId } = req.params;
         const { action, userId } = req.body; // action: 'accept' | 'reject'
-        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientIp = cleanIP(req.socket.remoteAddress);
         const clientMac = await resolveMacAddress(clientIp);
         const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
 
@@ -1534,7 +1585,7 @@ app.delete('/api/groups/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { userId } = req.body;
-        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientIp = cleanIP(req.socket.remoteAddress);
         const clientMac = await resolveMacAddress(clientIp);
         const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
 
@@ -2032,7 +2083,7 @@ app.delete('/api/music/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { userId } = req.body;
-        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientIp = cleanIP(req.socket.remoteAddress);
         const clientMac = await resolveMacAddress(clientIp);
         const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
 
@@ -2107,7 +2158,7 @@ app.get('/api/admin/devices', async (req, res) => {
 app.post('/api/admin/action', async (req, res) => {
     try {
         const { action, payload } = req.body;
-        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientIp = cleanIP(req.socket.remoteAddress);
         const clientMac = await resolveMacAddress(clientIp);
         const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
 
@@ -2205,7 +2256,7 @@ async function resolveStudentInfo(ip, mac, userId) {
 app.post('/api/netsupport/frame', async (req, res) => {
     try {
         const { deviceId, userId, nickname, avatar, role, ip, mac, frameBase64, currentApp } = req.body;
-        const clientIp = cleanIP(ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientIp = cleanIP(ip || req.socket.remoteAddress);
         const clientMac = mac || await resolveMacAddress(clientIp);
         const safeDevKey = `dev_${clientIp.replace(/[^a-zA-Z0-9]/g, '_')}`;
         const devKey = deviceId || safeDevKey;
@@ -2265,7 +2316,7 @@ app.post('/api/netsupport/frame', async (req, res) => {
 // Admin fetches all devices and their screen frames for the NetSupport Live Grid
 app.get('/api/netsupport/devices', async (req, res) => {
     try {
-        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientIp = cleanIP(req.socket.remoteAddress);
         const clientMac = await resolveMacAddress(clientIp);
         const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
 
@@ -2363,7 +2414,7 @@ app.get('/api/netsupport/devices', async (req, res) => {
 app.post('/api/netsupport/control', async (req, res) => {
     try {
         const { action, targetSocketId, targetIp, payload = {} } = req.body;
-        const clientIp = cleanIP(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+        const clientIp = cleanIP(req.socket.remoteAddress);
         const clientMac = await resolveMacAddress(clientIp);
         const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
 
@@ -2560,8 +2611,35 @@ function nextMathQuestion() {
     }, 8000);
 }
 
+io.use(async (socket, next) => {
+    try {
+        const origin = socket.handshake.headers.origin;
+        if (origin && new URL(origin).host !== socket.handshake.headers.host) return next(new Error('Unauthorized origin'));
+        const user = await sessions.resolve(socket.handshake.headers);
+        if (!user) return next(new Error('Unauthorized'));
+        socket.data.user = user;
+        socket.data.sessionHash = user.session_hash;
+        next();
+    } catch { next(new Error('Unauthorized')); }
+});
 io.on('connection', async (socket) => {
-    const rawIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
+    socket.use(async ([event, data], next) => {
+        try {
+            const user = await sessions.resolve(socket.handshake.headers);
+            if (!user) { socket.disconnect(true); return; }
+            socket.data.user = user;
+            if (data && typeof data === 'object') {
+                if (['userId', 'presenterId', 'djId'].some(key => data[key] && data[key] !== user.id) ||
+                    (event === 'send_message' && data.senderId !== user.id) ||
+                    (event === 'register_presence' && data.id !== user.id) ||
+                    (event === 'mark_messages_read' && data.recipientId !== user.id)) {
+                    socket.emit('error_notification', { message: 'هوية المستخدم لا تطابق الجلسة' }); return;
+                }
+            }
+            next();
+        } catch { socket.disconnect(true); }
+    });
+    const rawIp = socket.handshake.address;
     const clientIp = cleanIP(rawIp);
     const clientMac = await resolveMacAddress(clientIp);
 
@@ -2580,6 +2658,10 @@ io.on('connection', async (socket) => {
     }
 
     socket.on('math_game_start', () => {
+        if (mathGame.active) {
+            socket.emit('error_notification', { message: 'في تحدي شغال بالفعل، شارك فيه واستنى نهايته لبدء تحدي جديد.' });
+            return;
+        }
         startMathGame();
     });
 
@@ -2680,7 +2762,8 @@ socket.on('admin_trigger_salawat', (data = {}) => {
         if (!userData || !userData.id) return;
 
         const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
-        const effectiveRole = isDeviceAdmin ? 'admin' : (userData.role || 'student');
+        userData = socket.data.user;
+        const effectiveRole = userData.role;
 
         onlineUsers.set(socket.id, {
             socketId: socket.id,
@@ -2747,11 +2830,14 @@ socket.on('admin_trigger_salawat', (data = {}) => {
     // 1. Send Message
     socket.on('send_message', async (data) => {
         try {
-            if (isChatFocusLocked && data.role !== 'admin') {
+            if (isChatFocusLocked && socket.data.user.role !== 'admin') {
                 return socket.emit('error_notification', { message: 'الشات مقفول مؤقتاً بوضع التركيز من الأدمن!' });
             }
 
             const { senderId, recipientId, chatType, content, mediaUrl, mediaType, mediaName, mediaSize, disappearingSeconds } = data;
+            if (chatType === 'group' && !await get('SELECT id FROM group_members WHERE group_id=? AND user_id=?', [recipientId, socket.data.user.id])) {
+                return socket.emit('error_notification', { message: 'لازم تكون عضو في الجروب' });
+            }
             const messageId = crypto.randomUUID();
 
             let isDisappearing = 0;
@@ -3164,6 +3250,7 @@ setInterval(async () => {
 
 async function startServer() {
     await initDB();
+    await sessions.initialize();
     startBeacon(PORT);
 
     try {

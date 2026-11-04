@@ -121,6 +121,7 @@ const initDB = async () => {
         user_a TEXT NOT NULL,
         user_b TEXT NOT NULL,
         streak_count INTEGER DEFAULT 1,
+        interaction_count INTEGER DEFAULT 1,
         last_interaction_date TEXT,
         is_frozen INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -128,6 +129,12 @@ const initDB = async () => {
         FOREIGN KEY(user_a) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY(user_b) REFERENCES users(id) ON DELETE CASCADE
     );`);
+
+    // Upgrade existing installations as well as fresh databases.
+    const streakColumns = await all('PRAGMA table_info(streaks)');
+    if (!streakColumns.some(column => column.name === 'interaction_count')) {
+        await run('ALTER TABLE streaks ADD COLUMN interaction_count INTEGER DEFAULT 1');
+    }
 
     // Classroom AirDrop Files
     await run(`CREATE TABLE IF NOT EXISTS airdrop_files (

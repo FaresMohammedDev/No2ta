@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "no2ta-dev",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set PORT=5050&&node server.js"],
+      "port": 5050
+    }
+  ]
+}
