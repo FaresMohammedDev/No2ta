@@ -976,7 +976,13 @@ function initSocket() {
 
     STATE.socket.on('presence_update', (data) => {
         STATE.onlineUserIds = new Set(data.onlineUserIds);
-        renderUsersList();
+        const knownIds = new Set(STATE.users.map(u => u.id));
+        const hasNewUser = STATE.user && data.onlineUserIds.some(id => id !== STATE.user.id && !knownIds.has(id));
+        if (hasNewUser) {
+            loadUsers(); // A new student just connected and isn't in our roster yet — refresh it so they show up.
+        } else {
+            renderUsersList();
+        }
         if (STATE.activeChat?.type === "direct") updateDirectStreakBadge(STATE.activeChat.recipient?.id);
         updateOnlineCount();
     });
@@ -2541,11 +2547,12 @@ function renderMessagesFeed() {
 
     if (STATE.messages.length === 0) {
         container.innerHTML = `
-            <div class="h-full flex flex-col items-center justify-center text-slate-500 text-xs py-12">
-                <span class="text-4xl mb-2">💬</span>
+            <div id="messagesEmptyState" class="h-full flex flex-col items-center justify-center text-slate-500 text-xs py-12">
+                <i data-lucide="message-circle" class="w-9 h-9 mb-2"></i>
                 <span>لا توجد رسائل سابقة هنا. ابدأ الشات أو ارمي ميم جامد!</span>
             </div>
         `;
+        renderIcons();
         return;
     }
 
@@ -2697,9 +2704,12 @@ function renderReactionsPills(messageId, reactions) {
 function appendMessageBubble(message) {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
+    const emptyState = document.getElementById('messagesEmptyState');
+    if (emptyState) emptyState.remove();
     const div = document.createElement('div');
     div.innerHTML = formatMessageHTML(message);
     container.appendChild(div.firstElementChild);
+    renderIcons();
 
     // Auto-schedule self-destruction for fast burn disappearing messages (e.g. 2s)
     if (message.is_disappearing && message.expires_at) {
