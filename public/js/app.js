@@ -317,6 +317,180 @@ function handleWordGuessRoundResult(data) {
         : `محدش جاوب في الوقت (${data.answer})`;
 }
 
+// ---------------------- Trivia / Quiz Battle (live competitive mini-game) ----------------------
+function startTriviaGame() {
+    if (!STATE.socket || !STATE.socket.connected) {
+        showNotification('الاتصال بالسيرفر مش جاهز. سجّل دخولك وانتظر الاتصال ثم جرّب تاني.');
+        return;
+    }
+    STATE.socket.emit('trivia_start');
+}
+
+function submitTriviaAnswer(choiceIndex) {
+    if (STATE.socket) STATE.socket.emit('trivia_answer', { choiceIndex });
+}
+
+function renderTriviaChoices(choices) {
+    const el = document.getElementById('triviaChoices');
+    if (!el) return;
+    el.innerHTML = choices.map((choice, i) => `
+        <button type="button" onclick="submitTriviaAnswer(${i})" class="w-full text-right px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-emerald-500/20 border border-slate-800 hover:border-emerald-500/40 text-sm text-white font-bold transition">
+            ${escapeHtml(choice)}
+        </button>
+    `).join('');
+}
+
+function renderTriviaScores(containerId, scores) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    if (!scores || scores.length === 0) {
+        el.innerHTML = `<p class="text-micro text-slate-500 text-center">لسه محدش سجل نقطة</p>`;
+        return;
+    }
+    el.innerHTML = scores.map(([name, pts], i) => `
+        <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg ${i === 0 ? 'bg-amber-500/15 border border-amber-500/30' : 'bg-slate-900/60'} text-xs">
+            <span class="font-bold text-slate-200">#${i + 1} ${escapeHtml(name)}</span>
+            <span class="font-mono font-black text-emerald-300">${pts}</span>
+        </div>
+    `).join('');
+}
+
+function handleTriviaState(state) {
+    const idleView = document.getElementById('triviaIdleView');
+    const questionView = document.getElementById('triviaQuestionView');
+    const finishedView = document.getElementById('triviaFinishedView');
+    if (!idleView || !questionView || !finishedView) return;
+
+    if (state.status === 'question') {
+        idleView.classList.add('hidden');
+        finishedView.classList.add('hidden');
+        questionView.classList.remove('hidden');
+        document.getElementById('triviaProgress').textContent = `سؤال ${state.index + 1} / ${state.total}`;
+        document.getElementById('triviaQuestionText').textContent = state.question;
+        document.getElementById('triviaRoundResult').textContent = '';
+        renderTriviaChoices(state.choices);
+        renderTriviaScores('triviaLiveScores', state.scores);
+        if (state.index === 0 && document.getElementById('triviaModal').classList.contains('hidden')) {
+            showNotification('بدأت التريفيا! افتحها من شريط أدوات الفصل للمشاركة.');
+        }
+    } else if (state.status === 'finished') {
+        idleView.classList.add('hidden');
+        questionView.classList.add('hidden');
+        finishedView.classList.remove('hidden');
+        renderTriviaScores('triviaFinalScores', state.scores);
+    }
+}
+
+function handleTriviaRoundResult(data) {
+    const resultEl = document.getElementById('triviaRoundResult');
+    if (!resultEl) return;
+    resultEl.textContent = data.winner
+        ? `${data.winner} جاوب صح! (${data.correctText})`
+        : `محدش جاوب في الوقت (${data.correctText})`;
+}
+
+// ---------------------- Color Memory / Simon Says (live competitive mini-game) ----------------------
+const MEMORY_COLORS = [
+    { name: 'أحمر', classes: 'bg-red-500' },
+    { name: 'أزرق', classes: 'bg-blue-500' },
+    { name: 'أخضر', classes: 'bg-emerald-500' },
+    { name: 'أصفر', classes: 'bg-amber-400' }
+];
+let memorySequence = [];
+let memoryClicks = [];
+let memoryLocked = true;
+
+function startMemoryGame() {
+    if (!STATE.socket || !STATE.socket.connected) {
+        showNotification('الاتصال بالسيرفر مش جاهز. سجّل دخولك وانتظر الاتصال ثم جرّب تاني.');
+        return;
+    }
+    STATE.socket.emit('memory_game_start');
+}
+
+function memoryDelay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function flashMemoryColor(colorIndex) {
+    return new Promise(resolve => {
+        const btn = document.getElementById(`memoryColorBtn${colorIndex}`);
+        if (!btn) { resolve(); return; }
+        btn.classList.add('brightness-150', 'scale-95');
+        setTimeout(() => {
+            btn.classList.remove('brightness-150', 'scale-95');
+            resolve();
+        }, 450);
+    });
+}
+
+async function playMemorySequence(sequence) {
+    memoryLocked = true;
+    memoryClicks = [];
+    const statusEl = document.getElementById('memoryGameStatusText');
+    if (statusEl) statusEl.textContent = 'بص واحفظ الترتيب...';
+    for (let i = 0; i < sequence.length; i++) {
+        await flashMemoryColor(sequence[i]);
+        await memoryDelay(220);
+    }
+    memoryLocked = false;
+    if (statusEl) statusEl.textContent = 'دورك! اضغط بنفس الترتيب';
+}
+
+function memoryClickColor(colorIndex) {
+    if (memoryLocked) return;
+    memoryClicks.push(colorIndex);
+    if (memoryClicks.length >= memorySequence.length) {
+        memoryLocked = true;
+        if (STATE.socket) STATE.socket.emit('memory_game_submit', { sequence: memoryClicks });
+    }
+}
+
+function renderMemoryScores(containerId, scores) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    if (!scores || scores.length === 0) {
+        el.innerHTML = `<p class="text-micro text-slate-500 text-center">محدش كمّل جولة</p>`;
+        return;
+    }
+    el.innerHTML = scores.map(([name, rounds], i) => `
+        <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg ${i === 0 ? 'bg-amber-500/15 border border-amber-500/30' : 'bg-slate-900/60'} text-xs">
+            <span class="font-bold text-slate-200">#${i + 1} ${escapeHtml(name)}</span>
+            <span class="font-mono font-black text-orange-300">${rounds}</span>
+        </div>
+    `).join('');
+}
+
+function handleMemoryGameState(state) {
+    const idleView = document.getElementById('memoryGameIdleView');
+    const roundView = document.getElementById('memoryGameRoundView');
+    const finishedView = document.getElementById('memoryGameFinishedView');
+    if (!idleView || !roundView || !finishedView) return;
+
+    if (state.status === 'round') {
+        memorySequence = state.sequence;
+        idleView.classList.add('hidden');
+        finishedView.classList.add('hidden');
+        roundView.classList.remove('hidden');
+        document.getElementById('memoryGameRoundLabel').textContent = `الجولة ${state.round} — تسلسل من ${state.sequence.length}`;
+        if (state.round === 1 && document.getElementById('memoryGameModal').classList.contains('hidden')) {
+            showNotification('بدأت لعبة الذاكرة! افتحها من شريط أدوات الفصل للمشاركة.');
+        }
+        playMemorySequence(state.sequence);
+    } else if (state.status === 'finished') {
+        idleView.classList.add('hidden');
+        roundView.classList.add('hidden');
+        finishedView.classList.remove('hidden');
+        renderMemoryScores('memoryGameFinalScores', state.scores);
+    }
+}
+
+function handleMemoryGameResult(data) {
+    const statusEl = document.getElementById('memoryGameStatusText');
+    if (!statusEl) return;
+    statusEl.textContent = data.correct ? 'صح! استنى الجولة الجاية...' : 'غلط! خرجت من اللعبة، تابع الباقيين.';
+}
+
 // ---------------------------------------------------------------
 // Custom Dropdown — replaces the browser's native <select> popup
 // (whose look can't be themed) with a styled list matching the app,
@@ -1116,6 +1290,10 @@ function initSocket() {
     STATE.socket.on('typing_race_finisher', (data) => handleTypingRaceFinisher(data));
     STATE.socket.on('word_guess_state', (state) => handleWordGuessState(state));
     STATE.socket.on('word_guess_round_result', (data) => handleWordGuessRoundResult(data));
+    STATE.socket.on('trivia_state', (state) => handleTriviaState(state));
+    STATE.socket.on('trivia_round_result', (data) => handleTriviaRoundResult(data));
+    STATE.socket.on('memory_game_state', (state) => handleMemoryGameState(state));
+    STATE.socket.on('memory_game_result', (data) => handleMemoryGameResult(data));
 
     // 👁️ LIVE STORY VIEW UPDATE
     STATE.socket.on('story_view_updated', ({ storyId, viewsCount }) => {

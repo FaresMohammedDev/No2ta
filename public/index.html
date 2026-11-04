@@ -92,6 +92,18 @@
                     <span class="hidden xl:inline">خمّن الكلمة</span>
                 </button>
 
+                <!-- Trivia Button (Collab tag) -->
+                <button onclick="showModal('triviaModal')" class="flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold transition-all shadow-sm shrink-0" title="تريفيا سريعة">
+                    <i data-lucide="brain-circuit" class="w-[15px] h-[15px]"></i>
+                    <span class="hidden xl:inline">تريفيا</span>
+                </button>
+
+                <!-- Color Memory Button (Collab tag) -->
+                <button onclick="showModal('memoryGameModal')" class="flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-orange-300 text-xs font-bold transition-all shadow-sm shrink-0" title="ذاكرة الألوان">
+                    <i data-lucide="palette" class="w-[15px] h-[15px]"></i>
+                    <span class="hidden xl:inline">ذاكرة الألوان</span>
+                </button>
+
                 <!-- Weekend Freeze Badge (Hidden unless active) -->
                 <span id="weekendFreezeBadge" class="hidden px-2 py-0.5 rounded-full text-micro font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shrink-0">
                     <i data-lucide="snowflake" class="w-3 h-3 inline-block align-text-bottom"></i> الويك إند مجمّد
@@ -1987,6 +1999,118 @@
                 </div>
                 <div id="wordGuessFinalScores" class="space-y-1.5 mb-4"></div>
                 <button type="button" onclick="startWordGuessGame()" class="w-full py-2.5 rounded-xl bg-fuchsia-500 hover:bg-fuchsia-400 text-white font-black text-xs flex items-center justify-center gap-2">
+                    <i data-lucide="rotate-ccw" class="w-[14px] h-[14px]"></i>
+                    <span>لعبة جديدة</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🧠 TRIVIA / QUIZ BATTLE COMPETITIVE MINI-GAME -->
+    <div id="triviaModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+        <div class="glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-md w-full border border-emerald-500/40 shadow-2xl relative bg-slate-950/95">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shadow-inner">
+                        <i data-lucide="brain-circuit" class="w-5 h-5 text-emerald-300"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-black text-white">تريفيا سريعة</h3>
+                        <p class="text-[11px] text-emerald-400/80">أول واحد يختار الإجابة الصح ياخد النقطة — 8 أسئلة لكل جولة</p>
+                    </div>
+                </div>
+                <button type="button" onclick="hideModal('triviaModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Idle state -->
+            <div id="triviaIdleView">
+                <p class="text-xs text-slate-400 mb-4 text-center">اضغط ابدأ وكل زملائك المتصلين هيلحقوا يلعبوا معاك فورًا.</p>
+                <button type="button" onclick="startTriviaGame()" class="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 transition">
+                    <i data-lucide="play" class="w-4 h-4"></i>
+                    <span>ابدأ التريفيا</span>
+                </button>
+            </div>
+
+            <!-- Active question state -->
+            <div id="triviaQuestionView" class="hidden">
+                <div class="flex items-center justify-between mb-3 text-micro text-slate-400 font-bold">
+                    <span id="triviaProgress">سؤال 1 / 8</span>
+                    <span id="triviaRoundResult" class="text-emerald-400"></span>
+                </div>
+                <div class="p-4 rounded-2xl bg-slate-900 border border-emerald-500/30 text-center mb-4">
+                    <div id="triviaQuestionText" class="text-sm sm:text-base font-bold text-white leading-relaxed">--</div>
+                </div>
+                <div id="triviaChoices" class="space-y-2 mb-4"></div>
+                <div id="triviaLiveScores" class="space-y-1 max-h-28 overflow-y-auto custom-scrollbar"></div>
+            </div>
+
+            <!-- Finished state -->
+            <div id="triviaFinishedView" class="hidden">
+                <div class="text-center mb-4">
+                    <i data-lucide="trophy" class="w-10 h-10 text-amber-400 mx-auto mb-2"></i>
+                    <h4 class="text-sm font-black text-white">انتهت التريفيا!</h4>
+                </div>
+                <div id="triviaFinalScores" class="space-y-1.5 mb-4"></div>
+                <button type="button" onclick="startTriviaGame()" class="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs flex items-center justify-center gap-2">
+                    <i data-lucide="rotate-ccw" class="w-[14px] h-[14px]"></i>
+                    <span>تريفيا جديدة</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🎨 COLOR MEMORY (SIMON SAYS) COMPETITIVE MINI-GAME -->
+    <div id="memoryGameModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+        <div class="glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-md w-full border border-orange-500/40 shadow-2xl relative bg-slate-950/95">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center shadow-inner">
+                        <i data-lucide="palette" class="w-5 h-5 text-orange-300"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-black text-white">ذاكرة الألوان</h3>
+                        <p class="text-[11px] text-orange-400/80">التسلسل بيكبر كل جولة — ارجع بنفس الترتيب واللي يغلط يخرج</p>
+                    </div>
+                </div>
+                <button type="button" onclick="hideModal('memoryGameModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Idle state -->
+            <div id="memoryGameIdleView">
+                <p class="text-xs text-slate-400 mb-4 text-center">اضغط ابدأ وكل زملائك المتصلين هيلحقوا يلعبوا معاك فورًا.</p>
+                <button type="button" onclick="startMemoryGame()" class="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-orange-500/30 transition">
+                    <i data-lucide="play" class="w-4 h-4"></i>
+                    <span>ابدأ اللعبة</span>
+                </button>
+            </div>
+
+            <!-- Active round state -->
+            <div id="memoryGameRoundView" class="hidden">
+                <div class="flex items-center justify-between mb-3 text-micro text-slate-400 font-bold">
+                    <span id="memoryGameRoundLabel">الجولة 1 — تسلسل من 1</span>
+                </div>
+                <p id="memoryGameStatusText" class="text-center text-sm font-bold text-white mb-4">بص واحفظ الترتيب...</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <button type="button" id="memoryColorBtn0" onclick="memoryClickColor(0)" class="aspect-square rounded-2xl bg-red-500 transition-all shadow-lg"></button>
+                    <button type="button" id="memoryColorBtn1" onclick="memoryClickColor(1)" class="aspect-square rounded-2xl bg-blue-500 transition-all shadow-lg"></button>
+                    <button type="button" id="memoryColorBtn2" onclick="memoryClickColor(2)" class="aspect-square rounded-2xl bg-emerald-500 transition-all shadow-lg"></button>
+                    <button type="button" id="memoryColorBtn3" onclick="memoryClickColor(3)" class="aspect-square rounded-2xl bg-amber-400 transition-all shadow-lg"></button>
+                </div>
+            </div>
+
+            <!-- Finished state -->
+            <div id="memoryGameFinishedView" class="hidden">
+                <div class="text-center mb-4">
+                    <i data-lucide="trophy" class="w-10 h-10 text-amber-400 mx-auto mb-2"></i>
+                    <h4 class="text-sm font-black text-white">انتهت اللعبة!</h4>
+                    <p class="text-[11px] text-slate-500 mt-1">النقط = عدد الجولات اللي اتعدّت صح</p>
+                </div>
+                <div id="memoryGameFinalScores" class="space-y-1.5 mb-4"></div>
+                <button type="button" onclick="startMemoryGame()" class="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-black text-xs flex items-center justify-center gap-2">
                     <i data-lucide="rotate-ccw" class="w-[14px] h-[14px]"></i>
                     <span>لعبة جديدة</span>
                 </button>

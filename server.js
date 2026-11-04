@@ -2738,6 +2738,128 @@ function nextWordGuessRound() {
     }, 15000);
 }
 
+// ---------------------- TRIVIA (Quiz Battle — live competitive mini-game) ----------------------
+const TRIVIA_QUESTIONS = [
+    { q: 'ما هي عاصمة فرنسا؟', choices: ['باريس', 'لندن', 'روما', 'برلين'], correct: 0 },
+    { q: 'كام عدد قارات العالم؟', choices: ['5', '6', '7', '8'], correct: 2 },
+    { q: 'مين اخترع المصباح الكهربائي؟', choices: ['توماس إديسون', 'نيوتن', 'أينشتاين', 'جراهام بيل'], correct: 0 },
+    { q: 'إيه أكبر كوكب في المجموعة الشمسية؟', choices: ['المريخ', 'المشتري', 'زحل', 'الأرض'], correct: 1 },
+    { q: 'كام عدد أضلاع المثلث؟', choices: ['2', '3', '4', '5'], correct: 1 },
+    { q: 'مين كاتب رواية "الأمير الصغير"؟', choices: ['نجيب محفوظ', 'أنطوان دو سانت إكزوبيري', 'طه حسين', 'تشارلز ديكنز'], correct: 1 },
+    { q: 'إيه العنصر الكيميائي اللي رمزه O؟', choices: ['الهيدروجين', 'النيتروجين', 'الأكسجين', 'الكربون'], correct: 2 },
+    { q: 'كام لتر في المتر المكعب؟', choices: ['10', '100', '1000', '10000'], correct: 2 },
+    { q: 'في أنهي قارة تقع مصر؟', choices: ['آسيا', 'أفريقيا', 'أوروبا', 'أمريكا'], correct: 1 },
+    { q: 'مين رسم لوحة الموناليزا؟', choices: ['بيكاسو', 'فان جوخ', 'ليوناردو دافنشي', 'مايكل أنجلو'], correct: 2 }
+];
+
+function generateTriviaRounds(count = 8) {
+    const pool = [...TRIVIA_QUESTIONS];
+    for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, Math.min(count, pool.length));
+}
+
+const triviaGame = {
+    active: false,
+    rounds: [],
+    currentIndex: -1,
+    scores: {}, // nickname -> points
+    roundTimer: null,
+    answeredThisRound: false
+};
+
+function startTriviaGame() {
+    triviaGame.active = true;
+    triviaGame.rounds = generateTriviaRounds(8);
+    triviaGame.currentIndex = -1;
+    triviaGame.scores = {};
+    nextTriviaRound();
+}
+
+function nextTriviaRound() {
+    if (triviaGame.roundTimer) clearTimeout(triviaGame.roundTimer);
+    triviaGame.currentIndex++;
+    triviaGame.answeredThisRound = false;
+
+    if (triviaGame.currentIndex >= triviaGame.rounds.length) {
+        triviaGame.active = false;
+        const ranked = Object.entries(triviaGame.scores).sort((a, b) => b[1] - a[1]);
+        io.emit('trivia_state', { status: 'finished', scores: ranked });
+        return;
+    }
+
+    const current = triviaGame.rounds[triviaGame.currentIndex];
+    io.emit('trivia_state', {
+        status: 'question',
+        index: triviaGame.currentIndex,
+        total: triviaGame.rounds.length,
+        question: current.q,
+        choices: current.choices,
+        scores: Object.entries(triviaGame.scores).sort((a, b) => b[1] - a[1])
+    });
+
+    triviaGame.roundTimer = setTimeout(() => {
+        if (!triviaGame.answeredThisRound) {
+            io.emit('trivia_round_result', { winner: null, correctIndex: current.correct, correctText: current.choices[current.correct] });
+        }
+        setTimeout(nextTriviaRound, 1800);
+    }, 12000);
+}
+
+// ---------------------- COLOR MEMORY (Simon Says classroom edition — live competitive mini-game) ----------------------
+const MEMORY_COLOR_COUNT = 4;
+const memoryGame = {
+    active: false,
+    sequence: [],
+    round: 0,
+    survivedThisRound: new Set(), // nicknames who reproduced this round's sequence correctly
+    eliminated: {}, // nickname -> round number they got eliminated at
+    cleared: {}, // nickname -> highest round number ever cleared (final score)
+    roundTimer: null
+};
+
+function startMemoryGame() {
+    memoryGame.active = true;
+    memoryGame.sequence = [Math.floor(Math.random() * MEMORY_COLOR_COUNT)];
+    memoryGame.round = 1;
+    memoryGame.survivedThisRound = new Set();
+    memoryGame.eliminated = {};
+    memoryGame.cleared = {};
+    broadcastMemoryRound();
+}
+
+function broadcastMemoryRound() {
+    if (memoryGame.roundTimer) clearTimeout(memoryGame.roundTimer);
+    io.emit('memory_game_state', {
+        status: 'round',
+        round: memoryGame.round,
+        sequence: memoryGame.sequence
+    });
+    const duration = 6000 + memoryGame.sequence.length * 2200;
+    memoryGame.roundTimer = setTimeout(advanceMemoryGame, duration);
+}
+
+function finishMemoryGame() {
+    memoryGame.active = false;
+    if (memoryGame.roundTimer) clearTimeout(memoryGame.roundTimer);
+    const ranked = Object.entries(memoryGame.cleared).sort((a, b) => b[1] - a[1]);
+    io.emit('memory_game_state', { status: 'finished', scores: ranked });
+}
+
+function advanceMemoryGame() {
+    if (memoryGame.roundTimer) clearTimeout(memoryGame.roundTimer);
+    if (memoryGame.survivedThisRound.size === 0 || memoryGame.round >= 10) {
+        finishMemoryGame();
+        return;
+    }
+    memoryGame.round++;
+    memoryGame.sequence.push(Math.floor(Math.random() * MEMORY_COLOR_COUNT));
+    memoryGame.survivedThisRound = new Set();
+    broadcastMemoryRound();
+}
+
 io.use(async (socket, next) => {
     try {
         const origin = socket.handshake.headers.origin;
@@ -2871,6 +2993,78 @@ io.on('connection', async (socket) => {
 
         io.emit('word_guess_round_result', { winner: nickname, answer: current.answer });
         setTimeout(nextWordGuessRound, 1800);
+    });
+
+    // Trivia (Quiz Battle) — anyone can start a round; late joiners get the current question.
+    if (triviaGame.active) {
+        const current = triviaGame.rounds[triviaGame.currentIndex];
+        socket.emit('trivia_state', {
+            status: 'question',
+            index: triviaGame.currentIndex,
+            total: triviaGame.rounds.length,
+            question: current.q,
+            choices: current.choices,
+            scores: Object.entries(triviaGame.scores).sort((a, b) => b[1] - a[1])
+        });
+    }
+
+    socket.on('trivia_start', () => {
+        if (triviaGame.active) {
+            socket.emit('error_notification', { message: 'في تريفيا شغالة بالفعل، شارك فيها واستنى نهايتها لبدء جولة جديدة.' });
+            return;
+        }
+        startTriviaGame();
+    });
+
+    socket.on('trivia_answer', (data = {}) => {
+        if (!triviaGame.active || triviaGame.answeredThisRound) return;
+        const current = triviaGame.rounds[triviaGame.currentIndex];
+        if (!current) return;
+        const choiceIndex = parseInt(data.choiceIndex, 10);
+        if (choiceIndex !== current.correct) return;
+
+        triviaGame.answeredThisRound = true;
+        if (triviaGame.roundTimer) clearTimeout(triviaGame.roundTimer);
+        const nickname = socket.data.user.nickname;
+        triviaGame.scores[nickname] = (triviaGame.scores[nickname] || 0) + 1;
+
+        io.emit('trivia_round_result', { winner: nickname, correctIndex: current.correct, correctText: current.choices[current.correct] });
+        setTimeout(nextTriviaRound, 1800);
+    });
+
+    // Color Memory (Simon Says classroom edition) — anyone can start a round; late joiners get the current sequence.
+    if (memoryGame.active) {
+        socket.emit('memory_game_state', {
+            status: 'round',
+            round: memoryGame.round,
+            sequence: memoryGame.sequence
+        });
+    }
+
+    socket.on('memory_game_start', () => {
+        if (memoryGame.active) {
+            socket.emit('error_notification', { message: 'في لعبة ذاكرة شغالة بالفعل، شارك فيها واستنى نهايتها لبدء لعبة جديدة.' });
+            return;
+        }
+        startMemoryGame();
+    });
+
+    socket.on('memory_game_submit', (data = {}) => {
+        if (!memoryGame.active) return;
+        const nickname = socket.data.user.nickname;
+        if (memoryGame.eliminated[nickname] !== undefined) return;
+        if (memoryGame.survivedThisRound.has(nickname)) return;
+        const guess = Array.isArray(data.sequence) ? data.sequence : [];
+        const correct = guess.length === memoryGame.sequence.length && guess.every((c, i) => c === memoryGame.sequence[i]);
+        if (correct) {
+            memoryGame.survivedThisRound.add(nickname);
+            memoryGame.cleared[nickname] = memoryGame.round;
+            socket.emit('memory_game_result', { correct: true, round: memoryGame.round });
+        } else {
+            memoryGame.eliminated[nickname] = memoryGame.round;
+            socket.emit('memory_game_result', { correct: false, round: memoryGame.round });
+            io.emit('memory_game_player_out', { nickname, round: memoryGame.round });
+        }
     });
 
     socket.on('tasbeeh_increment', (data = 1) => {
