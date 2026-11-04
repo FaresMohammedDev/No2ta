@@ -2611,6 +2611,49 @@ function nextMathQuestion() {
     }, 8000);
 }
 
+// ---------------------- TYPING RACE (live competitive mini-game) ----------------------
+const TYPING_RACE_SENTENCES = [
+    'الفيزياء مادة ممتعة لما تفهمها صح',
+    'النجاح محتاج مذاكرة يومية مش ليلة الامتحان بس',
+    'كل مجهود بتعمله النهاردة هيفرق بكرة',
+    'العلم نور والجهل ظلام',
+    'الوقت زي السيف لو ما قطعتوش قطعك',
+    'المعلم الناجح هو اللي يبسط ويشرح بحب',
+    'التكرار يعلم الحمار والمذاكرة تصنع النجاح',
+    'كل بداية صعبة لكن الاستمرار هو السر',
+    'الطالب الشاطر هو اللي يسأل لما مايفهمش',
+    'الفرصة بتيجي لمين مستعد ليها بس',
+    'شغل اليوم ولا تأجله للغد',
+    'التفوق مش ذكاء بس ده مجهود وصبر',
+    'الفصل ده هيبقى من أحلى ذكريات السنة',
+    'احلم كبير وابدأ بخطوة صغيرة'
+];
+
+const typingRace = {
+    active: false,
+    sentence: '',
+    startedAt: 0,
+    finishers: [], // { nickname, ms }
+    timer: null
+};
+
+function startTypingRace() {
+    typingRace.active = true;
+    typingRace.sentence = TYPING_RACE_SENTENCES[Math.floor(Math.random() * TYPING_RACE_SENTENCES.length)];
+    typingRace.finishers = [];
+    typingRace.startedAt = Date.now();
+    if (typingRace.timer) clearTimeout(typingRace.timer);
+    io.emit('typing_race_state', { status: 'racing', sentence: typingRace.sentence, startedAt: typingRace.startedAt });
+    typingRace.timer = setTimeout(finishTypingRace, 30000);
+}
+
+function finishTypingRace() {
+    if (!typingRace.active) return;
+    typingRace.active = false;
+    if (typingRace.timer) clearTimeout(typingRace.timer);
+    io.emit('typing_race_state', { status: 'finished', finishers: typingRace.finishers });
+}
+
 io.use(async (socket, next) => {
     try {
         const origin = socket.handshake.headers.origin;
@@ -2679,6 +2722,34 @@ io.on('connection', async (socket) => {
 
         io.emit('math_game_round_result', { winner: nickname, answer: current.answer });
         setTimeout(nextMathQuestion, 1800);
+    });
+
+    // Typing Race — anyone can start a round; late joiners get the current sentence.
+    if (typingRace.active) {
+        socket.emit('typing_race_state', { status: 'racing', sentence: typingRace.sentence, startedAt: typingRace.startedAt });
+    }
+
+    socket.on('typing_race_start', () => {
+        if (typingRace.active) {
+            socket.emit('error_notification', { message: 'في سباق كتابة شغال بالفعل، شارك فيه واستنى نهايته لبدء سباق جديد.' });
+            return;
+        }
+        startTypingRace();
+    });
+
+    socket.on('typing_race_finish', (data = {}) => {
+        if (!typingRace.active) return;
+        if (typeof data.text !== 'string' || data.text !== typingRace.sentence) return;
+        const nickname = socket.data.user.nickname;
+        if (typingRace.finishers.some(f => f.nickname === nickname)) return;
+
+        const ms = Date.now() - typingRace.startedAt;
+        typingRace.finishers.push({ nickname, ms });
+        io.emit('typing_race_finisher', { nickname, ms, rank: typingRace.finishers.length });
+
+        if (onlineUsers.size > 0 && typingRace.finishers.length >= onlineUsers.size) {
+            finishTypingRace();
+        }
     });
 
     socket.on('tasbeeh_increment', (data = 1) => {

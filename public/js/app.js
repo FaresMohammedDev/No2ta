@@ -159,6 +159,92 @@ function handleMathGameRoundResult(data) {
         : `محدش جاوب في الوقت (${data.answer})`;
 }
 
+// ---------------------- Typing Race (live competitive mini-game) ----------------------
+let typingRaceSentence = '';
+let typingRaceFinished = false;
+let typingRaceFinishersList = [];
+
+function startTypingRace() {
+    if (!STATE.socket || !STATE.socket.connected) {
+        showNotification('الاتصال بالسيرفر مش جاهز. سجّل دخولك وانتظر الاتصال ثم جرّب تاني.');
+        return;
+    }
+    STATE.socket.emit('typing_race_start');
+}
+
+function renderTypingRaceTarget(typedValue) {
+    const el = document.getElementById('typingRaceTarget');
+    if (!el) return;
+    let matchedLen = 0;
+    while (matchedLen < typedValue.length && typedValue[matchedLen] === typingRaceSentence[matchedLen]) matchedLen++;
+    const isWrong = matchedLen < typedValue.length;
+    el.innerHTML = `<span class="text-emerald-400">${escapeHtml(typingRaceSentence.slice(0, matchedLen))}</span>` +
+        `<span class="${isWrong ? 'text-red-400 underline' : 'text-white'}">${escapeHtml(typingRaceSentence.slice(matchedLen))}</span>`;
+}
+
+function handleTypingRaceInput() {
+    const input = document.getElementById('typingRaceInput');
+    if (!input || typingRaceFinished) return;
+    renderTypingRaceTarget(input.value);
+    if (input.value === typingRaceSentence) {
+        typingRaceFinished = true;
+        input.disabled = true;
+        if (STATE.socket) STATE.socket.emit('typing_race_finish', { text: input.value });
+    }
+}
+
+function renderTypingRaceFinishers(containerId, finishers) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    if (!finishers || finishers.length === 0) {
+        el.innerHTML = `<p class="text-micro text-slate-500 text-center">لسه محدش خلص</p>`;
+        return;
+    }
+    el.innerHTML = finishers.map((f, i) => `
+        <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg ${i === 0 ? 'bg-amber-500/15 border border-amber-500/30' : 'bg-slate-900/60'} text-xs">
+            <span class="font-bold text-slate-200">#${i + 1} ${escapeHtml(f.nickname)}</span>
+            <span class="font-mono font-black text-sky-300">${(f.ms / 1000).toFixed(1)}s</span>
+        </div>
+    `).join('');
+}
+
+function handleTypingRaceState(state) {
+    const idleView = document.getElementById('typingRaceIdleView');
+    const racingView = document.getElementById('typingRaceRacingView');
+    const finishedView = document.getElementById('typingRaceFinishedView');
+    if (!idleView || !racingView || !finishedView) return;
+
+    if (state.status === 'racing') {
+        typingRaceSentence = state.sentence;
+        typingRaceFinished = false;
+        typingRaceFinishersList = [];
+        idleView.classList.add('hidden');
+        finishedView.classList.add('hidden');
+        racingView.classList.remove('hidden');
+        renderTypingRaceTarget('');
+        renderTypingRaceFinishers('typingRaceFinishers', []);
+        const input = document.getElementById('typingRaceInput');
+        if (input) {
+            input.value = '';
+            input.disabled = false;
+            if (!document.getElementById('typingRaceModal').classList.contains('hidden')) input.focus();
+        }
+        if (document.getElementById('typingRaceModal').classList.contains('hidden')) {
+            showNotification('بدأ سباق الكتابة! افتحه من شريط أدوات الفصل للمشاركة.');
+        }
+    } else if (state.status === 'finished') {
+        idleView.classList.add('hidden');
+        racingView.classList.add('hidden');
+        finishedView.classList.remove('hidden');
+        renderTypingRaceFinishers('typingRaceFinalResults', state.finishers);
+    }
+}
+
+function handleTypingRaceFinisher(data) {
+    typingRaceFinishersList[data.rank - 1] = data;
+    renderTypingRaceFinishers('typingRaceFinishers', typingRaceFinishersList.filter(Boolean));
+}
+
 // ---------------------------------------------------------------
 // Custom Dropdown — replaces the browser's native <select> popup
 // (whose look can't be themed) with a styled list matching the app,
@@ -620,7 +706,7 @@ function initSocket() {
         if (data.status === 'boosted') {
             const targetUser = STATE.users.find(u => u.id === otherId);
             const name = targetUser ? targetUser.nickname : 'زميلك';
-            showNotification(`🔥 زاد الاستريك بينك وبين ${name} إلى ${data.streak_count}! حافظ عليه ⚡`);
+            showNotification(`زاد الاستريك بينك وبين ${name} إلى ${data.streak_count}! حافظ عليه`);
         }
     });
 
@@ -755,7 +841,7 @@ function initSocket() {
             updateDirectStreakBadge(otherId);
 
             if (streakInfo.status === 'boosted') {
-                showNotification(`🔥 استريك مشتعل! وصلتوا لـ ${streakInfo.streak_count} استريك معاً ⚡`);
+                showNotification(`استريك مشتعل! وصلتوا لـ ${streakInfo.streak_count} استريك معاً`);
             }
         }
     });
@@ -784,7 +870,7 @@ function initSocket() {
             const isMember = (data.group.creator_id === STATE.user?.id) ||
                              (data.group.members && data.group.members.some(m => m.id === STATE.user?.id));
             if (isMember && data.group.creator_id !== STATE.user?.id) {
-                showNotification(`👥 تمت إضافتك إلى جروب جديد: "${data.group.name}"! 🎉`);
+                showNotification(`تمت إضافتك إلى جروب جديد: "${data.group.name}"!`);
             }
         }
     });
@@ -792,7 +878,7 @@ function initSocket() {
     STATE.socket.on('group_deleted', (data) => {
         loadGroups();
         if (STATE.activeChat.type === 'group' && STATE.activeChat.group?.id === data.groupId) {
-            showNotification(`⚠️ تم حذف الجروب "${data.groupName || ''}". العودة لشات الفصل.`);
+            showNotification(`تم حذف الجروب "${data.groupName || ''}". العودة لشات الفصل.`);
             selectGeneralChat();
         }
     });
@@ -817,7 +903,7 @@ function initSocket() {
     STATE.socket.on('group_join_request_accepted', (data) => {
         loadGroups();
         if (STATE.user && data.userId === STATE.user.id) {
-            showNotification(`🎉 وافق المشرف على انضمامك لجروب "${data.groupName}"! الشات متاح لك الآن.`);
+            showNotification(`وافق المشرف على انضمامك لجروب "${data.groupName}"! الشات متاح لك الآن.`);
             if (STATE.activeChat.type === 'group' && STATE.activeChat.group?.id === data.groupId) {
                 loadGroups().then(() => {
                     selectGroupChat(data.groupId);
@@ -829,7 +915,7 @@ function initSocket() {
     STATE.socket.on('group_join_request_rejected', (data) => {
         loadGroups();
         if (STATE.user && data.userId === STATE.user.id) {
-            showNotification(`❌ تم رفض طلب انضمامك لجروب "${data.groupName}".`);
+            showNotification(`تم رفض طلب انضمامك لجروب "${data.groupName}".`);
             if (STATE.activeChat.type === 'group' && STATE.activeChat.group?.id === data.groupId) {
                 loadGroups().then(() => {
                     selectGroupChat(data.groupId);
@@ -954,6 +1040,8 @@ function initSocket() {
     // Quick Math Challenge
     STATE.socket.on('math_game_state', (state) => handleMathGameState(state));
     STATE.socket.on('math_game_round_result', (data) => handleMathGameRoundResult(data));
+    STATE.socket.on('typing_race_state', (state) => handleTypingRaceState(state));
+    STATE.socket.on('typing_race_finisher', (data) => handleTypingRaceFinisher(data));
 
     // 👁️ LIVE STORY VIEW UPDATE
     STATE.socket.on('story_view_updated', ({ storyId, viewsCount }) => {
@@ -1777,7 +1865,7 @@ async function handleCreateGroupSubmit(e) {
         const data = await res.json();
         if (data.success && data.group) {
             hideModal('createGroupModal');
-            showNotification(`🎉 تم إنشاء جروب "${data.group.name}" بنجاح!`);
+            showNotification(`تم إنشاء جروب "${data.group.name}" بنجاح!`);
             await loadGroups();
             selectGroupChat(data.group.id);
         } else {
@@ -2050,7 +2138,7 @@ async function handleRespondJoinRequest(groupId, requestId, action) {
         });
         const data = await res.json();
         if (res.ok) {
-            showNotification(action === 'accept' ? '✅ تم قبول الزميل في الجروب بنجاح!' : '❌ تم رفض طلب الانضمام.');
+            showNotification(action === 'accept' ? 'تم قبول الزميل في الجروب بنجاح!' : 'تم رفض طلب الانضمام.');
             await loadGroupJoinRequests(groupId);
             await loadGroups();
         } else {
@@ -2860,7 +2948,7 @@ async function handleCreateStorySubmit(e) {
             document.getElementById('storyTextInput').value = '';
             removeStorySelectedFile();
             loadStories();
-            showNotification('تم نشر الاستوري بنجاح! 🔥');
+            showNotification('تم نشر الاستوري بنجاح!');
         }
     } catch (e) {
         alert('فشل نشر الاستوري!');
@@ -3331,14 +3419,15 @@ async function copyTextToClipboard(text, btnElement) {
 
     if (btnElement) {
         const origHTML = btnElement.innerHTML;
-        btnElement.innerHTML = '<span>✅ تم النسخ!</span>';
+        btnElement.innerHTML = '<i data-lucide="check" class="w-[14px] h-[14px]"></i><span>تم النسخ!</span>';
         btnElement.classList.add('bg-emerald-500', 'text-slate-950');
+        renderIcons();
         setTimeout(() => {
             btnElement.innerHTML = origHTML;
             btnElement.classList.remove('bg-emerald-500', 'text-slate-950');
         }, 2000);
     }
-    showNotification('تم نسخ الكود للحافظة بنجاح! 📋');
+    showNotification('تم نسخ الكود للحافظة بنجاح!');
     return success;
 }
 
@@ -3984,7 +4073,7 @@ function handleRadioAudioError(e) {
             }, 1200);
         } else {
             console.warn('[Quran Radio] Relay still unreachable after several retries.');
-            showNotification('⚠️ تعذر تشغيل الصوت المباشر تلقائياً؛ يمكنك فتح موقع holyquranradio.com مباشرة ↗');
+            showNotification('تعذر تشغيل الصوت المباشر تلقائياً؛ يمكنك فتح موقع holyquranradio.com مباشرة');
             openHolyQuranRadioModal();
         }
     } else {
@@ -4858,8 +4947,9 @@ function setDisappearingTimer(seconds) {
     const btn = document.getElementById('disappearingToggleBtn');
     if (btn) {
         if (seconds > 0) {
-            btn.innerHTML = `🔥 ${seconds}s`;
-            btn.className = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30';
+            btn.innerHTML = `<i data-lucide="flame" class="w-3 h-3"></i><span>${seconds}s</span>`;
+            btn.className = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1';
+            renderIcons();
         } else {
             btn.innerHTML = `مؤقت`;
             btn.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white border border-slate-700';
@@ -5413,7 +5503,7 @@ async function adminNetSupportDeviceControl(action, targetSocketId, targetIp, pa
         }
     } catch (err) {
         console.error('NetSupport control error:', err);
-        showNotification('حدث خطأ أثناء إرسال أمر التحكم ⚠️');
+        showNotification('حدث خطأ أثناء إرسال أمر التحكم');
     }
 }
 
