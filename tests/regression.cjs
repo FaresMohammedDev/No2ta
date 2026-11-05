@@ -84,7 +84,7 @@ test('two clients receive game state, direct messages and paginated history', { 
     const clients = [];
     try {
         let ready = false;
-        for (let i = 0; i < 40; i++) {
+        for (let i = 0; i < 80; i++) {
             try { ready = (await fetch(base + '/api/tasbeeh')).ok; } catch {}
             if (ready) break;
             await new Promise(resolve => setTimeout(resolve, 100));
