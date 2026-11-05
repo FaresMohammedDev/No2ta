@@ -1943,7 +1943,7 @@
 
     <!-- QUICK MATH CHALLENGE MODAL — live competitive mini-game -->
     <div id="mathGameModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-        <div class="glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-md w-full border border-indigo-500/40 shadow-2xl relative bg-slate-950/95">
+        <div class="n-paper-card glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-md w-full border border-indigo-500/40 shadow-2xl relative">
             <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
                 <div class="flex items-center gap-3">
                     <div class="w-11 h-11 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center shadow-inner">
@@ -2001,7 +2001,7 @@
 
     <!-- ⌨️ TYPING RACE COMPETITIVE MINI-GAME -->
     <div id="typingRaceModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-        <div class="glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-md w-full border border-sky-500/40 shadow-2xl relative bg-slate-950/95">
+        <div class="n-paper-card glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-md w-full border border-sky-500/40 shadow-2xl relative">
             <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
                 <div class="flex items-center gap-3">
                     <div class="w-11 h-11 rounded-2xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center shadow-inner">
@@ -2050,7 +2050,7 @@
 
     <!-- 💡 WORD GUESS COMPETITIVE MINI-GAME -->
     <div id="wordGuessModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-        <div class="glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-md w-full border border-fuchsia-500/40 shadow-2xl relative bg-slate-950/95">
+        <div class="n-paper-card glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-md w-full border border-fuchsia-500/40 shadow-2xl relative">
             <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
                 <div class="flex items-center gap-3">
                     <div class="w-11 h-11 rounded-2xl bg-fuchsia-500/20 border border-fuchsia-500/40 flex items-center justify-center shadow-inner">
@@ -2108,7 +2108,7 @@
 
     <!-- 🧠 TRIVIA / QUIZ BATTLE COMPETITIVE MINI-GAME -->
     <div id="triviaModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-        <div class="glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-md w-full border border-emerald-500/40 shadow-2xl relative bg-slate-950/95">
+        <div class="n-paper-card glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-md w-full border border-emerald-500/40 shadow-2xl relative">
             <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
                 <div class="flex items-center gap-3">
                     <div class="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shadow-inner">
@@ -2163,7 +2163,7 @@
 
     <!-- 🎨 COLOR MEMORY (SIMON SAYS) COMPETITIVE MINI-GAME -->
     <div id="memoryGameModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-        <div class="glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-md w-full border border-orange-500/40 shadow-2xl relative bg-slate-950/95">
+        <div class="n-paper-card glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-md w-full border border-orange-500/40 shadow-2xl relative">
             <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
                 <div class="flex items-center gap-3">
                     <div class="w-11 h-11 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center shadow-inner">
@@ -2195,10 +2195,10 @@
                 </div>
                 <p id="memoryGameStatusText" class="text-center text-sm font-bold text-white mb-4">بص واحفظ الترتيب...</p>
                 <div class="grid grid-cols-2 gap-3">
-                    <button type="button" id="memoryColorBtn0" onclick="memoryClickColor(0)" class="aspect-square rounded-2xl bg-red-500 transition-all shadow-lg"></button>
-                    <button type="button" id="memoryColorBtn1" onclick="memoryClickColor(1)" class="aspect-square rounded-2xl bg-blue-500 transition-all shadow-lg"></button>
-                    <button type="button" id="memoryColorBtn2" onclick="memoryClickColor(2)" class="aspect-square rounded-2xl bg-emerald-500 transition-all shadow-lg"></button>
-                    <button type="button" id="memoryColorBtn3" onclick="memoryClickColor(3)" class="aspect-square rounded-2xl bg-amber-400 transition-all shadow-lg"></button>
+                    <button type="button" id="memoryColorBtn0" onclick="memoryClickColor(0)" class="n-literal-color aspect-square rounded-2xl transition-all shadow-lg" style="background:#ef4444" aria-label="أحمر"></button>
+                    <button type="button" id="memoryColorBtn1" onclick="memoryClickColor(1)" class="n-literal-color aspect-square rounded-2xl transition-all shadow-lg" style="background:#3b82f6" aria-label="أزرق"></button>
+                    <button type="button" id="memoryColorBtn2" onclick="memoryClickColor(2)" class="n-literal-color aspect-square rounded-2xl transition-all shadow-lg" style="background:#22c55e" aria-label="أخضر"></button>
+                    <button type="button" id="memoryColorBtn3" onclick="memoryClickColor(3)" class="n-literal-color aspect-square rounded-2xl transition-all shadow-lg" style="background:#f59e0b" aria-label="أصفر"></button>
                 </div>
             </div>
 
