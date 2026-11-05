@@ -1299,21 +1299,23 @@
             <div id="onlineMusicTabPanel" class="flex flex-col flex-1 min-h-0 space-y-2.5">
                 <!-- Online Search Form -->
                 <div class="relative">
-                    <input type="text" id="onlineMusicSearchInput" onkeydown="if(event.key==='Enter') searchOnlineMusic(this.value)" placeholder="ابحث عن أي أغنية أو فنان أونلاين (عمرو دياب، ويجز، كايروكي...)" class="w-full bg-slate-950 border border-slate-800 focus:border-pink-500 rounded-xl pr-9 pl-16 py-2.5 text-xs text-white placeholder-slate-500 outline-none transition-all">
-                    <i data-lucide="search" class="w-3.5 h-3.5 absolute right-3 top-3 text-slate-400"></i>
-                    <button type="button" onclick="searchOnlineMusic(document.getElementById('onlineMusicSearchInput').value)" class="absolute left-1.5 top-1.5 px-3 py-1.5 bg-pink-500/20 hover:bg-pink-500 text-pink-300 hover:text-white rounded-lg text-micro font-bold transition-all">
+                    <input type="text" id="onlineMusicSearchInput" onkeydown="if(event.key==='Enter') searchOnlineMusic(this.value)" placeholder="ابحث عن أي أغنية أو فنان أونلاين (توليت، ويجز، كايروكي...)" class="w-full rounded-xl pr-9 pl-16 py-2.5 text-xs outline-none transition-all music-search-input">
+                    <i data-lucide="search" class="w-3.5 h-3.5 absolute right-3 top-3 text-[var(--n-muted)]"></i>
+                    <button type="button" onclick="searchOnlineMusic(document.getElementById('onlineMusicSearchInput').value)" class="absolute left-1.5 top-1.5 px-3 py-1.5 rounded-lg text-micro font-bold transition-all music-search-submit">
                         بحث
                     </button>
                 </div>
 
                 <!-- Fast Suggestion Pills -->
                 <div class="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar shrink-0 text-micro">
-                    <span class="text-slate-500 font-bold shrink-0">اقتراحات:</span>
-                    <button type="button" onclick="quickSearchOnline('عمرو دياب')" class="px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800 hover:border-pink-500 text-slate-300 hover:text-pink-300 shrink-0 transition">🔥 عمرو دياب</button>
-                    <button type="button" onclick="quickSearchOnline('ويجز')" class="px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800 hover:border-pink-500 text-slate-300 hover:text-pink-300 shrink-0 transition">⚡ ويجز</button>
-                    <button type="button" onclick="quickSearchOnline('كايروكي')" class="px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800 hover:border-pink-500 text-slate-300 hover:text-pink-300 shrink-0 transition">🎸 كايروكي</button>
-                    <button type="button" onclick="quickSearchOnline('تامر حسني')" class="px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800 hover:border-pink-500 text-slate-300 hover:text-pink-300 shrink-0 transition">🎤 تامر حسني</button>
-                    <button type="button" onclick="quickSearchOnline('شيرين')" class="px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800 hover:border-pink-500 text-slate-300 hover:text-pink-300 shrink-0 transition">✨ شيرين</button>
+                    <span class="text-[var(--n-muted)] font-bold shrink-0">اقتراحات:</span>
+                    <button type="button" onclick="quickSearchOnline('توليت')" class="music-quick-pill">توليت</button>
+                    <button type="button" onclick="quickSearchOnline('ويجز')" class="music-quick-pill">ويجز</button>
+                    <button type="button" onclick="quickSearchOnline('كايروكي')" class="music-quick-pill">كايروكي</button>
+                    <button type="button" onclick="quickSearchOnline('مروان بابلو')" class="music-quick-pill">مروان بابلو</button>
+                    <button type="button" onclick="quickSearchOnline('عمرو دياب')" class="music-quick-pill">عمرو دياب</button>
+                    <button type="button" onclick="quickSearchOnline('تامر حسني')" class="music-quick-pill">تامر حسني</button>
+                    <button type="button" onclick="quickSearchOnline('شيرين')" class="music-quick-pill">شيرين</button>
                 </div>
 
                 <!-- Online Results Container -->
@@ -1708,79 +1710,95 @@
     <!-- 🕌 ALEXANDRIA PRAYER TIMES & SCHOOL TIMETABLE MODAL -->
     <div id="prayerTimesModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
         <div class="n-paper-card glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-lg w-full max-h-[92vh] overflow-y-auto custom-scrollbar border border-cyan-500/40 shadow-2xl relative">
-            <!-- Modal Header Bar: Tabs Switcher + Close Button cleanly separated without overlap -->
-            <div class="flex items-center justify-between gap-2.5 mb-4 pb-1">
-                <div class="flex-1 flex items-center gap-1.5 p-1 rounded-2xl bg-black/10 border border-white/10 text-xs font-bold">
-                    <button id="tabBtnSchoolSchedule" onclick="switchTimetableTab('schedule')" class="flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 shadow-sm cursor-pointer truncate font-bold text-xs timetable-tab-active">
-                        <i data-lucide="calendar-days" class="w-4 h-4 shrink-0"></i>
-                        <span class="truncate">جدول الحصص واليوم الدراسي</span>
-                    </button>
-                    <button id="tabBtnPrayerTimes" onclick="switchTimetableTab('prayers')" class="flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 shadow-sm cursor-pointer truncate font-bold text-xs timetable-tab-inactive">
-                        <i data-lucide="moon-star" class="w-4 h-4 shrink-0"></i>
-                        <span class="truncate">مواقيت الصلاة (الإسكندرية)</span>
-                    </button>
+            <!-- Modal Header: Dedicated Top Bar (Zero overlap with tabs) -->
+            <div class="flex items-center justify-between pb-3 border-b border-[var(--n-line)] mb-3 shrink-0">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-10 h-10 rounded-2xl bg-[var(--n-primary-soft)] border border-[var(--n-primary)] flex items-center justify-center shrink-0">
+                        <i data-lucide="calendar-clock" class="w-5 h-5 text-[var(--n-primary)]"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h3 class="text-sm font-extrabold text-[var(--n-ink)] truncate flex items-center gap-2">
+                            <span>اليوم الدراسي ومواقيت الصلاة</span>
+                            <span class="text-micro px-2 py-0.5 rounded-full bg-[var(--n-sunken)] text-[var(--n-muted)] border border-[var(--n-line)] font-bold">الإسكندرية 🇪🇬</span>
+                        </h3>
+                        <p class="text-micro text-[var(--n-muted)] truncate mt-0.5">جدول الحصص والبريك ومواقيت الصلوات الخمس</p>
+                    </div>
                 </div>
-                <button type="button" onclick="hideModal('prayerTimesModal')" class="w-9 h-9 rounded-2xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition cursor-pointer shrink-0 border border-white/10 shadow-sm" title="إغلاق">
+                <button type="button" onclick="hideModal('prayerTimesModal')" class="w-9 h-9 rounded-2xl bg-[var(--n-raised)] hover:bg-[var(--n-sunken)] text-[var(--n-ink)] flex items-center justify-center text-xs transition cursor-pointer shrink-0 border border-[var(--n-line)] shadow-sm" title="إغلاق">
                     <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Segmented Tabs Switcher: Full width, balanced & never crowded -->
+            <div class="flex items-center gap-1.5 p-1 rounded-2xl bg-[var(--n-sunken)] border border-[var(--n-line)] text-xs font-bold mb-3 shrink-0">
+                <button id="tabBtnSchoolSchedule" type="button" onclick="switchTimetableTab('schedule')" class="flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-2 shadow-sm cursor-pointer font-bold text-xs timetable-tab-active">
+                    <i data-lucide="calendar-days" class="w-4 h-4 shrink-0"></i>
+                    <span>جدول الحصص واليوم الدراسي</span>
+                </button>
+                <button id="tabBtnPrayerTimes" type="button" onclick="switchTimetableTab('prayers')" class="flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-2 shadow-sm cursor-pointer font-bold text-xs timetable-tab-inactive">
+                    <i data-lucide="moon-star" class="w-4 h-4 shrink-0"></i>
+                    <span>مواقيت الصلاة</span>
                 </button>
             </div>
 
             <!-- TAB 1: SCHOOL SCHEDULE & PERIODS TABLE -->
             <div id="tabContentSchoolSchedule" class="space-y-3">
                 <!-- Current Live Status Banner -->
-                <div class="p-3.5 rounded-2xl bg-gradient-to-r from-cyan-950/60 via-slate-900/80 to-blue-950/60 border border-cyan-500/30">
-                    <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-white/10">
-                        <div class="flex items-center gap-2">
-                            <i data-lucide="school" class="w-5 h-5 text-cyan-300"></i>
-                            <div>
-                                <span class="font-black text-white text-sm block" id="modalSchoolCurrentStatus">--</span>
-                                <span class="text-micro text-slate-400" id="modalSchoolSessionInfo">الحصة 55 دقيقة • يبدأ اليوم 7:30 ص</span>
+                <div class="p-3.5 rounded-2xl timetable-hero-card border border-[var(--n-line)]">
+                    <div class="flex items-center justify-between gap-3 mb-2.5 pb-2 border-b border-[var(--n-line)]">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-9 h-9 rounded-xl bg-[var(--n-primary-soft)] text-[var(--n-primary)] flex items-center justify-center shrink-0">
+                                <i data-lucide="school" class="w-5 h-5"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <span class="font-extrabold text-[var(--n-ink)] text-sm block truncate" id="modalSchoolCurrentStatus">--</span>
+                                <span class="text-micro text-[var(--n-muted)] truncate block" id="modalSchoolSessionInfo">الحصة 55 دقيقة • يبدأ اليوم 7:30 ص</span>
                             </div>
                         </div>
-                        <span id="modalSchoolSessionTimer" class="px-2.5 py-1 rounded-xl bg-cyan-500/20 text-cyan-300 font-mono font-bold text-xs border border-cyan-500/30">--</span>
+                        <span id="modalSchoolSessionTimer" class="px-3 py-1 rounded-xl bg-[var(--n-primary-soft)] text-[var(--n-primary)] font-mono font-bold text-xs border border-[var(--n-primary)] shrink-0">--</span>
                     </div>
 
-                    <div class="grid grid-cols-3 gap-1.5 text-center font-mono text-micro">
-                        <div class="p-2 rounded-xl bg-black/40 border border-white/5">
-                            <span class="text-slate-400 text-micro flex items-center justify-center gap-1"><i data-lucide="coffee" class="w-3 h-3"></i> البريك (11:10)</span>
-                            <strong id="modalSchoolBreakTimer" class="text-amber-300 text-xs block mt-0.5">--</strong>
+                    <div class="grid grid-cols-3 gap-2 text-center font-mono text-micro">
+                        <div class="p-2 rounded-xl bg-[var(--n-surface)] border border-[var(--n-line)]">
+                            <span class="text-[var(--n-muted)] text-micro flex items-center justify-center gap-1"><i data-lucide="coffee" class="w-3 h-3 text-[var(--n-accent)]"></i> البريك (11:10)</span>
+                            <strong id="modalSchoolBreakTimer" class="text-[var(--n-ink)] text-xs block mt-0.5">--</strong>
                         </div>
-                        <div class="p-2 rounded-xl bg-black/40 border border-white/5">
-                            <span class="text-slate-400 text-micro flex items-center justify-center gap-1"><i data-lucide="flask-conical" class="w-3 h-3"></i> <span id="modalSchoolBionicHeader">البايونيك (3:30)</span></span>
-                            <strong id="modalSchoolBionicTimer" class="text-purple-300 text-xs block mt-0.5">--</strong>
+                        <div class="p-2 rounded-xl bg-[var(--n-surface)] border border-[var(--n-line)]">
+                            <span class="text-[var(--n-muted)] text-micro flex items-center justify-center gap-1"><i data-lucide="flask-conical" class="w-3 h-3 text-[var(--n-primary)]"></i> <span id="modalSchoolBionicHeader">البايونيك (3:30)</span></span>
+                            <strong id="modalSchoolBionicTimer" class="text-[var(--n-ink)] text-xs block mt-0.5">--</strong>
                         </div>
-                        <div class="p-2 rounded-xl bg-black/40 border border-white/5">
-                            <span class="text-slate-400 text-micro flex items-center justify-center gap-1"><i data-lucide="home" class="w-3 h-3"></i> <span id="modalSchoolDismissalHeader">المرواح (4:00)</span></span>
-                            <strong id="modalSchoolDismissalTimer" class="text-emerald-300 text-xs block mt-0.5">--</strong>
+                        <div class="p-2 rounded-xl bg-[var(--n-surface)] border border-[var(--n-line)]">
+                            <span class="text-[var(--n-muted)] text-micro flex items-center justify-center gap-1"><i data-lucide="home" class="w-3 h-3 text-[var(--n-success)]"></i> <span id="modalSchoolDismissalHeader">المرواح (4:00)</span></span>
+                            <strong id="modalSchoolDismissalTimer" class="text-[var(--n-ink)] text-xs block mt-0.5">--</strong>
                         </div>
                     </div>
                 </div>
 
                 <!-- Schedule Table Container -->
-                <div class="rounded-2xl border border-white/10 overflow-hidden bg-slate-950/70 shadow-lg">
-                    <div class="p-3 bg-white/5 border-b border-white/10 flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-2 font-bold text-white">
-                            <i data-lucide="clipboard-list" class="w-[14px] h-[14px]"></i>
+                <div class="rounded-2xl border border-[var(--n-line)] overflow-hidden bg-[var(--n-surface)] shadow-sm">
+                    <div class="p-3 bg-[var(--n-sunken)] border-b border-[var(--n-line)] flex items-center justify-between text-xs">
+                        <div class="flex items-center gap-2 font-bold text-[var(--n-ink)]">
+                            <i data-lucide="clipboard-list" class="w-4 h-4 text-[var(--n-primary)]"></i>
                             <span>جدول مواعيد اليوم الدراسي بالتفصيل</span>
                         </div>
-                        <span id="modalScheduleDayBadge" class="text-micro px-2.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-bold">اليوم الدراسي</span>
+                        <span id="modalScheduleDayBadge" class="text-micro px-2.5 py-0.5 rounded-full bg-[var(--n-primary-soft)] text-[var(--n-primary)] border border-[var(--n-primary)] font-bold">اليوم الدراسي</span>
                     </div>
 
                     <!-- Dynamic Table Rows -->
-                    <div id="modalScheduleRowsContainer" class="divide-y divide-white/5 text-xs">
+                    <div id="modalScheduleRowsContainer" class="divide-y divide-[var(--n-line)] text-xs">
                         <!-- Populated dynamically by updateSchoolScheduleUI -->
                     </div>
                 </div>
 
                 <!-- Notes & Rules Box -->
-                <div class="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-2.5 text-[11px] text-amber-200">
-                    <i data-lucide="lightbulb" class="w-[18px] h-[18px] shrink-0"></i>
-                    <div class="leading-relaxed space-y-1">
-                        <strong class="text-amber-300 block font-bold">قواعد توقيت اليوم الدراسي:</strong>
-                        <div>• <strong>الحصص:</strong> 8 حصص دراسية، مدة كل حصة 55 دقيقة، البداية 7:30 صباحاً.</div>
-                        <div>• <strong>البريك:</strong> يبدأ الساعة 11:10 صباحاً لمدة 40 دقيقة كاملة (حتى 11:50 صباحاً).</div>
-                        <div>• <strong>البايونيك (Bionic):</strong> الساعة 3:30 عصراً لمدة 30 دقيقة (الأحد إلى الأربعاء فقط).</div>
-                        <div>• <strong>المرواح:</strong> الساعة 4:00 عصراً (الأحد للأربعاء)، ويوم <strong>الخميس</strong> المرواح 3:30 عصراً فوراً بعد الحصة الثامنة (لا يوجد بايونيك).</div>
+                <div class="p-3.5 rounded-2xl bg-[var(--n-sunken)] border border-[var(--n-line)] flex items-start gap-3 text-xs text-[var(--n-ink)]">
+                    <i data-lucide="lightbulb" class="w-5 h-5 shrink-0 text-[var(--n-accent)] mt-0.5"></i>
+                    <div class="leading-relaxed space-y-1.5 text-[11px]">
+                        <strong class="text-[var(--n-ink)] block font-extrabold text-xs">قواعد توقيت اليوم الدراسي:</strong>
+                        <div class="text-[var(--n-muted)]">• <strong class="text-[var(--n-ink)]">الحصص:</strong> 8 حصص دراسية، مدة كل حصة 55 دقيقة، البداية 7:30 صباحاً.</div>
+                        <div class="text-[var(--n-muted)]">• <strong class="text-[var(--n-ink)]">البريك:</strong> يبدأ الساعة 11:10 صباحاً لمدة 40 دقيقة كاملة (حتى 11:50 صباحاً).</div>
+                        <div class="text-[var(--n-muted)]">• <strong class="text-[var(--n-ink)]">البايونيك (Bionic):</strong> الساعة 3:30 عصراً لمدة 30 دقيقة (الأحد إلى الأربعاء فقط).</div>
+                        <div class="text-[var(--n-muted)]">• <strong class="text-[var(--n-ink)]">المرواح:</strong> الساعة 4:00 عصراً (الأحد للأربعاء)، ويوم <strong class="text-[var(--n-ink)]">الخميس</strong> المرواح 3:30 عصراً فوراً بعد الحصة الثامنة (لا يوجد بايونيك).</div>
                     </div>
                 </div>
             </div>

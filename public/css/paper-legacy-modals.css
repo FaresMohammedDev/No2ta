@@ -115,3 +115,135 @@
     color: var(--n-ink) !important;
     background: var(--n-raised) !important;
 }
+
+/* Timetable Paper Tokens */
+.timetable-hero-card {
+    background: var(--n-raised) !important;
+}
+
+.timetable-row-active {
+    background: var(--n-primary-soft) !important;
+    border-inline-start: 4px solid var(--n-primary) !important;
+}
+
+.timetable-badge-active {
+    background: var(--n-primary) !important;
+    color: var(--n-on-primary) !important;
+    padding: 3px 9px !important;
+    border-radius: 9999px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    box-shadow: var(--n-shadow-sm) !important;
+}
+
+.timetable-badge-passed {
+    color: var(--n-muted) !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+}
+
+.timetable-badge-upcoming {
+    background: var(--n-surface) !important;
+    color: var(--n-ink) !important;
+    border: 1px solid var(--n-line) !important;
+    padding: 2px 8px !important;
+    border-radius: 9999px !important;
+    font-size: 11px !important;
+    font-family: var(--n-mono) !important;
+}
+
+.timetable-badge-muted {
+    background: var(--n-sunken) !important;
+    color: var(--n-muted) !important;
+    border: 1px solid var(--n-line) !important;
+    padding: 2px 8px !important;
+    border-radius: 9999px !important;
+    font-size: 11px !important;
+}
+
+.timetable-num-active {
+    background: var(--n-primary) !important;
+    color: var(--n-on-primary) !important;
+    border: 1px solid var(--n-primary) !important;
+}
+
+.timetable-num-default {
+    background: var(--n-surface) !important;
+    color: var(--n-ink) !important;
+    border: 1px solid var(--n-line) !important;
+}
+
+.timetable-num-passed {
+    background: var(--n-sunken) !important;
+    color: var(--n-muted) !important;
+    border: 1px solid var(--n-line) !important;
+}
+
+/* Music Search Pills & Form */
+.music-quick-pill {
+    background: var(--n-raised) !important;
+    color: var(--n-ink) !important;
+    border: 1px solid var(--n-line) !important;
+    padding: 5px 12px !important;
+    border-radius: 9999px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    transition: all var(--n-fast) ease !important;
+}
+
+.music-quick-pill:hover {
+    background: var(--n-primary-soft) !important;
+    color: var(--n-primary) !important;
+    border-color: var(--n-primary) !important;
+}
+
+.music-search-input {
+    background: var(--n-surface) !important;
+    border: 1px solid var(--n-line) !important;
+    color: var(--n-ink) !important;
+}
+
+.music-search-input:focus {
+    border-color: var(--n-primary) !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px var(--n-primary-soft) !important;
+}
+
+.music-search-submit {
+    background: var(--n-primary) !important;
+    color: var(--n-on-primary) !important;
+    border: 1px solid var(--n-primary) !important;
+    cursor: pointer !important;
+}
+
+.music-search-submit:hover {
+    background: var(--n-primary-hover) !important;
+}
+
+.music-song-card {
+    background: var(--n-raised) !important;
+    border: 1px solid var(--n-line) !important;
+    color: var(--n-ink) !important;
+    transition: all var(--n-fast) ease !important;
+}
+
+.music-song-card:hover {
+    border-color: var(--n-primary) !important;
+}
+
+.music-song-card.playing {
+    border-color: var(--n-primary) !important;
+    background: var(--n-primary-soft) !important;
+}
+

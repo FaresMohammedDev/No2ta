@@ -4931,12 +4931,13 @@ function renderOnlineMusicResults(songs, query) {
 
     if (songs.length === 0) {
         container.innerHTML = `
-            <div class="text-center py-10 text-slate-500">
-                <i data-lucide="search" class="w-8 h-8 mx-auto mb-2 text-slate-500"></i>
-                <p class="text-xs font-bold text-slate-400">لم يتم العثور على نتائج لـ "${escapeHtml(query)}"</p>
-                <p class="text-micro text-slate-500 mt-1">جرب كتابة اسم الأغنية أو الفنان بشكل مختلف (عربي أو إنجليزي)</p>
+            <div class="text-center py-10 text-[var(--n-muted)]">
+                <i data-lucide="search" class="w-8 h-8 mx-auto mb-2 text-[var(--n-muted)]"></i>
+                <p class="text-xs font-bold text-[var(--n-ink)]">لم يتم العثور على نتائج لـ "${escapeHtml(query)}"</p>
+                <p class="text-micro text-[var(--n-muted)] mt-1">جرب كتابة اسم الأغنية أو الفنان بشكل مختلف (عربي أو إنجليزي)</p>
             </div>
         `;
+        renderIcons();
         return;
     }
 
@@ -4947,17 +4948,17 @@ function renderOnlineMusicResults(songs, query) {
             STATE.radio.isPlaying;
 
         html += `
-            <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-900/80 border ${isCurrentPlaying ? 'border-pink-500/60 bg-pink-500/10' : 'border-slate-800'} hover:border-pink-500/40 transition-all group">
+            <div class="music-song-card flex items-center justify-between p-2.5 rounded-2xl ${isCurrentPlaying ? 'playing' : ''} group">
                 <div class="flex items-center gap-3 min-w-0">
-                    <div class="w-12 h-12 rounded-xl bg-slate-800 border border-white/10 overflow-hidden shrink-0 shadow-md flex items-center justify-center text-xl text-pink-400 relative">
+                    <div class="w-12 h-12 rounded-xl bg-[var(--n-surface)] border border-[var(--n-line)] overflow-hidden shrink-0 shadow-sm flex items-center justify-center text-xl text-[var(--n-primary)] relative">
                         ${song.cover ? `<img src="${song.cover}" loading="lazy" class="w-full h-full object-cover" onerror="this.outerHTML='<i data-lucide=&quot;music&quot; class=&quot;w-4 h-4&quot;></i>'; renderIcons();">` : '<i data-lucide="music" class="w-4 h-4"></i>'}
                     </div>
                     <div class="min-w-0">
                         <div class="flex items-center gap-1.5">
-                            <h4 class="text-xs font-bold text-white truncate max-w-[130px] sm:max-w-xs group-hover:text-pink-300 transition-colors">${escapeHtml(song.title)}</h4>
-                            ${isCurrentPlaying ? '<span class="text-micro px-1.5 py-0.2 rounded-full bg-pink-500/30 text-pink-300 font-bold animate-pulse">شغالة الآن</span>' : ''}
+                            <h4 class="text-xs font-bold text-[var(--n-ink)] truncate max-w-[130px] sm:max-w-xs group-hover:text-[var(--n-primary)] transition-colors">${escapeHtml(song.title)}</h4>
+                            ${isCurrentPlaying ? '<span class="text-micro px-1.5 py-0.2 rounded-full bg-[var(--n-primary)] text-[var(--n-on-primary)] font-bold animate-pulse">شغالة الآن</span>' : ''}
                         </div>
-                        <p class="text-micro text-slate-400 truncate mt-0.5">
+                        <p class="text-micro text-[var(--n-muted)] truncate mt-0.5">
                             ${escapeHtml(song.artist || 'فنان')} 
                             ${song.album ? `• ${escapeHtml(song.album)}` : ''}
                             ${song.duration ? `• ${song.duration}` : ''}
@@ -4966,11 +4967,11 @@ function renderOnlineMusicResults(songs, query) {
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                     <!-- Share to Chat -->
-                    <button type="button" onclick="shareOnlineTrackToChat(${idx})" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all" title="مشاركة في الشات">
+                    <button type="button" onclick="shareOnlineTrackToChat(${idx})" class="p-2 rounded-xl bg-[var(--n-surface)] hover:bg-[var(--n-sunken)] text-[var(--n-ink)] border border-[var(--n-line)] text-xs font-bold transition-all" title="مشاركة في الشات">
                         <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
                     </button>
                     <!-- Play for Class -->
-                    <button type="button" id="onlinePlayBtn_${idx}" onclick="playOnlineSongForEveryone(${idx})" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1">
+                    <button type="button" id="onlinePlayBtn_${idx}" onclick="playOnlineSongForEveryone(${idx})" class="n-btn n-btn-primary px-3 py-1.5 text-xs font-bold flex items-center gap-1">
                         <span>${isCurrentPlaying ? 'إعادة تشغيل' : 'تشغيل للكل'}</span>
                     </button>
                 </div>
@@ -4979,6 +4980,7 @@ function renderOnlineMusicResults(songs, query) {
     });
 
     container.innerHTML = html;
+    renderIcons();
 }
 
 async function playOnlineSongForEveryone(idx) {
@@ -7306,57 +7308,53 @@ function updateSchoolScheduleUI(now = new Date()) {
             const isPassed = !school.isWeekend && (school.curSec >= item.endSec) && !isBionicOnThu;
             
             let statusBadge = '';
-            let rowBgClass = 'hover:bg-white/5 transition';
+            let rowBgClass = 'hover:bg-[var(--n-sunken)] transition-colors';
 
             if (school.isWeekend) {
-                statusBadge = '<span class="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-400 text-micro font-medium">ويك إند</span>';
+                statusBadge = '<span class="timetable-badge-muted">ويك إند</span>';
             } else if (isBionicOnThu) {
-                statusBadge = '<span class="px-2.5 py-0.5 rounded-lg bg-purple-500/10 text-purple-300 text-micro border border-purple-500/20 font-medium">مفيش بايونيك الخميس</span>';
-                rowBgClass = 'opacity-40 line-through bg-black/20';
+                statusBadge = '<span class="timetable-badge-muted">مفيش بايونيك الخميس</span>';
+                rowBgClass = 'opacity-40 bg-[var(--n-sunken)]';
             } else if (isActive) {
                 const rem = school.fmtRemaining(item.endSec - school.curSec);
-                statusBadge = `<span class="px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40 text-[11px] flex items-center gap-1.5 shadow-sm"><span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span><span>جارية الآن (باقي ${rem})</span></span>`;
-                rowBgClass = 'bg-cyan-500/10 border-r-4 border-r-cyan-400 font-bold';
+                statusBadge = `<span class="timetable-badge-active"><span class="w-2 h-2 rounded-full bg-[var(--n-on-primary)] animate-ping"></span><span>جارية الآن (باقي ${rem})</span></span>`;
+                rowBgClass = 'timetable-row-active';
             } else if (isPassed) {
-                statusBadge = '<span class="px-2 py-0.5 rounded-lg text-slate-500 text-micro flex items-center gap-1 font-medium"><i data-lucide="check" class="w-3.5 h-3.5"></i><span>انتهت</span></span>';
-                rowBgClass = 'opacity-55 hover:opacity-85 transition';
+                statusBadge = '<span class="timetable-badge-passed"><i data-lucide="check" class="w-3.5 h-3.5"></i><span>انتهت</span></span>';
+                rowBgClass = 'opacity-65';
             } else {
                 const until = school.fmtRemaining(item.startSec - school.curSec);
-                statusBadge = `<span class="px-2 py-0.5 rounded-lg bg-slate-900 text-slate-300 text-micro border border-white/10 font-mono">بعد ${until}</span>`;
+                statusBadge = `<span class="timetable-badge-upcoming">بعد ${until}</span>`;
             }
 
             let iconHtml = '';
             if (item.type === 'session') {
                 const activeStyle = isActive 
-                    ? 'bg-cyan-500 text-slate-950 font-black shadow-md shadow-cyan-500/30' 
-                    : (isPassed ? 'bg-slate-800/80 text-slate-500 font-bold' : 'bg-slate-800 text-cyan-300 border border-cyan-500/20 font-bold');
-                iconHtml = `<span class="w-7 h-7 rounded-xl flex items-center justify-center font-mono text-xs shrink-0 ${activeStyle}">${item.num}</span>`;
+                    ? 'timetable-num-active' 
+                    : (isPassed ? 'timetable-num-passed' : 'timetable-num-default');
+                iconHtml = `<span class="w-7 h-7 rounded-xl flex items-center justify-center font-mono text-xs shrink-0 font-bold ${activeStyle}">${item.num}</span>`;
             } else if (item.type === 'break') {
-                const activeStyle = isActive 
-                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30' 
-                    : 'bg-amber-500/15 text-amber-300 border border-amber-500/30';
+                const activeStyle = isActive ? 'timetable-num-active' : 'timetable-num-default';
                 iconHtml = `<span class="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${activeStyle}"><i data-lucide="coffee" class="w-4 h-4"></i></span>`;
             } else if (item.type === 'bionic') {
-                const activeStyle = isActive 
-                    ? 'bg-purple-500 text-white shadow-md shadow-purple-500/30' 
-                    : 'bg-purple-500/15 text-purple-300 border border-purple-500/30';
+                const activeStyle = isActive ? 'timetable-num-active' : 'timetable-num-default';
                 iconHtml = `<span class="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${activeStyle}"><i data-lucide="flask-conical" class="w-4 h-4"></i></span>`;
             } else if (item.type === 'dismissal') {
-                iconHtml = `<span class="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"><i data-lucide="home" class="w-4 h-4"></i></span>`;
+                iconHtml = `<span class="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 timetable-num-default"><i data-lucide="home" class="w-4 h-4"></i></span>`;
             }
 
-            const nameColor = item.type === 'break' ? 'text-amber-300 font-bold' : (item.type === 'bionic' ? 'text-purple-300 font-bold' : (item.type === 'dismissal' ? 'text-emerald-300 font-bold' : 'text-white font-medium'));
+            const nameColor = isActive ? 'text-[var(--n-primary)] font-extrabold' : 'text-[var(--n-ink)] font-bold';
 
             rowsHtml += `
                 <div class="p-3 flex items-center justify-between gap-3 ${rowBgClass}">
                     <div class="flex items-center gap-3 min-w-0">
                         ${iconHtml}
                         <div class="min-w-0">
-                            <span class="${nameColor} block text-xs sm:text-sm font-bold truncate">${item.name}</span>
-                            <div class="flex items-center gap-2 text-micro text-slate-400 font-mono mt-0.5">
+                            <span class="${nameColor} block text-xs sm:text-sm truncate">${item.name}</span>
+                            <div class="flex items-center gap-2 text-micro text-[var(--n-muted)] font-mono mt-0.5">
                                 <span>${item.time}</span>
-                                <span class="text-slate-600">•</span>
-                                <span class="text-slate-500">${item.duration}</span>
+                                <span>•</span>
+                                <span>${item.duration}</span>
                             </div>
                         </div>
                     </div>

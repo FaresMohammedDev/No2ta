@@ -65,7 +65,7 @@ app.use((req, res, next) => {
 });
 app.use('/api', async (req, res, next) => {
     // Agent pairing is a separate migration; its legacy frame intake remains isolated here.
-    if (['/auth/login', '/network-info', '/alexandria-prayers', '/tasbeeh', '/netsupport/frame'].includes(req.path)) return next();
+    if (['/auth/login', '/network-info', '/alexandria-prayers', '/tasbeeh', '/netsupport/frame', '/music/cover', '/music/stream'].includes(req.path)) return next();
     req.authUser = await sessions.resolve(req.headers);
     if (!req.authUser) return res.status(401).json({ error: 'سجّل الدخول من جديد' });
     if ((req.path.startsWith('/admin/') || req.path.startsWith('/netsupport/')) && req.authUser.role !== 'admin') return res.sendStatus(403);
@@ -1721,6 +1721,31 @@ function fetchJsonOnline(url, timeoutMs = 8000) {
 
 // Download media stream through unblocked Vercel proxies
 async function downloadMediaViaProxy(targetUrl, destPath) {
+    // 1. Try direct download first for high-speed streaming
+    try {
+        const directOk = await new Promise((resolve, reject) => {
+            const file = fs.createWriteStream(destPath);
+            const client = targetUrl.startsWith('https') ? https : http;
+            const req = client.get(targetUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, rejectUnauthorized: false, timeout: 12000 }, (response) => {
+                if (response.statusCode === 200) {
+                    response.pipe(file);
+                    file.on('finish', () => file.close(() => resolve(true)));
+                } else {
+                    file.close();
+                    try { fs.unlinkSync(destPath); } catch (e) {}
+                    reject(new Error('Direct returned ' + response.statusCode));
+                }
+            });
+            req.on('error', (e) => {
+                try { fs.unlinkSync(destPath); } catch (err) {}
+                reject(e);
+            });
+            req.on('timeout', () => req.destroy());
+        });
+        if (directOk) return true;
+    } catch (e) {}
+
+    // 2. Fallback to unblocked Vercel proxies
     let lastErr = null;
     for (const proxyBase of VERCEL_PROXIES) {
         const fullUrl = proxyBase + encodeURIComponent(targetUrl);
@@ -1738,28 +1763,20 @@ async function downloadMediaViaProxy(targetUrl, destPath) {
                         file.close(() => resolve(true));
                     });
                 });
-                req.on('error', err => {
-                    file.close();
+                req.on('error', (err) => {
                     try { fs.unlinkSync(destPath); } catch (e) {}
                     reject(err);
                 });
-                req.on('timeout', () => {
-                    req.destroy();
-                    file.close();
-                    try { fs.unlinkSync(destPath); } catch (e) {}
-                    reject(new Error('Download timeout'));
-                });
+                req.on('timeout', () => req.destroy());
             });
             if (success) return true;
         } catch (err) {
             lastErr = err;
-            console.warn(`⚠️ [MUSIC PROXY] ${proxyBase} failed: ${err.message}, trying next...`);
         }
     }
-    throw (lastErr || new Error('All music proxies failed'));
+    throw lastErr || new Error('All proxies failed');
 }
 
-// Helper to decrypt Saavn encrypted media URLs via DES-ECB
 function decryptSaavnUrl(enc) {
     if (!enc || typeof enc !== 'string') return null;
     const trimmed = enc.trim();
@@ -1783,19 +1800,193 @@ function decryptSaavnUrl(enc) {
 }
 
 // Search online songs from unblocked endpoints
+// Comprehensive Arabic & Egyptian artist aliases for high-accuracy search
+const ARABIC_ARTIST_ALIASES = [
+    { aliases: ['توليت', 'تو ليت', 'تووليت', 'تولايت', 'tul8te', 'tulate', 'too late'], canonical: 'توو ليت', english: 'TUL8TE' },
+    { aliases: ['ويجز', 'وجز', 'wegz', 'wegzz'], canonical: 'ويجز', english: 'Wegz' },
+    { aliases: ['كايروكي', 'كاريوكي', 'cairokee', 'cairoke'], canonical: 'كايروكي', english: 'Cairokee' },
+    { aliases: ['بابلو', 'مروان بابلو', 'marwan pablo', 'pablo'], canonical: 'مروان بابلو', english: 'Marwan Pablo' },
+    { aliases: ['تامر حسني', 'تامر حسنى', 'tamer hosny', 'tamer hosni'], canonical: 'تامر حسني', english: 'Tamer Hosny' },
+    { aliases: ['عمرو دياب', 'الهضبة', 'amr diab'], canonical: 'عمرو دياب', english: 'Amr Diab' },
+    { aliases: ['شيرين', 'شرين', 'شيرين عبد الوهاب', 'شيرين عبدالوهاب', 'sherine'], canonical: 'شيرين', english: 'Sherine' },
+    { aliases: ['مروان موسى', 'مروان موسي', 'marwan moussa'], canonical: 'مروان موسى', english: 'Marwan Moussa' },
+    { aliases: ['عفروتو', 'afroto'], canonical: 'عفروتو', english: 'Afroto' },
+    { aliases: ['احمد سعد', 'أحمد سعد', 'ahmed saad'], canonical: 'احمد سعد', english: 'Ahmed Saad' },
+    { aliases: ['محمد حماقي', 'حماقي', 'حماقى', 'mohamed hamaki', 'hamaki'], canonical: 'محمد حماقي', english: 'Mohamed Hamaki' },
+    { aliases: ['مسار اجباري', 'مسار إجباري', 'massar egbari'], canonical: 'مسار اجباري', english: 'Massar Egbari' },
+    { aliases: ['حمزة نمرة', 'حمزه نمره', 'hamza namira'], canonical: 'حمزة نمرة', english: 'Hamza Namira' },
+    { aliases: ['ليجي سي', 'ليجيسي', 'lege-cy', 'legecy'], canonical: 'ليجي-سي', english: 'Lege-Cy' },
+    { aliases: ['السينابتيك', 'سينابتيك', 'the synaptik', 'synaptik'], canonical: 'السينابتيك', english: 'The Synaptik' },
+    { aliases: ['ام كلثوم', 'أم كلثوم', 'كوكب الشرق', 'umm kulthum', 'oum kalthoum'], canonical: 'أم كلثوم', english: 'Umm Kulthum' },
+    { aliases: ['عبد الحليم', 'عبد الحليم حافظ', 'العندليب', 'abdel halim hafez'], canonical: 'عبد الحليم حافظ', english: 'Abdel Halim Hafez' },
+    { aliases: ['فيروز', 'جارة القمر', 'fairuz', 'fayrouz'], canonical: 'فيروز', english: 'Fairuz' },
+    { aliases: ['روبي', 'ruby'], canonical: 'روبي', english: 'Ruby' },
+    { aliases: ['مسلم', 'سلومه', 'muslim'], canonical: 'مسلم', english: 'Muslim' },
+    { aliases: ['الجوكر', 'el joker'], canonical: 'الجوكر', english: 'El Joker' },
+    { aliases: ['ابيوسف', 'أبيوسف', 'abyusif'], canonical: 'أبيوسف', english: 'Abyusif' },
+    { aliases: ['شهاب', 'shehab'], canonical: 'شهاب', english: 'Shehab' },
+    { aliases: ['فليكس', 'fl ex'], canonical: 'فليكس', english: 'FL EX' },
+    { aliases: ['وينجي', 'wingii'], canonical: 'وينجي', english: 'Wingii' },
+    { aliases: ['عصام صاصا', 'essam sasa'], canonical: 'عصام صاصا', english: 'Essam Sasa' },
+    { aliases: ['حسين الجسمي', 'hussain al jassmi'], canonical: 'حسين الجسمي', english: 'Hussain Al Jassmi' },
+    { aliases: ['بهاء سلطان', 'bahaa sultan'], canonical: 'بهاء سلطان', english: 'Bahaa Sultan' }
+];
+
+function normalizeMusicStr(s) {
+    if (!s) return '';
+    return String(s)
+        .toLowerCase()
+        .replace(/[أإآ]/g, 'ا')
+        .replace(/[ة]/g, 'ه')
+        .replace(/[ى]/g, 'ي')
+        .replace(/[\u064B-\u065F\u0670]/g, '')
+        .replace(/[^\w\s\u0600-\u06FF]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function resolveSearchTerms(raw) {
+    const norm = normalizeMusicStr(raw);
+    const match = ARABIC_ARTIST_ALIASES.find(item => 
+        item.aliases.some(a => norm === normalizeMusicStr(a) || norm.includes(normalizeMusicStr(a)) || normalizeMusicStr(a).includes(norm))
+    );
+    if (match) {
+        return {
+            primary: match.english,
+            secondary: match.canonical,
+            raw,
+            aliasMatch: match
+        };
+    }
+    return { primary: raw, secondary: null, raw, aliasMatch: null };
+}
+
+// Search online songs with smart multi-source aggregation (iTunes Egypt + Deezer + Relevance Ranking)
 async function searchOnlineSongs(query) {
     if (!query || !query.trim()) return [];
     const q = query.trim();
+    const resolved = resolveSearchTerms(q);
 
-    // 1. Primary: soulsync-backend on Render (100% unblocked, comprehensive Arabic & English catalog)
+    const searchQueries = new Set();
+    searchQueries.add(q);
+    if (resolved.primary) searchQueries.add(resolved.primary);
+    if (resolved.secondary) searchQueries.add(resolved.secondary);
+
+    const queryArr = Array.from(searchQueries);
+
+    const fetchPromises = [];
+    for (const term of queryArr) {
+        fetchPromises.push(
+            fetchJsonOnline(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&country=EG&media=music&entity=song&limit=30`, 7000)
+                .then(data => ({ source: 'itunes', results: data?.results || [], term }))
+                .catch(() => ({ source: 'itunes', results: [], term }))
+        );
+        fetchPromises.push(
+            fetchJsonOnline(`https://api.deezer.com/search?q=${encodeURIComponent(term)}&limit=30`, 7000)
+                .then(data => ({ source: 'deezer', results: data?.data || [], term }))
+                .catch(() => ({ source: 'deezer', results: [], term }))
+        );
+    }
+
+    const responses = await Promise.all(fetchPromises);
+    const rawSongs = [];
+
+    for (const resp of responses) {
+        if (resp.source === 'itunes') {
+            for (const s of resp.results) {
+                if (!s.previewUrl) continue;
+                rawSongs.push({
+                    id: 'it_' + s.trackId,
+                    title: s.trackName || 'أغنية',
+                    artist: s.artistName || 'فنان',
+                    album: s.collectionName || '',
+                    duration: s.trackTimeMillis ? Math.floor(s.trackTimeMillis / 60000) + ':' + String(Math.floor((s.trackTimeMillis % 60000) / 1000)).padStart(2, '0') : '',
+                    cover: (s.artworkUrl100 || '').replace('100x100bb', '300x300bb'),
+                    rawCover: s.artworkUrl100 || '',
+                    streamUrl: s.previewUrl,
+                    source: 'itunes'
+                });
+            }
+        } else if (resp.source === 'deezer') {
+            for (const s of resp.results) {
+                if (!s.preview) continue;
+                rawSongs.push({
+                    id: 'dz_' + s.id,
+                    title: s.title || 'أغنية',
+                    artist: (s.artist && s.artist.name) || 'فنان',
+                    album: (s.album && s.album.title) || '',
+                    duration: s.duration ? Math.floor(s.duration / 60) + ':' + String(s.duration % 60).padStart(2, '0') : '',
+                    cover: (s.album && s.album.cover_medium) || '',
+                    rawCover: (s.album && s.album.cover_medium) || '',
+                    streamUrl: s.preview,
+                    source: 'deezer'
+                });
+            }
+        }
+    }
+
+    const normQ = normalizeMusicStr(q);
+    const targetArtists = resolved.aliasMatch ? [
+        normalizeMusicStr(resolved.aliasMatch.canonical),
+        normalizeMusicStr(resolved.aliasMatch.english),
+        ...resolved.aliasMatch.aliases.map(normalizeMusicStr)
+    ] : [normQ];
+
+    const dedupeMap = new Map();
+
+    for (const song of rawSongs) {
+        const normTitle = normalizeMusicStr(song.title);
+        const normArtist = normalizeMusicStr(song.artist);
+
+        let score = 0;
+
+        const isTargetArtist = targetArtists.some(t => normArtist.includes(t) || t.includes(normArtist));
+        if (isTargetArtist) {
+            score += 150;
+            if (targetArtists.some(t => normArtist === t)) score += 50;
+        }
+
+        if (normTitle === normQ) {
+            score += 140;
+        } else if (normTitle.startsWith(normQ)) {
+            score += 90;
+        } else if (normTitle.includes(normQ)) {
+            score += 60;
+        } else {
+            const qWords = normQ.split(' ').filter(w => w.length > 2);
+            const matches = qWords.filter(w => normTitle.includes(w) || normArtist.includes(w)).length;
+            score += matches * 25;
+        }
+
+        if (!isTargetArtist && !normTitle.includes(normQ)) {
+            const hasAnyWord = normQ.split(' ').some(w => w.length > 2 && (normTitle.includes(w) || normArtist.includes(w)));
+            if (!hasAnyWord) {
+                score -= 100;
+            }
+        }
+
+        const dedupeKey = normTitle.slice(0, 30) + '___' + normArtist.slice(0, 15);
+        if (!dedupeMap.has(dedupeKey) || dedupeMap.get(dedupeKey).score < score) {
+            song.score = score;
+            dedupeMap.set(dedupeKey, song);
+        }
+    }
+
+    const sorted = Array.from(dedupeMap.values())
+        .filter(s => s.score > 0)
+        .sort((a, b) => b.score - a.score);
+
+    if (sorted.length > 0) {
+        return sorted.slice(0, 35);
+    }
+
+    // Fallback to Soulsync / JioSaavn if nothing matched
     try {
-        const data = await fetchJsonOnline(`https://soulsync-backend-a5fs.onrender.com/api/search?q=${encodeURIComponent(q)}`, 7000);
+        const data = await fetchJsonOnline(`https://soulsync-backend-a5fs.onrender.com/api/search?q=${encodeURIComponent(q)}`, 5000);
         if (data && Array.isArray(data.songs) && data.songs.length > 0) {
             return data.songs.map(s => {
                 let streamUrl = s.streamUrl;
-                if (streamUrl && !streamUrl.startsWith('http')) {
-                    streamUrl = decryptSaavnUrl(streamUrl);
-                }
+                if (streamUrl && !streamUrl.startsWith('http')) streamUrl = decryptSaavnUrl(streamUrl);
                 if (!streamUrl && Array.isArray(s.downloadUrl)) {
                     const high = s.downloadUrl.find(u => u.quality === '320kbps' || u.quality === '160kbps') || s.downloadUrl[s.downloadUrl.length - 1];
                     streamUrl = high ? (high.url || high.link) : null;
@@ -1813,61 +2004,9 @@ async function searchOnlineSongs(query) {
                 };
             }).filter(s => s.streamUrl);
         }
-    } catch (err) {
-        console.warn('⚠️ [ONLINE MUSIC] SoulSync search failed:', err.message);
-    }
+    } catch (e) {}
 
-    // 2. Secondary Fallback: jiosaavn-api-2 on Vercel
-    try {
-        const data = await fetchJsonOnline(`https://jiosaavn-api-2.vercel.app/search/songs?query=${encodeURIComponent(q)}`, 7000);
-        const results = data.results || [];
-        const mapped = results.map(s => {
-            let streamUrl = null;
-            if (Array.isArray(s.downloadUrl)) {
-                const high = s.downloadUrl.find(u => u.quality === '320kbps' || u.quality === '160kbps') || s.downloadUrl[s.downloadUrl.length - 1];
-                streamUrl = high ? (high.url || high.link) : null;
-            }
-            if (!streamUrl && s.encrypted_media_url) {
-                streamUrl = decryptSaavnUrl(s.encrypted_media_url);
-            }
-            const rawImg = Array.isArray(s.image) ? (s.image.find(i => i.quality === '150x150') || s.image[0])?.link : s.image;
-            return {
-                id: String(s.id || crypto.randomUUID().slice(0, 8)),
-                title: s.name || s.title || 'أغنية أونلاين',
-                artist: s.primaryArtists || s.artist || 'فنان',
-                album: s.album?.name || s.album || '',
-                duration: s.duration ? (typeof s.duration === 'number' ? Math.floor(s.duration / 60) + ':' + String(s.duration % 60).padStart(2, '0') : s.duration) : '',
-                cover: rawImg ? `/api/music/cover?url=${encodeURIComponent(rawImg)}` : '',
-                rawCover: rawImg || '',
-                streamUrl
-            };
-        }).filter(s => s.streamUrl);
-        if (mapped.length > 0) return mapped;
-    } catch (err) {
-        console.warn('⚠️ [ONLINE MUSIC] JioSaavn-2 search fallback failed:', err.message);
-    }
-
-    // 3. Last-resort Fallback: Deezer's free public search (no key needed, excellent Arabic/
-    // Egyptian catalog coverage) — only returns a 30-second preview, not the full track, but
-    // that's better than finding nothing at all. Clearly marked as a preview for the UI.
-    try {
-        const data = await fetchJsonOnline(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=15`, 7000);
-        const results = data.data || [];
-        return results.filter(s => s.preview).map(s => ({
-            id: 'dz_' + s.id,
-            title: s.title || 'أغنية',
-            artist: (s.artist && s.artist.name) || 'فنان',
-            album: (s.album && s.album.title) || '',
-            duration: '0:30 (معاينة)',
-            isPreview: true,
-            cover: (s.album && s.album.cover_medium) || '',
-            rawCover: (s.album && s.album.cover_medium) || '',
-            streamUrl: s.preview
-        }));
-    } catch (err) {
-        console.warn('⚠️ [ONLINE MUSIC] Deezer preview fallback failed:', err.message);
-        return [];
-    }
+    return [];
 }
 
 // Online Music Search API
@@ -1883,7 +2022,7 @@ app.get('/api/music/online/search', async (req, res) => {
     }
 });
 
-// Proxy cover art images through unblocked Vercel proxy with local disk cache
+// Proxy cover art images with local disk cache & direct fetch
 app.get('/api/music/cover', async (req, res) => {
     try {
         const targetUrl = req.query.url;
@@ -1898,22 +2037,33 @@ app.get('/api/music/cover', async (req, res) => {
             return fs.createReadStream(localCachePath).pipe(res);
         }
 
-        // Fetch via unblocked proxy
-        const proxyUrl = VERCEL_PROXIES[0] + encodeURIComponent(targetUrl);
-        const proxyReq = https.get(proxyUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, rejectUnauthorized: false, timeout: 8000 }, (proxyRes) => {
-            if (proxyRes.statusCode === 200) {
-                res.setHeader('Content-Type', proxyRes.headers['content-type'] || 'image/jpeg');
-                res.setHeader('Cache-Control', 'public, max-age=604800');
-                const fileOut = fs.createWriteStream(localCachePath);
-                proxyRes.pipe(fileOut);
-                proxyRes.pipe(res);
-            } else {
-                res.status(proxyRes.statusCode).end();
-            }
-        });
-        proxyReq.on('error', () => {
-            res.status(502).end();
-        });
+        // Try direct first, then proxy
+        function fetchCover(urlToFetch, isFallback = false) {
+            const client = urlToFetch.startsWith('https') ? https : http;
+            const req = client.get(urlToFetch, { headers: { 'User-Agent': 'Mozilla/5.0' }, rejectUnauthorized: false, timeout: 8000 }, (remoteRes) => {
+                if (remoteRes.statusCode === 200) {
+                    res.setHeader('Content-Type', remoteRes.headers['content-type'] || 'image/jpeg');
+                    res.setHeader('Cache-Control', 'public, max-age=604800');
+                    const fileOut = fs.createWriteStream(localCachePath);
+                    remoteRes.pipe(fileOut);
+                    remoteRes.pipe(res);
+                } else {
+                    remoteRes.resume();
+                    if (!isFallback) {
+                        return fetchCover(VERCEL_PROXIES[0] + encodeURIComponent(targetUrl), true);
+                    }
+                    if (!res.headersSent) res.status(remoteRes.statusCode).end();
+                }
+            });
+            req.on('error', () => {
+                if (!isFallback) {
+                    return fetchCover(VERCEL_PROXIES[0] + encodeURIComponent(targetUrl), true);
+                }
+                if (!res.headersSent) res.status(502).end();
+            });
+        }
+
+        fetchCover(targetUrl, false);
     } catch (err) {
         res.status(500).send(err.message);
     }
@@ -1964,34 +2114,52 @@ app.get('/api/music/stream', async (req, res) => {
             }
         }
 
-        // 2. Stream live from outside via unblocked proxy while piping directly to browser & disk
+        // 2. Stream live from outside (direct with proxy fallback) while piping directly to browser & disk
         if (!targetUrl) return res.status(404).send('Track not found on disk');
 
-        const proxyUrl = VERCEL_PROXIES[0] + encodeURIComponent(targetUrl);
-        const proxyReq = https.get(proxyUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, rejectUnauthorized: false, timeout: 20000 }, (remoteRes) => {
-            if (remoteRes.statusCode === 200 || remoteRes.statusCode === 206) {
-                res.setHeader('Content-Type', 'audio/mp4');
-                res.setHeader('Accept-Ranges', 'bytes');
-                if (remoteRes.headers['content-length']) {
-                    res.setHeader('Content-Length', remoteRes.headers['content-length']);
+        const isMp3 = targetUrl.toLowerCase().includes('.mp3');
+        const defaultMime = isMp3 ? 'audio/mpeg' : 'audio/mp4';
+
+        function streamFromUrl(urlToFetch, isFallback = false) {
+            const client = urlToFetch.startsWith('https') ? https : http;
+            const reqStream = client.get(urlToFetch, { headers: { 'User-Agent': 'Mozilla/5.0' }, rejectUnauthorized: false, timeout: 15000 }, (remoteRes) => {
+                if (remoteRes.statusCode === 200 || remoteRes.statusCode === 206) {
+                    const ct = remoteRes.headers['content-type'] || defaultMime;
+                    res.setHeader('Content-Type', ct);
+                    res.setHeader('Accept-Ranges', 'bytes');
+                    if (remoteRes.headers['content-length']) {
+                        res.setHeader('Content-Length', remoteRes.headers['content-length']);
+                    }
+
+                    // Pipe directly to browser for INSTANT playback (< 0.2s!)
+                    remoteRes.pipe(res);
+
+                    // Also stream into local cache file for LAN persistence
+                    const fileStream = fs.createWriteStream(localPath);
+                    remoteRes.pipe(fileStream);
+                    fileStream.on('error', () => {
+                        try { fs.unlinkSync(localPath); } catch (e) {}
+                    });
+                } else {
+                    remoteRes.resume();
+                    if (!isFallback) {
+                        return streamFromUrl(VERCEL_PROXIES[0] + encodeURIComponent(targetUrl), true);
+                    }
+                    if (!res.headersSent) res.status(remoteRes.statusCode).end();
                 }
+            });
+            reqStream.on('error', (err) => {
+                if (!isFallback) {
+                    return streamFromUrl(VERCEL_PROXIES[0] + encodeURIComponent(targetUrl), true);
+                }
+                if (!res.headersSent) res.status(502).send('Streaming error: ' + err.message);
+            });
+            reqStream.on('timeout', () => {
+                reqStream.destroy();
+            });
+        }
 
-                // Pipe directly to browser for INSTANT playback (< 0.5s!)
-                remoteRes.pipe(res);
-
-                // Also stream into local cache file for LAN persistence
-                const fileStream = fs.createWriteStream(localPath);
-                remoteRes.pipe(fileStream);
-                fileStream.on('error', () => {
-                    try { fs.unlinkSync(localPath); } catch (e) {}
-                });
-            } else {
-                res.status(remoteRes.statusCode).end();
-            }
-        });
-        proxyReq.on('error', (err) => {
-            if (!res.headersSent) res.status(502).send('Streaming error: ' + err.message);
-        });
+        streamFromUrl(targetUrl, false);
     } catch (err) {
         if (!res.headersSent) res.status(500).send(err.message);
     }
