@@ -5155,6 +5155,9 @@ function showModal(id) {
     if (m) m.classList.remove('hidden');
     renderIcons();
     if (id === 'profileModal' && STATE.user) {
+        if (typeof applyThemeMode === 'function' && typeof getThemeMode === 'function') {
+            applyThemeMode(getThemeMode());
+        }
         const nick = document.getElementById('editNickname');
         const bio = document.getElementById('editBio');
         if (nick) nick.value = STATE.user.nickname || '';

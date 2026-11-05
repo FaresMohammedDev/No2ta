@@ -119,7 +119,82 @@
         // Only create newly inserted icon placeholders, not all existing SVGs each second.
         if (document.querySelector('#paperShell i[data-lucide], #paperHome i[data-lucide]')) renderIcons();
     }
-    window.No2taHome = { show, render, openChats, closeChatList, toggleChatList, closeTimer, toggleTimer, isChatVisible: () => view === 'chat' };
+    // Theme Manager (Dark Mode & Light Mode / داكن وفاتح)
+    function getThemeMode() {
+        const saved = localStorage.getItem('no2ta_theme_mode');
+        if (saved === 'dark' || saved === 'light') return saved;
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+        return 'light';
+    }
+
+    function applyThemeMode(mode) {
+        const isDark = mode === 'dark';
+        document.documentElement.setAttribute('data-theme', mode);
+        document.documentElement.setAttribute('data-no2ta-theme', 'paper');
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light');
+        } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.classList.add('light');
+        }
+
+        // Update Theme Toggle Buttons
+        const toggleBtn = document.getElementById('themeToggleBtn');
+        if (toggleBtn) {
+            toggleBtn.setAttribute('aria-label', isDark ? 'التبديل إلى الوضع الفاتح (Light)' : 'التبديل إلى الوضع الداكن (Dark)');
+            toggleBtn.setAttribute('title', isDark ? 'التبديل إلى الوضع الفاتح (Light)' : 'التبديل إلى الوضع الداكن (Dark)');
+            const iconEl = toggleBtn.querySelector('i, svg');
+            if (iconEl) {
+                iconEl.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+            }
+        }
+
+        // Update segmented buttons in profileModal if present
+        const lightSelect = document.getElementById('themeSelectLightBtn');
+        const darkSelect = document.getElementById('themeSelectDarkBtn');
+        if (lightSelect && darkSelect) {
+            if (isDark) {
+                darkSelect.classList.add('border-cyan-500', 'bg-cyan-500/20', 'text-white', 'font-black');
+                darkSelect.classList.remove('border-slate-700', 'text-slate-400');
+                lightSelect.classList.remove('border-cyan-500', 'bg-cyan-500/20', 'text-white', 'font-black');
+                lightSelect.classList.add('border-slate-700', 'text-slate-400');
+            } else {
+                lightSelect.classList.add('border-emerald-600', 'bg-emerald-600/20', 'text-slate-900', 'font-black');
+                lightSelect.classList.remove('border-slate-700', 'text-slate-400');
+                darkSelect.classList.remove('border-emerald-600', 'bg-emerald-600/20', 'text-slate-900', 'font-black');
+                darkSelect.classList.add('border-slate-700', 'text-slate-400');
+            }
+        }
+
+        if (window.lucide && typeof lucide.createIcons === 'function') {
+            lucide.createIcons();
+        }
+    }
+
+    function setThemeMode(mode) {
+        if (mode !== 'dark' && mode !== 'light') return;
+        try {
+            localStorage.setItem('no2ta_theme_mode', mode);
+        } catch (e) {}
+        applyThemeMode(mode);
+        if (typeof showNotification === 'function') {
+            showNotification(mode === 'dark' ? '🌙 تم تفعيل الوضع الداكن (Dark Mode)' : '☀️ تم تفعيل الوضع الفاتح (Light Mode)');
+        }
+    }
+
+    function toggleThemeMode() {
+        const current = document.documentElement.getAttribute('data-theme') || getThemeMode();
+        const next = current === 'dark' ? 'light' : 'dark';
+        setThemeMode(next);
+    }
+
+    window.getThemeMode = getThemeMode;
+    window.applyThemeMode = applyThemeMode;
+    window.setThemeMode = setThemeMode;
+    window.toggleThemeMode = toggleThemeMode;
+
+    window.No2taHome = { show, render, openChats, closeChatList, toggleChatList, closeTimer, toggleTimer, isChatVisible: () => view === 'chat', getThemeMode, applyThemeMode, setThemeMode, toggleThemeMode };
     document.addEventListener('DOMContentLoaded', () => {
         $('legacyChat').addEventListener('keydown', event => {
             const card = event.target.closest('[role="button"][tabindex="0"]');
