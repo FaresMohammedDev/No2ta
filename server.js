@@ -332,24 +332,35 @@ app.get('/api/tasbeeh', (req, res) => {
     res.json({ success: true, total: classroomTotalTasbeeh });
 });
 
-// 5-Minute Synchronized Salawat API & Background Timer 🕋
-let lastSalawatTriggerMinute = -1;
+// 5-Minute Synchronized Salawat API & Background Timer
+// The automatic broadcast fires every SALAWAT_INTERVAL_MS. The first one is aligned to the next
+// :00/:05/:10... wall-clock mark; any broadcast (automatic or manual "say it now") restarts the
+// countdown from that moment, so a manual trigger is never followed seconds later by the old timer.
+const SALAWAT_INTERVAL_MS = 5 * 60 * 1000;
+const SALAWAT_MANUAL_COOLDOWN_MS = 10 * 1000;
+let nextSalawatAt = Math.ceil((Date.now() + 1000) / SALAWAT_INTERVAL_MS) * SALAWAT_INTERVAL_MS;
+let lastSalawatBroadcastAt = 0;
 
-function checkAndTriggerSalawatBroadcast() {
-    const now = new Date();
-    let minutes = now.getMinutes();
-    if (minutes % 5 === 0 && minutes !== lastSalawatTriggerMinute) {
-        lastSalawatTriggerMinute = minutes;
-        console.log(`🕋 [SALAWAT BROADCAST] Synchronized Salawat across all devices at :${minutes < 10 ? '0' + minutes : minutes}`);
-        io.emit('salawat_broadcast', {
-            phrase: 'اللهم صلِّ على محمد',
-            fullPhrase: '«اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ»',
-            soundType: 'voice1',
-            timestamp: Date.now()
-        });
-    }
+function broadcastSalawat(soundType = 'voice1', source = 'timer') {
+    const now = Date.now();
+    if (source === 'manual' && now - lastSalawatBroadcastAt < SALAWAT_MANUAL_COOLDOWN_MS) return false;
+    lastSalawatBroadcastAt = now;
+    nextSalawatAt = now + SALAWAT_INTERVAL_MS;
+    console.log(`[SALAWAT BROADCAST] (${source}) next automatic one at ${new Date(nextSalawatAt).toLocaleTimeString()}`);
+    io.emit('salawat_broadcast', {
+        phrase: 'اللهم صلِّ على محمد',
+        fullPhrase: '«اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ»',
+        soundType: soundType || 'voice1',
+        source,
+        timestamp: now,
+        nextAt: nextSalawatAt
+    });
+    return true;
 }
-setInterval(checkAndTriggerSalawatBroadcast, 3000);
+
+setInterval(() => {
+    if (Date.now() >= nextSalawatAt) broadcastSalawat('voice1', 'timer');
+}, 1000);
 
 // Dynamic Arabic TTS Proxy / Audio Generator 🗣️
 app.get('/api/tts', (req, res) => {
@@ -679,13 +690,8 @@ setInterval(() => {
 }, 20000);
 
 app.post('/api/salawat/trigger', (req, res) => {
-    const soundType = (req.body && req.body.soundType) ? req.body.soundType : 'salawat';
-    io.emit('salawat_broadcast', {
-        phrase: 'اللهم صلِّ على محمد',
-        fullPhrase: '«اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ»',
-        soundType: soundType,
-        timestamp: Date.now()
-    });
+    const soundType = (req.body && req.body.soundType) ? req.body.soundType : 'voice1';
+    broadcastSalawat(soundType, 'manual');
     res.json({ success: true, message: 'تم إرسال تذكير صلِّ على محمد لجميع الأجهزة!' });
 });
 
@@ -715,11 +721,18 @@ app.post('/api/quiz/submit-score', async (req, res) => {
 app.get('/api/quiz/leaderboard', async (req, res) => {
     try {
         const quizId = req.query.quizId || 'flutter_competency';
+        // submitted_at is stored in UTC, but "today" must follow the Cairo calendar day (UTC+2/+3);
+        // otherwise scores submitted shortly after Cairo midnight are counted on the wrong day.
+        const nowUtc = new Date();
+        const cairoNow = new Date(nowUtc.toLocaleString('en-US', { timeZone: 'Africa/Cairo' }));
+        const utcNow = new Date(nowUtc.toLocaleString('en-US', { timeZone: 'UTC' }));
+        const cairoOffsetHours = Math.round((cairoNow - utcNow) / 3600000);
+        const cairoOffsetModifier = `${cairoOffsetHours >= 0 ? '+' : ''}${cairoOffsetHours} hours`;
 
         const topToday = await get(
             `SELECT nickname, score, total_questions, percentage, submitted_at FROM quiz_scores
-             WHERE quiz_id = ? AND date(submitted_at) = date('now') ORDER BY percentage DESC, submitted_at ASC LIMIT 1`,
-            [quizId]
+             WHERE quiz_id = ? AND date(submitted_at, ?) = date('now', ?) ORDER BY percentage DESC, submitted_at ASC LIMIT 1`,
+            [quizId, cairoOffsetModifier, cairoOffsetModifier]
         );
         const topAllTime = await get(
             `SELECT nickname, score, total_questions, percentage, submitted_at FROM quiz_scores
@@ -766,8 +779,8 @@ app.post('/api/auth/login', async (req, res) => {
 
         const defaultNickname = isDeviceAdmin ? 'كبير الفصل (الأدمن)' : `عبقري_${clientIp.split('.').pop()}`;
         const chosenNickname = nickname ? nickname.trim() : (user ? user.nickname : defaultNickname);
-        const chosenAvatar = avatar || (user ? user.avatar : (isDeviceAdmin ? '👑' : '🚀'));
-        const chosenBio = bio || (user ? user.bio : (isDeviceAdmin ? 'أدمن الفصل والمتحكم في الشبكة 👑⚡' : 'طالب جامد في فصل العباقرة ⚡'));
+        const chosenAvatar = avatar || (user ? user.avatar : (isDeviceAdmin ? 'crown' : 'rocket'));
+        const chosenBio = bio || (user ? user.bio : (isDeviceAdmin ? 'أدمن الفصل والمتحكم في الشبكة' : 'طالب في فصل العباقرة'));
         const chosenRole = isDeviceAdmin ? 'admin' : 'student';
 
         if (user) {
@@ -1115,7 +1128,7 @@ app.post('/api/stories', upload.single('file'), async (req, res) => {
         await run(
             `INSERT INTO stories (id, user_id, media_url, media_type, text_content, bg_gradient, expires_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [id, userId, mediaUrl, mediaType, text_content || '', bg_gradient || 'from-purple-600 to-pink-500', expiresAt]
+            [id, userId, mediaUrl, mediaType, text_content || '', bg_gradient || 'sage', expiresAt]
         );
 
         const newStory = await get(
@@ -2264,7 +2277,7 @@ app.post('/api/netsupport/frame', async (req, res) => {
         const existing = netSupportScreens.get(safeDevKey) || netSupportScreens.get(clientIp) || netSupportScreens.get(devKey) || {};
         const resolved = await resolveStudentInfo(clientIp, clientMac, userId || existing.userId);
         const effectiveNickname = (nickname && nickname !== 'طالب') ? nickname : (resolved?.nickname || existing.nickname || `طالب_${clientIp.split('.').pop()}`);
-        const effectiveAvatar = avatar || resolved?.avatar || existing.avatar || '🖥️';
+        const effectiveAvatar = avatar || resolved?.avatar || existing.avatar || 'monitor';
         const effectiveUserId = userId || resolved?.id || existing.userId || null;
         const effectiveRole = role || resolved?.role || existing.role || 'student';
 
@@ -2350,7 +2363,7 @@ app.get('/api/netsupport/devices', async (req, res) => {
                 socketId: socketId,
                 userId: userId,
                 nickname: nickname || `طالب_${user.ip.split('.').pop()}`,
-                avatar: avatar || '🖥️',
+                avatar: avatar || 'monitor',
                 role: role,
                 ip: user.ip,
                 mac: user.mac || screenInfo.mac || '',
@@ -2386,7 +2399,7 @@ app.get('/api/netsupport/devices', async (req, res) => {
                     socketId: screenInfo.socketId || null,
                     userId: userId,
                     nickname: nickname || `طالب_${screenInfo.ip ? screenInfo.ip.split('.').pop() : 'LAN'}`,
-                    avatar: avatar || '🖥️',
+                    avatar: avatar || 'monitor',
                     role: role,
                     ip: screenInfo.ip,
                     mac: screenInfo.mac,
@@ -3135,12 +3148,7 @@ io.on('connection', async (socket) => {
     });
 
 socket.on('admin_trigger_salawat', (data = {}) => {
-        io.emit('salawat_broadcast', {
-            phrase: 'اللهم صلِّ على محمد',
-            fullPhrase: '«اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ»',
-            soundType: (data && data.soundType) ? data.soundType : 'salawat',
-            timestamp: Date.now()
-        });
+        broadcastSalawat((data && data.soundType) ? data.soundType : 'voice1', 'manual');
     });
 
     // Initial Registration
@@ -3543,7 +3551,7 @@ socket.on('admin_trigger_salawat', (data = {}) => {
             const existing = netSupportScreens.get(devKey) || netSupportScreens.get(clientIp) || {};
             const resolved = await resolveStudentInfo(clientIp, clientMac, data.userId || userInfo?.userId || existing.userId);
             const effectiveNickname = (data.nickname && data.nickname !== 'طالب') ? data.nickname : (resolved?.nickname || userInfo?.nickname || existing.nickname || `طالب_${clientIp.split('.').pop()}`);
-            const effectiveAvatar = data.avatar || resolved?.avatar || userInfo?.avatar || existing.avatar || '🖥️';
+            const effectiveAvatar = data.avatar || resolved?.avatar || userInfo?.avatar || existing.avatar || 'monitor';
             const effectiveUserId = data.userId || resolved?.id || userInfo?.userId || existing.userId || null;
             const effectiveRole = resolved?.role || userInfo?.role || existing.role || 'student';
 

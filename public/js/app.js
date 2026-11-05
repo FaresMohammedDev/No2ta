@@ -71,10 +71,47 @@ const STATE = {
 
 const MASTER_PASSWORD = 'SdSdSdSd';
 
+const AVATAR_ICONS = [
+    { id: 'rocket', label: 'صاروخ' },
+    { id: 'crown', label: 'تاج' },
+    { id: 'zap', label: 'طاقة' },
+    { id: 'brain', label: 'ذكاء' },
+    { id: 'flame', label: 'حماس' },
+    { id: 'glasses', label: 'نظارة' },
+    { id: 'sparkles', label: 'بريق' },
+    { id: 'bot', label: 'روبوت' },
+    { id: 'gamepad-2', label: 'ألعاب' },
+    { id: 'code-2', label: 'برمجة' },
+    { id: 'terminal', label: 'طرفية' },
+    { id: 'shield', label: 'حماية' },
+    { id: 'smile', label: 'ابتسامة' },
+    { id: 'star', label: 'نجمة' },
+    { id: 'atom', label: 'علم' },
+    { id: 'cat', label: 'قطة' }
+];
+
+const AVATAR_LEGACY_MAP = {
+    '🚀': 'rocket',
+    '⚡': 'zap',
+    '🧠': 'brain',
+    '👑': 'crown',
+    '🔥': 'flame',
+    '🕶️': 'glasses',
+    '🕶': 'glasses',
+    '🖥️': 'monitor',
+    '🖥': 'monitor',
+    '👤': 'user',
+    '✨': 'sparkles'
+};
+
 function renderAvatarHTML(avatar, extraClasses = 'w-full h-full') {
-    if (!avatar) return '<span>👤</span>';
+    if (!avatar) return '<i data-lucide="user" class="w-3/5 h-3/5"></i>';
     if (avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('/') || avatar.startsWith('data:image')) {
         return `<img src="${avatar}" class="${extraClasses} object-cover rounded-full" alt="Avatar" />`;
+    }
+    const iconId = AVATAR_LEGACY_MAP[avatar] || (AVATAR_ICONS.some(i => i.id === avatar) ? avatar : (/^[a-z0-9-]+$/.test(avatar) ? avatar : null));
+    if (iconId) {
+        return `<i data-lucide="${iconId}" class="w-3/5 h-3/5 shrink-0"></i>`;
     }
     return `<span>${avatar}</span>`;
 }
@@ -596,6 +633,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     }).observe(document.body, { childList: true, subtree: true });
     enhanceSelect('snippetLanguageSelect');
 
+    // Avatar radio selector live preview
+    document.addEventListener('change', (e) => {
+        if (e.target.name === 'authAvatar') {
+            STATE.pendingAuthAvatarFile = null;
+            STATE.pendingAuthAvatarUrl = null;
+            const previewEl = document.getElementById('authAvatarCustomPreview');
+            if (previewEl) {
+                previewEl.innerHTML = renderAvatarHTML(e.target.value);
+                renderIcons();
+            }
+        } else if (e.target.name === 'editAvatar') {
+            STATE.pendingEditAvatarUrl = null;
+            const previewEl = document.getElementById('editAvatarCustomPreview');
+            if (previewEl) {
+                previewEl.innerHTML = renderAvatarHTML(e.target.value);
+                renderIcons();
+            }
+        }
+    });
+
     // Alexandria Live Clock & Prayer Times Engine
     initAlexandriaPrayerEngine();
     initTasbeehEngine();
@@ -626,7 +683,7 @@ function triggerTabTitleAlert(senderName) {
 
     let isAlert = true;
     titleAlertInterval = setInterval(() => {
-        document.title = isAlert ? `💬 (1) رسالة من ${senderName} | نؤطة` : originalDocTitle;
+        document.title = isAlert ? `(1) رسالة من ${senderName} | نؤطة` : originalDocTitle;
         isAlert = !isAlert;
     }, 1200);
 }
@@ -668,7 +725,7 @@ function showDesktopNotification(senderName, text, chatType, targetId) {
         if (Notification.permission !== 'granted') return;
         if (document.hasFocus()) return;
 
-        const notif = new Notification(`💬 ${senderName} (نؤطة ⚡)`, {
+        const notif = new Notification(`${senderName} (نؤطة)`, {
             body: text,
             icon: '/favicon.ico',
             tag: `no2ta-chat-${targetId || 'general'}`
@@ -744,8 +801,8 @@ async function fetchNetworkInfo() {
             }
             // Pre-fill login modal if open
             const nickInput = document.getElementById('authNickname');
-            if (nickInput && !nickInput.value) nickInput.value = 'كبير الفصل (الأدمن) 👑';
-            const adminRadio = document.querySelector('input[name="authAvatar"][value="👑"]');
+            if (nickInput && !nickInput.value) nickInput.value = 'كبير الفصل (الأدمن)';
+            const adminRadio = document.querySelector('input[name="authAvatar"][value="crown"]');
             if (adminRadio) adminRadio.checked = true;
         } else {
             // Demote any non-admin device to student
@@ -801,7 +858,7 @@ async function handleLoginSubmit(e) {
     errorEl.classList.add('hidden');
     const password = passInput.value.trim();
     const nickname = nickInput.value.trim();
-    const avatar = STATE.pendingAuthAvatarUrl || (avatarInput ? avatarInput.value : '🚀');
+    const avatar = STATE.pendingAuthAvatarUrl || (avatarInput ? avatarInput.value : 'rocket');
 
 
     try {
@@ -958,7 +1015,6 @@ function initSocket() {
 
     STATE.socket.on('dhikr_spoken_broadcast', (data) => {
         if (!data || !data.dhikrId) return;
-        playDhikrAudioPhrase(data.dhikrId, data.dhikrTitle);
         showDhikrFloatingToast(data);
     });
 
@@ -1027,7 +1083,7 @@ function initSocket() {
             if (partnerIdx !== -1) {
                 const [partner] = STATE.users.splice(partnerIdx, 1);
                 partner.last_message_at = message.created_at;
-                partner.last_message_text = message.content || (message.media_type ? 'ملف مرفق 📎' : '');
+                partner.last_message_text = message.content || (message.media_type ? 'ملف مرفق' : '');
 
                 if (!isMe) {
                     if (!isCurrentChat || !isChatVisible || !document.hasFocus()) {
@@ -1058,12 +1114,12 @@ function initSocket() {
             const senderName = message.sender_name || 'زميل في الفصل';
             const previewText = message.content 
                 ? (message.content.length > 40 ? message.content.substring(0, 37) + '...' : message.content)
-                : (message.media_type ? 'أرسل مرفقاً 📎' : 'رسالة جديدة');
+                : (message.media_type ? 'أرسل مرفقاً' : 'رسالة جديدة');
 
             // Floating in-app pill notification (if chat is not active or window blurred)
             if (!isCurrentChat || !isChatVisible || !document.hasFocus()) {
                 const chatTag = message.chat_type === 'direct' ? 'خاص' : (message.chat_type === 'group' ? 'جروب' : 'عام');
-                showNotification(`💬 [${chatTag}] ${senderName}: ${previewText}`, 4000);
+                showNotification(`[${chatTag}] ${senderName}: ${previewText}`, 4000);
             }
 
             // Native Desktop Web Notification
@@ -1236,7 +1292,7 @@ function initSocket() {
     STATE.socket.on('airdrop_new_file', (file) => {
         STATE.airdropFiles.unshift(file);
         renderAirDropList();
-        showNotification(`⚡ ملف جديد على AirDrop: ${file.file_name}`);
+        showNotification(`ملف جديد على AirDrop: ${file.file_name}`);
     });
 
     STATE.socket.on('airdrop_download_incremented', ({ id, count }) => {
@@ -1348,7 +1404,7 @@ function initSocket() {
     STATE.socket.on('netsupport_unlock_screen', () => {
         const overlay = document.getElementById('studentLockScreenOverlay');
         if (overlay) overlay.classList.add('hidden');
-        showNotification('🔓 تم فك قفل الشاشة بواسطة الأستاذ.');
+        showNotification('تم فك قفل الشاشة بواسطة الأستاذ.');
     });
 
     STATE.socket.on('netsupport_popup_message', (data) => {
@@ -1369,7 +1425,7 @@ function initSocket() {
         if (window.soundEngine && typeof window.soundEngine.playAnnouncement === 'function') {
             window.soundEngine.playAnnouncement();
         }
-        showNotification('🔔 تنبيه صوتي عاجل من مشرف المعمل!');
+        showNotification('تنبيه صوتي عاجل من مشرف المعمل!');
     });
 
     STATE.socket.on('netsupport_navigate_url', (data) => {
@@ -1515,7 +1571,7 @@ function releaseStealthMode(info) {
     }
 
     // Restore Title & Favicon
-    document.title = 'نؤطة (No2ta) 💬⚡ - شبكة الفصل الاجتماعية';
+    document.title = 'نؤطة (No2ta) - شبكة الفصل الاجتماعية';
     const favicon = document.getElementById('appFavicon');
     if (favicon) {
         favicon.href = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>';
@@ -1534,31 +1590,31 @@ function releaseStealthMode(info) {
 
 // Local unlock for THIS device only (Never affects other classmates)
 function promptLocalStealthUnlock() {
-    const pass = prompt('🔐 أدخل كلمة السر لإغلاق شاشة التمويه على جهازك فقط والعودة للشات:');
+    const pass = prompt('أدخل كلمة السر لإغلاق شاشة التمويه على جهازك فقط والعودة للشات:');
     if (pass === null) return; // User cancelled
     if (pass && pass.trim() === MASTER_PASSWORD) {
         STATE.localStealthSuppressed = true;
-        releaseStealthMode({ message: 'تم إغلاق شاشة التمويه على جهازك فقط 🤫' });
+        releaseStealthMode({ message: 'تم إغلاق شاشة التمويه على جهازك فقط' });
     } else {
-        alert('❌ كلمة المرور غير صحيحة! لن يتم إغلاق شاشة التمويه.');
+        alert('كلمة المرور غير صحيحة! لن يتم إغلاق شاشة التمويه.');
     }
 }
 
 // Global unlock for EVERYONE in the classroom (Strictly Hardware Admin / Master Password)
 function promptGlobalStealthUnlock() {
     if (!STATE.networkInfo || !STATE.networkInfo.isHostAdmin) {
-        alert('⚠️ فك التمويه لجميع أجهزة الفصل متاح فقط من جهاز الأدمن/المضيف الرئيسي!');
+        alert('فك التمويه لجميع أجهزة الفصل متاح فقط من جهاز الأدمن/المضيف الرئيسي!');
         return;
     }
-    const pass = prompt('👑 أدخل كلمة السر لفك وضع التمويه عن جميع طلاب الفصل:');
+    const pass = prompt('أدخل كلمة السر لفك وضع التمويه عن جميع طلاب الفصل:');
     if (pass === null) return;
     if (pass && pass.trim() === MASTER_PASSWORD) {
         if (STATE.socket) {
             STATE.socket.emit('TRIGGER_STEALTH_RELEASE', pass.trim());
         }
-        releaseStealthMode({ message: 'تم فك وضع التمويه لجميع أجهزة الفصل! 🚀' });
+        releaseStealthMode({ message: 'تم فك وضع التمويه لجميع أجهزة الفصل!' });
     } else {
-        alert('❌ كلمة المرور غير صحيحة!');
+        alert('كلمة المرور غير صحيحة!');
     }
 }
 
@@ -1593,7 +1649,7 @@ function renderUsersList() {
     if (!container) return;
 
     if (STATE.users.length === 0) {
-        container.innerHTML = `<div class="p-4 text-center text-slate-500 text-xs">لا يوجد زملاء متصلين حالياً. شارك الـ QR Code ليدخلوا! 🚀</div>`;
+        container.innerHTML = `<div class="p-4 text-center text-slate-500 text-xs">لا يوجد زملاء متصلين حالياً. شارك الـ QR Code ليدخلوا!</div>`;
         return;
     }
 
@@ -1650,7 +1706,7 @@ function renderUsersList() {
                         <div class="flex items-center justify-between gap-1 mb-0.5">
                             <div class="flex items-center gap-1.5 truncate">
                                 <span class="text-sm font-bold ${hasUnread ? 'text-cyan-200' : 'text-white'} truncate">${escapeHtml(u.nickname)}</span>
-                                ${u.role === 'admin' ? '<span class="text-micro text-amber-400 font-black shrink-0">👑</span>' : ''}
+                                ${u.role === 'admin' ? '<i data-lucide="crown" class="w-3.5 h-3.5 text-amber-500 shrink-0"></i>' : ''}
                             </div>
                             ${timeStr ? `<span class="text-micro ${hasUnread ? 'text-cyan-400 font-bold' : 'text-slate-500'} shrink-0">${timeStr}</span>` : ''}
                         </div>
@@ -1964,13 +2020,13 @@ function renderGroupsList() {
 
         let statusBadge = '';
         if (isCreator) {
-            statusBadge = '<span class="text-micro px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 font-bold">مؤسس 👑</span>';
+            statusBadge = '<span class="text-micro px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 font-bold">مؤسس <i data-lucide="crown" class="w-3 h-3 inline"></i></span>';
         } else if (isMember) {
-            statusBadge = '<span class="text-micro px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">عضو ✅</span>';
+            statusBadge = '<span class="text-micro px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">عضو <i data-lucide="check" class="w-3 h-3 inline"></i></span>';
         } else if (isPending) {
             statusBadge = '<span class="text-micro px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 font-bold">معلق</span>';
         } else {
-            statusBadge = '<span class="text-micro px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400 font-bold border border-slate-700">🔒 خاص</span>';
+            statusBadge = '<span class="text-micro px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400 font-bold border border-slate-700"><i data-lucide="lock" class="w-3 h-3 inline"></i> خاص</span>';
         }
 
         let pendingBadge = '';
@@ -1994,7 +2050,7 @@ function renderGroupsList() {
                 </div>
                 <div class="shrink-0 flex items-center gap-1">
                     ${pendingBadge}
-                    <span class="text-micro px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono font-bold">${memberCount} 👤</span>
+                    <span class="text-micro px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono font-bold">${memberCount} <i data-lucide="users" class="w-3 h-3 inline"></i></span>
                 </div>
             </div>
         `;
@@ -2467,7 +2523,7 @@ async function openGroupMembersModal() {
                             </div>
                             <div class="min-w-0">
                                 <h5 class="text-xs font-bold text-white truncate">${escapeHtml(m.nickname)}</h5>
-                                <span class="text-micro text-purple-300 font-bold">${isCreator ? 'مؤسس الجروب 👑' : 'عضو في الجروب'}</span>
+                                <span class="text-micro text-purple-300 font-bold">${isCreator ? 'مؤسس الجروب' : 'عضو في الجروب'}</span>
                             </div>
                         </div>
                         <span class="text-micro px-2 py-0.5 rounded-full ${isOnline ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'}">
@@ -2650,7 +2706,7 @@ function formatMessageHTML(m) {
                         <span class="truncate">${langOrTitle}</span>
                     </div>
                     <button onclick="copySnippetCode('${m.id}', this)" class="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500 text-cyan-300 hover:text-slate-950 font-bold text-[11px] transition-all" title="نسخ الكود للحافظة">
-                        <span>📋</span>
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
                         <span>نسخ الكود</span>
                     </button>
                 </div>
@@ -2667,7 +2723,7 @@ function formatMessageHTML(m) {
             <div class="max-w-[78%] md:max-w-[65%] flex flex-col ${isMe ? 'items-end' : 'items-start'}">
                 <div class="flex items-center gap-2 mb-1 px-1">
                     <span class="text-[11px] font-bold text-slate-300">${isMe ? 'أنت' : escapeHtml(m.sender_name)}</span>
-                    ${m.sender_role === 'admin' ? '<span class="text-micro px-1 rounded bg-amber-500/20 text-amber-400 font-black">👑 الأدمن</span>' : ''}
+                    ${m.sender_role === 'admin' ? '<span class="text-micro px-1 rounded bg-amber-500/20 text-amber-400 font-black"><i data-lucide="crown" class="w-3 h-3 inline"></i> الأدمن</span>' : ''}
                     ${disappearingBadge}
                     <span class="text-micro text-slate-500 en-text inline-flex items-center gap-1">${time} ${readCheckHTML}</span>
                 </div>
@@ -2958,7 +3014,7 @@ function renderStoriesBar() {
         <!-- Add Story Button -->
         <div onclick="openStoryCreator()" class="flex flex-col items-center gap-1.5 cursor-pointer group shrink-0">
             <div class="relative w-14 h-14 rounded-full bg-slate-800 border-2 border-dashed border-cyan-500 flex items-center justify-center text-xl group-hover:scale-105 transition-transform">
-                <span>➕</span>
+                <i data-lucide="plus" class="w-5 h-5 text-cyan-400"></i>
             </div>
             <span class="text-[11px] font-semibold text-slate-300">استوري جديد</span>
         </div>
@@ -3025,10 +3081,10 @@ function renderCurrentStory() {
 
     if (story.media_type === 'image') {
         contentEl.innerHTML = `
-            <div class="relative w-full h-[70vh] sm:h-[75vh] max-h-[680px] rounded-3xl overflow-hidden bg-black flex items-center justify-center border border-white/10 shadow-2xl">
+            <div class="n-literal-color relative w-full h-[56vh] sm:h-[60vh] max-h-[560px] rounded-3xl overflow-hidden bg-black flex items-center justify-center border border-white/10 shadow-2xl">
                 <img src="${story.media_url}" class="w-full h-full object-contain" />
                 ${story.text_content ? `
-                    <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-5 text-center text-white font-bold text-sm sm:text-base leading-snug drop-shadow-md">
+                    <div class="n-literal-color absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-5 text-center text-white font-bold text-sm sm:text-base leading-snug drop-shadow-md">
                         ${escapeHtml(story.text_content)}
                     </div>
                 ` : ''}
@@ -3036,13 +3092,14 @@ function renderCurrentStory() {
         `;
     } else if (story.media_type === 'video') {
         contentEl.innerHTML = `
-            <div class="relative w-full h-[70vh] sm:h-[75vh] max-h-[680px] rounded-3xl overflow-hidden bg-black flex items-center justify-center border border-white/10 shadow-2xl">
+            <div class="n-literal-color relative w-full h-[56vh] sm:h-[60vh] max-h-[560px] rounded-3xl overflow-hidden bg-black flex items-center justify-center border border-white/10 shadow-2xl">
                 <video src="${story.media_url}" autoplay playsinline controls class="w-full h-full object-contain rounded-3xl"></video>
             </div>
         `;
     } else {
+        const storyBg = resolveStoryBackground(story.bg_gradient);
         contentEl.innerHTML = `
-            <div class="w-full h-[70vh] sm:h-[75vh] max-h-[680px] rounded-3xl bg-gradient-to-tr ${story.bg_gradient || 'from-indigo-600 to-pink-500'} flex items-center justify-center p-8 text-center text-white text-2xl font-black shadow-2xl leading-relaxed">
+            <div class="n-literal-color w-full h-[56vh] sm:h-[60vh] max-h-[560px] rounded-3xl flex items-center justify-center p-8 text-center text-2xl font-black shadow-2xl leading-relaxed" style="background:${storyBg.css};color:${storyBg.text}">
                 ${escapeHtml(story.text_content)}
             </div>
         `;
@@ -3055,7 +3112,7 @@ function renderCurrentStory() {
         const isAdmin = (STATE.user && STATE.user.role === 'admin') || (STATE.networkInfo && STATE.networkInfo.isHostAdmin);
         if (isOwner || isAdmin) {
             deleteBtn.classList.remove('hidden');
-            deleteBtn.title = isOwner ? 'حذف الاستوري الخاص بي 🗑️' : 'حذف الاستوري (صلاحية الأدمن / المضيف) 👑';
+            deleteBtn.title = isOwner ? 'حذف الاستوري الخاص بي' : 'حذف الاستوري (صلاحية الأدمن / المضيف)';
         } else {
             deleteBtn.classList.add('hidden');
         }
@@ -3077,7 +3134,7 @@ async function deleteCurrentActiveStory() {
         });
         const data = await res.json();
         if (data.success) {
-            showNotification('تم حذف الاستوري بنجاح! 🗑️');
+            showNotification('تم حذف الاستوري بنجاح!');
             currentViewingGroup.stories.splice(activeStoryIndex, 1);
             if (currentViewingGroup.stories.length === 0) {
                 hideModal('storyViewerModal');
@@ -3146,7 +3203,7 @@ async function openStoryViewsModal() {
         if (viewers.length === 0) {
             listEl.innerHTML = `
                 <div class="text-center py-8 text-slate-500">
-                    <span class="text-3xl block mb-2">👻</span>
+                    <i data-lucide="eye" class="w-10 h-10 mx-auto mb-2 text-slate-500"></i>
                     <p class="text-xs font-bold text-slate-400">لم يشاهد أحد هذا الاستوري بعد</p>
                 </div>
             `;
@@ -3165,12 +3222,12 @@ async function openStoryViewsModal() {
                         <div>
                             <div class="flex items-center gap-1.5">
                                 <span class="text-xs font-bold text-white">${escapeHtml(v.nickname)}</span>
-                                ${v.role === 'admin' ? '<span class="text-micro px-1 rounded bg-amber-500/20 text-amber-400 font-black">👑 أدمن</span>' : ''}
+                                ${v.role === 'admin' ? '<span class="text-micro px-1 rounded bg-amber-500/20 text-amber-400 font-black"><i data-lucide="crown" class="w-3 h-3 inline"></i> أدمن</span>' : ''}
                             </div>
                             <span class="text-micro text-slate-400 block">${timeAgo}</span>
                         </div>
                     </div>
-                    <span class="text-cyan-400 text-xs font-mono">👁️</span>
+                    <i data-lucide="eye" class="w-3 h-3 text-cyan-400 inline"></i>
                 </div>
             `;
         });
@@ -3191,7 +3248,49 @@ function formatTimeAgo(dateString) {
     return new Date(dateString).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
 }
 
+// Story text-background palette. Stories store the palette `id` in the `bg_gradient` column
+// (the column name is historical). Colours are inline CSS, not Tailwind classes, so they
+// can't be purged from the build and don't depend on the (remapped) Tailwind colour scale.
+const STORY_BACKGROUNDS = [
+    { id: 'sage',        label: 'أخضر',            css: '#427665', text: '#FFFFFF' },
+    { id: 'forest',      label: 'أخضر غامق',       css: 'linear-gradient(135deg, #1F3D33, #427665)', text: '#FFFFFF' },
+    { id: 'ocean',       label: 'أزرق',            css: 'linear-gradient(135deg, #2F5A74, #4A819C)', text: '#FFFFFF' },
+    { id: 'terracotta',  label: 'طوبي',            css: '#A8553A', text: '#FFFFFF' },
+    { id: 'honey',       label: 'عسلي',            css: '#E9B575', text: '#503717' },
+    { id: 'ink',         label: 'فحمي',            css: '#292823', text: '#FFFFFF' },
+    { id: 'plum',        label: 'عنابي',           css: 'linear-gradient(135deg, #6B3A6B, #A64B7D)', text: '#FFFFFF' },
+    { id: 'violet-rose', label: 'بنفسجي ووردي',    css: 'linear-gradient(135deg, #6D28D9, #DB2777)', text: '#FFFFFF' }
+];
+
+// Stories published before the palette existed stored Tailwind gradient class strings.
+const LEGACY_STORY_BACKGROUNDS = {
+    'from-purple-600 to-pink-500': 'violet-rose',
+    'from-indigo-600 to-pink-500': 'violet-rose',
+    'from-blue-600 to-cyan-500': 'ocean',
+    'from-emerald-600 to-teal-500': 'sage',
+    'from-orange-600 to-amber-500': 'terracotta'
+};
+
+function resolveStoryBackground(value) {
+    const id = LEGACY_STORY_BACKGROUNDS[value] || value;
+    return STORY_BACKGROUNDS.find(b => b.id === id) || STORY_BACKGROUNDS[0];
+}
+
+function renderStoryBgPicker() {
+    const container = document.getElementById('storyBgPicker');
+    if (!container) return;
+    container.innerHTML = STORY_BACKGROUNDS.map((bg, i) => `
+        <label class="cursor-pointer" title="${bg.label}">
+            <input type="radio" name="storyGradient" value="${bg.id}" ${i === 0 ? 'checked' : ''} aria-label="${bg.label}" class="hidden peer">
+            <span class="n-literal-color w-9 h-9 rounded-full flex items-center justify-center ring-2 ring-transparent ring-offset-2 ring-offset-[#FFFCF6] peer-checked:ring-[#292823] [&>svg]:opacity-0 peer-checked:[&>svg]:opacity-100" style="background:${bg.css};color:${bg.text}">
+                <i data-lucide="check" class="w-4 h-4"></i>
+            </span>
+        </label>
+    `).join('');
+}
+
 function openStoryCreator() {
+    renderStoryBgPicker();
     showModal('storyCreatorModal');
 }
 
@@ -3199,7 +3298,7 @@ async function handleCreateStorySubmit(e) {
     e.preventDefault();
     const text = document.getElementById('storyTextInput').value.trim();
     const file = document.getElementById('storyFileInput').files[0];
-    const gradient = document.querySelector('input[name="storyGradient"]:checked')?.value || 'from-purple-600 to-pink-500';
+    const gradient = document.querySelector('input[name="storyGradient"]:checked')?.value || STORY_BACKGROUNDS[0].id;
 
     if (!text && !file) {
         alert('اكتب نص الاستوري أو ارفع صورة/فيديو!');
@@ -3301,7 +3400,7 @@ async function handleAirDropUpload(file) {
         const res = await fetch('/api/airdrop/upload', { method: 'POST', body: formData });
         const data = await res.json();
         if (data.success) {
-            showNotification('تم رفع الملف على Classroom AirDrop بنجاح! 🚀');
+            showNotification('تم رفع الملف على Classroom AirDrop بنجاح!');
         }
     } catch (e) {
         alert('فشل رفع الملف!');
@@ -3592,7 +3691,7 @@ function clearCodePadText() {
         if (STATE.socket) {
             STATE.socket.emit('codepad_update', { text: '', senderName: STATE.user ? STATE.user.nickname : 'زميل' });
         }
-        showNotification('تم تفريغ كشكول الأكواد المشترك 🗑️');
+        showNotification('تم تفريغ كشكول الأكواد المشترك');
     }
 }
 
@@ -3609,7 +3708,7 @@ function shareCodePadToChat() {
         mediaName: 'كشكول الأكواد (CodePad)'
     });
     hideModal('codepadModal');
-    showNotification('تمت مشاركة محتوى الكشكول في الشات بنجاح! 🚀');
+    showNotification('تمت مشاركة محتوى الكشكول في الشات بنجاح!');
 }
 
 function openCodeSnippetModal() {
@@ -3645,7 +3744,7 @@ function handleCodeSnippetSubmit(e) {
     if (codeInput) codeInput.value = '';
     if (titleInput) titleInput.value = '';
     hideModal('codeSnippetModal');
-    showNotification('تمت مشاركة الكود في الشات بنجاح! 🚀');
+    showNotification('تمت مشاركة الكود في الشات بنجاح!');
 }
 
 function copySnippetCode(messageId, btnElement) {
@@ -3787,7 +3886,7 @@ async function startScreenShare() {
             });
         }
 
-        showNotification('تم بدء بث الشاشة بنجاح! 🖥️ زمايلك في الفصل يقدروا يشوفوا البث الآن.');
+        showNotification('تم بدء بث الشاشة بنجاح! زمايلك في الفصل يقدروا يشوفوا البث الآن.');
     } catch (err) {
         console.error('Error starting screen share:', err);
         if (err.name !== 'NotAllowedError') {
@@ -3881,7 +3980,7 @@ function closeScreenShareView() {
     }
     STATE.screenShare.isViewing = false;
     closeScreenSharePanel();
-    showNotification('تم الخروج من مشاهدة البث 🚪');
+    showNotification('تم الخروج من مشاهدة البث');
 }
 
 function handleScreenShareControlClick() {
@@ -4008,7 +4107,7 @@ function handleScreenShareStarted(shareInfo) {
             textEl.textContent = `${shareInfo.presenterName} بدأ بث شاشته الآن! اضغط لمشاهدة البث مباشرة جنب الشات.`;
             banner.classList.remove('hidden');
         }
-        showNotification(`🖥️ ${shareInfo.presenterName} بدأ بث شاشته الآن!`);
+        showNotification(`${shareInfo.presenterName} بدأ بث شاشته الآن!`);
     }
 }
 
@@ -4404,7 +4503,7 @@ async function searchOnlineMusic(query) {
     if (!q) {
         container.innerHTML = `
             <div class="text-center py-10 text-slate-500">
-                <span class="text-4xl block mb-2">🌐</span>
+                <i data-lucide="globe" class="w-10 h-10 mx-auto mb-2 text-slate-500"></i>
                 <p class="text-xs font-bold text-slate-400">ابحث عن أي أغنية أونلاين لتشغيلها لجميع الطلاب فوراً!</p>
                 <p class="text-micro text-slate-500 mt-1">يتم سحب الأغنية وتوزيعها تلقائياً عبر شبكة المعمل بدون حجب ⚡</p>
             </div>
@@ -4414,7 +4513,7 @@ async function searchOnlineMusic(query) {
 
     container.innerHTML = `
         <div class="text-center py-12 text-pink-400">
-            <span class="text-4xl block mb-3 animate-spin">🌀</span>
+            <i data-lucide="loader-2" class="w-10 h-10 mx-auto mb-3 animate-spin text-pink-400"></i>
             <p class="text-xs font-bold text-white">جاري البحث عن "${escapeHtml(q)}" في قاعدة الموسيقى العالمية...</p>
             <p class="text-micro text-slate-400 mt-1">تخطي حجب الفايروول شغال 🛡️⚡</p>
         </div>
@@ -4430,7 +4529,7 @@ async function searchOnlineMusic(query) {
     } catch (err) {
         container.innerHTML = `
             <div class="text-center py-8 text-red-400 text-xs">
-                <span class="text-3xl block mb-2">⚠️</span>
+                <i data-lucide="triangle-alert" class="w-8 h-8 mx-auto mb-2 text-amber-400"></i>
                 <p class="font-bold">تعذر البحث عن الأغاني أونلاين!</p>
                 <p class="text-micro text-slate-400 mt-1">${escapeHtml(err.message)}</p>
             </div>
@@ -4445,7 +4544,7 @@ function renderOnlineMusicResults(songs, query) {
     if (songs.length === 0) {
         container.innerHTML = `
             <div class="text-center py-10 text-slate-500">
-                <span class="text-3xl block mb-2">🔍</span>
+                <i data-lucide="search" class="w-8 h-8 mx-auto mb-2 text-slate-500"></i>
                 <p class="text-xs font-bold text-slate-400">لم يتم العثور على نتائج لـ "${escapeHtml(query)}"</p>
                 <p class="text-micro text-slate-500 mt-1">جرب كتابة اسم الأغنية أو الفنان بشكل مختلف (عربي أو إنجليزي)</p>
             </div>
@@ -4463,7 +4562,7 @@ function renderOnlineMusicResults(songs, query) {
             <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-900/80 border ${isCurrentPlaying ? 'border-pink-500/60 bg-pink-500/10' : 'border-slate-800'} hover:border-pink-500/40 transition-all group">
                 <div class="flex items-center gap-3 min-w-0">
                     <div class="w-12 h-12 rounded-xl bg-slate-800 border border-white/10 overflow-hidden shrink-0 shadow-md flex items-center justify-center text-xl text-pink-400 relative">
-                        ${song.cover ? `<img src="${song.cover}" loading="lazy" class="w-full h-full object-cover" onerror="this.outerHTML='🎵'">` : '🎵'}
+                        ${song.cover ? `<img src="${song.cover}" loading="lazy" class="w-full h-full object-cover" onerror="this.outerHTML='<i data-lucide=&quot;music&quot; class=&quot;w-4 h-4&quot;></i>'; renderIcons();">` : '<i data-lucide="music" class="w-4 h-4"></i>'}
                     </div>
                     <div class="min-w-0">
                         <div class="flex items-center gap-1.5">
@@ -4479,12 +4578,12 @@ function renderOnlineMusicResults(songs, query) {
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                     <!-- Share to Chat -->
-                    <button type="button" onclick="shareOnlineTrackToChat(${idx})" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all" title="مشاركة في الشات 💬">
-                        💬
+                    <button type="button" onclick="shareOnlineTrackToChat(${idx})" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all" title="مشاركة في الشات">
+                        <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
                     </button>
                     <!-- Play for Class -->
                     <button type="button" id="onlinePlayBtn_${idx}" onclick="playOnlineSongForEveryone(${idx})" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1">
-                        <span>${isCurrentPlaying ? 'إعادة تشغيل 🔄' : 'تشغيل للكل 🎵'}</span>
+                        <span>${isCurrentPlaying ? 'إعادة تشغيل' : 'تشغيل للكل'}</span>
                     </button>
                 </div>
             </div>
@@ -4508,7 +4607,7 @@ async function playOnlineSongForEveryone(idx) {
     const btn = document.getElementById(`onlinePlayBtn_${idx}`);
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = `<span>جاري التشغيل... 🎵</span>`;
+        btn.innerHTML = `<span>جاري التشغيل...</span>`;
     }
 
     showNotification(`جاري تشغيل "${song.title}" لجميع أجهزة المعمل...`);
@@ -4532,7 +4631,7 @@ async function playOnlineSongForEveryone(idx) {
         const data = await res.json();
         if (data.success && data.track) {
             hideModal('musicSearchModal');
-            showNotification(`🎶 تم تشغيل "${song.title}" لجميع أجهزة المعمل!`);
+            showNotification(`تم تشغيل "${song.title}" لجميع أجهزة المعمل!`);
             loadMusicLibraryCountOnly();
             // Start local playback immediately with direct source
             if (audio && (data.track.audioUrl || data.track.file_url)) {
@@ -4543,7 +4642,7 @@ async function playOnlineSongForEveryone(idx) {
             showNotification(data.error || 'تعذر تشغيل الأغنية.');
             if (btn) {
                 btn.disabled = false;
-                btn.innerHTML = `<span>تشغيل للكل 🎵</span>`;
+                btn.innerHTML = `<span>تشغيل للكل</span>`;
             }
         }
     } catch (err) {
@@ -4565,7 +4664,7 @@ function shareOnlineTrackToChat(idx) {
         mediaName: song.title
     });
     hideModal('musicSearchModal');
-    showNotification('تمت مشاركة الأغنية في الشات 💬');
+    showNotification('تمت مشاركة الأغنية في الشات');
 }
 
 let musicSearchDebounce = null;
@@ -4588,7 +4687,7 @@ async function loadMusicLibrary(query = '') {
         window._lastSearchedTracks = tracks;
 
         if (countEl) {
-            countEl.textContent = `${tracks.length} أغنية متوفرة في الفصل 🎵`;
+            countEl.textContent = `${tracks.length} أغنية متوفرة في الفصل`;
         }
         const badge = document.getElementById('localTabCountBadge');
         if (badge) badge.textContent = tracks.length;
@@ -4597,10 +4696,11 @@ async function loadMusicLibrary(query = '') {
     } catch (err) {
         container.innerHTML = `
             <div class="text-center py-8 text-red-400 text-xs">
-                <span class="text-3xl block mb-2">⚠️</span>
+                <i data-lucide="triangle-alert" class="w-7 h-7 mx-auto mb-2"></i>
                 <p class="font-bold">تعذر تحميل مكتبة موسيقى الفصل!</p>
             </div>
         `;
+        renderIcons();
     }
 }
 
@@ -4611,13 +4711,14 @@ function renderMusicResults(tracks, query) {
     if (tracks.length === 0) {
         container.innerHTML = `
             <div class="text-center py-10 text-slate-500">
-                <span class="text-3xl block mb-2">🔍</span>
+                <i data-lucide="search" class="w-7 h-7 mx-auto mb-2"></i>
                 <p class="text-xs font-bold text-slate-400">
                     ${query ? `لم يتم العثور على أغاني مطابقة لـ "${escapeHtml(query)}"` : 'لا توجد أغاني في مكتبة الفصل حالياً!'}
                 </p>
-                <p class="text-micro text-slate-500 mt-1">اضغط على زر "➕ رفع أغنية" فوق لرفع أي أغنية عندك على الجهاز!</p>
+                <p class="text-micro text-slate-500 mt-1">اضغط على زر "رفع أغنية" فوق لرفع أي أغنية عندك على الجهاز!</p>
             </div>
         `;
+        renderIcons();
         return;
     }
 
@@ -4629,8 +4730,8 @@ function renderMusicResults(tracks, query) {
         html += `
             <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-900/70 border ${isCurrentPlaying ? 'border-pink-500/60 bg-pink-500/10' : 'border-slate-800'} hover:border-pink-500/40 transition-all group">
                 <div class="flex items-center gap-3 min-w-0">
-                    <div class="w-11 h-11 rounded-xl bg-slate-800 border border-white/10 overflow-hidden shrink-0 shadow-md flex items-center justify-center text-xl text-pink-400">
-                        ${track.cover ? `<img src="${track.cover}" class="w-full h-full object-cover" onerror="this.outerHTML='🎵'">` : (isCurrentPlaying ? '💿' : '🎵')}
+                    <div class="w-11 h-11 rounded-xl bg-slate-800 border border-white/10 overflow-hidden shrink-0 shadow-md flex items-center justify-center text-pink-400">
+                        ${track.cover ? `<img src="${track.cover}" class="w-full h-full object-cover" onerror="this.outerHTML='<i data-lucide=&quot;music&quot; class=&quot;w-4 h-4&quot;></i>'; renderIcons();">` : `<i data-lucide="${isCurrentPlaying ? 'disc-3' : 'music'}" class="w-4 h-4"></i>`}
                     </div>
                     <div class="min-w-0">
                         <div class="flex items-center gap-1.5">
@@ -4646,18 +4747,19 @@ function renderMusicResults(tracks, query) {
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                     <!-- Share to Chat -->
-                    <button onclick="shareTrackToChatByIndex(${idx})" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all" title="مشاركة في الشات 💬">
-                        💬
+                    <button onclick="shareTrackToChatByIndex(${idx})" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all" title="مشاركة في الشات">
+                        <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
                     </button>
                     <!-- Delete Track (if allowed) -->
                     ${canDelete ? `
                         <button onclick="deleteLibraryMusic('${track.id}')" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 text-xs font-bold transition-all" title="حذف الأغنية من المكتبة">
-                            🗑️
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                         </button>
                     ` : ''}
                     <!-- Play for Class -->
                     <button onclick="playTrackForEveryoneByIndex(${idx})" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1">
-                        <span>${isCurrentPlaying ? 'إعادة تشغيل 🔄' : 'تشغيل للكل 🎵'}</span>
+                        <i data-lucide="${isCurrentPlaying ? 'rotate-cw' : 'play'}" class="w-3.5 h-3.5"></i>
+                        <span>${isCurrentPlaying ? 'إعادة تشغيل' : 'تشغيل للكل'}</span>
                     </button>
                 </div>
             </div>
@@ -4665,6 +4767,7 @@ function renderMusicResults(tracks, query) {
     });
 
     container.innerHTML = html;
+    renderIcons();
 }
 
 function playTrackForEveryoneByIndex(idx) {
@@ -4688,7 +4791,7 @@ function playTrackForEveryoneByIndex(idx) {
         });
     }
     hideModal('musicSearchModal');
-    showNotification(`🎶 تم تشغيل "${track.title}" لجميع الطلاب في الفصل!`);
+    showNotification(`تم تشغيل "${track.title}" لجميع الطلاب في الفصل!`);
 }
 
 function shareTrackToChatByIndex(idx) {
@@ -4743,7 +4846,7 @@ async function handleRadioFileUpload(file) {
                 });
             }
             hideModal('musicSearchModal');
-            showNotification(`تم رفع وتشغيل "${track.title}" لجميع أجهزة المعمل! 🎵⚡`);
+            showNotification(`تم رفع وتشغيل "${track.title}" لجميع أجهزة المعمل!`);
             loadMusicLibrary();
         } else {
             showNotification(data.error || 'فشل رفع الملف الصوتي.');
@@ -4844,16 +4947,18 @@ function handleRadioSyncState(state) {
     }
 
     if (titleEl) titleEl.textContent = state.track.title || 'أغنية الفصل';
-    if (artistEl) artistEl.textContent = `${state.track.artist || 'موسيقى'} • مشغل بواسطة: ${state.djName || 'دي جي الفصل 🎧'}`;
+    if (artistEl) artistEl.textContent = `${state.track.artist || 'موسيقى'} • مشغل بواسطة: ${state.djName || 'دي جي الفصل'}`;
     if (playIconPlay) playIconPlay.classList.toggle('hidden', !!state.isPlaying);
     if (playIconPause) playIconPause.classList.toggle('hidden', !state.isPlaying);
 
     if (coverWrapper) {
+        const defaultCoverHTML = `<i data-lucide="disc-3" class="w-5 h-5" style="color:var(--n-primary); animation: n-spin 4s linear infinite;"></i>`;
         if (state.track.cover) {
-            coverWrapper.innerHTML = `<img src="${state.track.cover}" class="w-full h-full object-cover" onerror="this.outerHTML='<span class=\\'animate-spin\\'>📻</span>'">`;
+            coverWrapper.innerHTML = `<img src="${state.track.cover}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='${defaultCoverHTML.replace(/'/g, "\\'")}'; renderIcons();">`;
         } else {
-            coverWrapper.innerHTML = `<span class="animate-spin" style="animation-duration: 4s;">📻</span>`;
+            coverWrapper.innerHTML = defaultCoverHTML;
         }
+        renderIcons();
     }
 
     if (audio) {
@@ -5159,7 +5264,8 @@ function showModal(id) {
         const bio = document.getElementById('editBio');
         if (nick) nick.value = STATE.user.nickname || '';
         if (bio) bio.value = STATE.user.bio || '';
-        const radio = document.querySelector(`input[name="editAvatar"][value="${STATE.user.avatar}"]`);
+        const currentAvatar = AVATAR_LEGACY_MAP[STATE.user.avatar] || STATE.user.avatar;
+        const radio = document.querySelector(`input[name="editAvatar"][value="${currentAvatar}"]`);
         if (radio) {
             radio.checked = true;
         } else {
@@ -5389,7 +5495,7 @@ function setupEventListeners() {
                     updateProfileUI();
                     loadUsers(); // Refresh sidebar
                     hideModal('profileModal');
-                    showNotification('تم تحديث بروفايلك بنجاح! 🚀');
+                    showNotification('تم تحديث بروفايلك بنجاح!');
                 }
             } catch (err) {
                 alert('فشل تحديث البروفايل!');
@@ -5420,7 +5526,7 @@ function setupEventListeners() {
                 if (data.url) {
                     STATE.pendingEditAvatarUrl = data.url;
                     document.querySelectorAll('input[name="editAvatar"]').forEach(r => r.checked = false);
-                    showNotification('تم رفع الصورة بنجاح! 📷 اضغط حفظ التعديلات');
+                    showNotification('تم رفع الصورة بنجاح! اضغط حفظ التعديلات');
                 }
             } catch (err) {
                 alert('فشل رفع صورة البروفايل!');
@@ -6301,54 +6407,6 @@ let tasbeehState = {
     classroomTotal: 0
 };
 
-// Web Audio API Sound Synthesizers for Offline Realistic Bead Click and Chime
-function playTasbeehBeadClick() {
-    if (!tasbeehState.soundEnabled) return;
-    try {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
-        const ctx = new AudioCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        // Wooden bead click pitch
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(650 + Math.random() * 50, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(250, ctx.currentTime + 0.035);
-
-        gain.gain.setValueAtTime(0.25, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.035);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.035);
-    } catch (e) {}
-}
-
-function playTasbeehGoalChime() {
-    if (!tasbeehState.soundEnabled) return;
-    try {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
-        const ctx = new AudioCtx();
-        const now = ctx.currentTime;
-        const notes = [523.25, 659.25, 783.99, 1046.50];
-        notes.forEach((freq, idx) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(freq, now + idx * 0.07);
-            gain.gain.setValueAtTime(0.2, now + idx * 0.07);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.25);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(now + idx * 0.07);
-            osc.stop(now + idx * 0.07 + 0.25);
-        });
-    } catch (e) {}
-}
-
 function loadTasbeehStats() {
     try {
         const saved = JSON.parse(localStorage.getItem('no2ta_tasbeeh_stats') || '{}');
@@ -6467,7 +6525,6 @@ function incrementTasbeeh() {
     tasbeehState.classroomTotal++;
 
     if (tasbeehState.targetCount > 0 && tasbeehState.currentCount >= tasbeehState.targetCount) {
-        playTasbeehGoalChime();
         tasbeehState.cycleCount++;
 
         if (circle) {
@@ -6482,7 +6539,7 @@ function incrementTasbeeh() {
             tasbeehState.selectedDhikrId = TASBEEH_AZKAR[currentIdx + 1].id;
             tasbeehState.currentCount = 0;
             renderTasbeehDhikrList();
-            showNotification(`ما شاء الله! تمت الدورة بنجاح. الذكر التالي: ${TASBEEH_AZKAR[currentIdx + 1].title} 🌟`);
+            showNotification(`ما شاء الله! تمت الدورة بنجاح. الذكر التالي: ${TASBEEH_AZKAR[currentIdx + 1].title}`);
         } else {
             tasbeehState.currentCount = 0;
         }
@@ -6498,15 +6555,11 @@ function incrementTasbeeh() {
             dhikrTitle: currentDhikr ? currentDhikr.title : 'سُبْحَانَ اللَّهِ',
             senderName: STATE.user ? STATE.user.nickname : 'زميل'
         });
-    } else {
-        if (currentDhikr) {
-            playDhikrAudioPhrase(currentDhikr.id, currentDhikr.title);
-        }
     }
 }
 
 function resetCurrentTasbeeh() {
-    if (confirm('هل تريد تصفير عداد الذكر الحالي والبدء من جديد؟ 🔄')) {
+    if (confirm('هل تريد تصفير عداد الذكر الحالي والبدء من جديد؟')) {
         tasbeehState.currentCount = 0;
         tasbeehState.cycleCount = 1;
         updateTasbeehUI();
@@ -6843,18 +6896,6 @@ function updateSchoolScheduleUI(now = new Date()) {
 
 // ----------------------------------------------------
 // 18. Arabic Real Audio Voice & Synchronized Salawat Engine 🕋🔊
-const DHIKR_AUDIO_MAP = {
-    'subhanallah': '/audio/human_subhanallah.wav',
-    'alhamdulillah': '/audio/human_alhamdulillah.wav',
-    'lailahaillallah': '/audio/human_lailahaillallah.wav',
-    'allahuakbar': '/audio/human_allahuakbar.wav',
-    'astaghfirullah': '/audio/human_astaghfirullah.wav',
-    'lahawla': '/audio/human_lahawla.wav',
-    'salawat': '/audio/human_salawat.mp3',
-    'subhan_wabihamdih': '/audio/human_subhan_wabihamdih.wav',
-    'hasbiyallah': '/audio/hasbiyallah.mp3'
-};
-
 const SALAWAT_HUMAN_VOICES = {
     'voice1': '/audio/human_salawat.mp3',      // صلِّ على النبي ﷺ
     'voice2': '/audio/human_salawat_10.wav',   // اللهم صلِّ على محمد ﷺ
@@ -6862,15 +6903,6 @@ const SALAWAT_HUMAN_VOICES = {
 };
 
 // Pre-create Audio instances for instant human voice playback
-const PRELOADED_DHIKR_AUDIO = {};
-Object.keys(DHIKR_AUDIO_MAP).forEach(key => {
-    try {
-        const aud = new Audio(DHIKR_AUDIO_MAP[key]);
-        aud.preload = 'auto';
-        PRELOADED_DHIKR_AUDIO[key] = aud;
-    } catch (e) {}
-});
-
 const PRELOADED_SALAWAT_AUDIO = {};
 Object.keys(SALAWAT_HUMAN_VOICES).forEach(key => {
     try {
@@ -6888,7 +6920,7 @@ let audioUnlockedForSession = false;
 function unlockAllPreloadedAudioOnce() {
     if (audioUnlockedForSession) return;
     audioUnlockedForSession = true;
-    [...Object.values(PRELOADED_SALAWAT_AUDIO), ...Object.values(PRELOADED_DHIKR_AUDIO || {})].forEach(aud => {
+    Object.values(PRELOADED_SALAWAT_AUDIO).forEach(aud => {
         try {
             const wasMuted = aud.muted;
             aud.muted = true;
@@ -6907,7 +6939,6 @@ document.addEventListener('click', unlockAllPreloadedAudioOnce, { once: true });
 document.addEventListener('touchstart', unlockAllPreloadedAudioOnce, { once: true });
 document.addEventListener('keydown', unlockAllPreloadedAudioOnce, { once: true });
 
-let activeDhikrAudio = null;
 let salawatSelectedSound = 'voice1'; // ONLY human voices: 'voice1', 'voice2', 'voice3'
 
 function selectSalawatVoice(type) {
@@ -6927,26 +6958,6 @@ function selectSalawatVoice(type) {
 
 function testSalawatAudioVoice() {
     playSalawatVoice(salawatSelectedSound);
-}
-
-function playDhikrAudioPhrase(dhikrId, fallbackText = '') {
-    if (!tasbeehState.soundEnabled) return;
-
-    try {
-        const audioSrc = DHIKR_AUDIO_MAP[dhikrId] || '/audio/human_subhanallah.wav';
-        const fresh = new Audio(audioSrc);
-        fresh.volume = 1.0;
-        activeDhikrAudio = fresh;
-
-        const playPromise = fresh.play();
-        if (playPromise !== undefined) {
-            playPromise.catch(err => {
-                console.warn('Dhikr audio playback error (user interaction needed):', err);
-            });
-        }
-    } catch (e) {
-        console.error('playDhikrAudioPhrase error:', e);
-    }
 }
 
 function showDhikrFloatingToast(data) {
@@ -7035,7 +7046,7 @@ function triggerClassroomSalawat(soundType = null) {
     const selected = (soundType && SALAWAT_HUMAN_VOICES[soundType]) ? soundType : (salawatSelectedSound || 'voice1');
     if (STATE.socket && STATE.socket.connected) {
         STATE.socket.emit('admin_trigger_salawat', { soundType: selected });
-        showNotification('تم إطلاق صوت "صلِّ على محمد ﷺ" (صوت بشري 🎙️) لجميع الأجهزة بالمعمل!');
+        showNotification('تم إطلاق صوت "صلِّ على محمد ﷺ" لجميع الأجهزة بالمعمل!');
     } else {
         handleSalawatBroadcast({ soundType: selected });
     }
