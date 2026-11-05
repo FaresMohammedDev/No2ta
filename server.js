@@ -1262,17 +1262,77 @@ app.post('/api/airdrop/upload', upload.single('file'), async (req, res) => {
     }
 });
 
+const airdropCleanupTimers = new Map();
+
+async function deleteAirDropFileRecord(id) {
+    try {
+        const file = await get(`SELECT * FROM airdrop_files WHERE id = ?`, [id]);
+        if (file) {
+            if (file.file_url) {
+                const filePath = path.join(__dirname, file.file_url.replace(/^\//, ''));
+                if (fs.existsSync(filePath)) {
+                    try { fs.unlinkSync(filePath); } catch (e) {}
+                }
+            }
+            await run(`DELETE FROM airdrop_files WHERE id = ?`, [id]);
+            io.emit('airdrop_file_deleted', { id });
+            console.log(`🗑️ [AIRDROP AUTO-CLEANUP] Deleted temporary file: ${file.file_name} (${id})`);
+        }
+    } catch (err) {
+        console.error('AirDrop deletion error:', err);
+    }
+}
+
 app.post('/api/airdrop/download/:id', async (req, res) => {
     try {
         const { id } = req.params;
         await run(`UPDATE airdrop_files SET downloads_count = downloads_count + 1 WHERE id = ?`, [id]);
         const file = await get(`SELECT * FROM airdrop_files WHERE id = ?`, [id]);
         io.emit('airdrop_download_incremented', { id, count: file ? file.downloads_count : 0 });
+
+        // Auto-cleanup temporary LAN transfer after 25s grace period
+        if (!airdropCleanupTimers.has(id)) {
+            io.emit('airdrop_file_expiring', { id, ttlSeconds: 25 });
+            const timer = setTimeout(async () => {
+                airdropCleanupTimers.delete(id);
+                await deleteAirDropFileRecord(id);
+            }, 25000);
+            airdropCleanupTimers.set(id, timer);
+        }
+
         res.json({ success: true, count: file ? file.downloads_count : 0 });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
+
+app.delete('/api/airdrop/file/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (airdropCleanupTimers.has(id)) {
+            clearTimeout(airdropCleanupTimers.get(id));
+            airdropCleanupTimers.delete(id);
+        }
+        await deleteAirDropFileRecord(id);
+        res.json({ success: true, id });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Periodic Sweeper: auto-remove temporary files older than 30 mins or downloaded > 1 min ago
+setInterval(async () => {
+    try {
+        const expired = await all(`
+            SELECT id FROM airdrop_files 
+            WHERE (downloads_count > 0 AND (julianday('now') - julianday(created_at)) * 1440 > 1)
+               OR ((julianday('now') - julianday(created_at)) * 1440 > 30)
+        `);
+        for (const item of expired) {
+            await deleteAirDropFileRecord(item.id);
+        }
+    } catch (e) {}
+}, 5 * 60 * 1000);
 
 // 9c. Classroom Groups & Squads API 👥
 app.get('/api/groups', async (req, res) => {
@@ -2479,12 +2539,25 @@ app.post('/api/netsupport/control', async (req, res) => {
             }
 
             case 'force_stealth': {
+                stopQuranRelay();
+                activeRadioTrack = null;
+                io.emit('radio_sync_state', null);
+                io.emit('GLOBAL_EMERGENCY_MUTE');
                 if (targetSocketId === 'all' || targetIp === 'all') {
                     io.emit('GLOBAL_STEALTH_ENGAGED', { timestamp: Date.now() });
                 } else if (targetSocketId) {
                     io.to(targetSocketId).emit('GLOBAL_STEALTH_ENGAGED', { timestamp: Date.now() });
                     updateDeviceState(targetIp, { isStealth: true });
                 }
+                break;
+            }
+
+            case 'mute_all': {
+                stopQuranRelay();
+                activeRadioTrack = null;
+                io.emit('radio_sync_state', null);
+                io.emit('GLOBAL_EMERGENCY_MUTE');
+                console.log('🔇 [ADMIN NETSUPPORT MUTE] Broadcasted emergency mute across all screens');
                 break;
             }
 
@@ -2873,6 +2946,115 @@ function advanceMemoryGame() {
     memoryGame.sequence.push(Math.floor(Math.random() * MEMORY_COLOR_COUNT));
     memoryGame.survivedThisRound = new Set();
     broadcastMemoryRound();
+}
+
+// ---------------------- ⚡ REFLEX BATTLE (تحدي سرعة رد الفعل) ----------------------
+const reflexGame = {
+    active: false,
+    status: 'idle', // 'idle' | 'waiting' | 'green' | 'round_result' | 'finished'
+    round: 0,
+    maxRounds: 5,
+    greenAt: 0,
+    delayTimer: null,
+    roundTimeoutTimer: null,
+    nextRoundTimer: null,
+    falseStarters: new Set(),
+    roundFinishers: [],
+    scores: {},
+    allRoundsFastest: []
+};
+
+function startReflexGame() {
+    if (reflexGame.delayTimer) clearTimeout(reflexGame.delayTimer);
+    if (reflexGame.roundTimeoutTimer) clearTimeout(reflexGame.roundTimeoutTimer);
+    if (reflexGame.nextRoundTimer) clearTimeout(reflexGame.nextRoundTimer);
+
+    reflexGame.active = true;
+    reflexGame.round = 0;
+    reflexGame.scores = {};
+    reflexGame.allRoundsFastest = [];
+    nextReflexRound();
+}
+
+function nextReflexRound() {
+    reflexGame.round++;
+    if (reflexGame.round > reflexGame.maxRounds) {
+        finishReflexGame();
+        return;
+    }
+
+    reflexGame.status = 'waiting';
+    reflexGame.greenAt = 0;
+    reflexGame.falseStarters = new Set();
+    reflexGame.roundFinishers = [];
+
+    io.emit('reflex_state', {
+        status: 'waiting',
+        round: reflexGame.round,
+        maxRounds: reflexGame.maxRounds,
+        scores: Object.entries(reflexGame.scores).sort((a, b) => b[1] - a[1])
+    });
+
+    const suspenseMs = Math.floor(2000 + Math.random() * 3200);
+    reflexGame.delayTimer = setTimeout(() => {
+        reflexGame.status = 'green';
+        reflexGame.greenAt = Date.now();
+
+        io.emit('reflex_turn_green', {
+            round: reflexGame.round,
+            greenAt: reflexGame.greenAt
+        });
+
+        reflexGame.roundTimeoutTimer = setTimeout(() => {
+            endReflexRound();
+        }, 4500);
+    }, suspenseMs);
+}
+
+function endReflexRound() {
+    if (reflexGame.roundTimeoutTimer) clearTimeout(reflexGame.roundTimeoutTimer);
+    if (reflexGame.delayTimer) clearTimeout(reflexGame.delayTimer);
+    reflexGame.status = 'round_result';
+
+    const winner = reflexGame.roundFinishers.length > 0 ? reflexGame.roundFinishers[0] : null;
+    if (winner) {
+        reflexGame.allRoundsFastest.push({
+            round: reflexGame.round,
+            nickname: winner.nickname,
+            ms: winner.ms
+        });
+    }
+
+    io.emit('reflex_round_result', {
+        round: reflexGame.round,
+        winner,
+        finishers: reflexGame.roundFinishers,
+        falseStarters: Array.from(reflexGame.falseStarters),
+        scores: Object.entries(reflexGame.scores).sort((a, b) => b[1] - a[1])
+    });
+
+    reflexGame.nextRoundTimer = setTimeout(() => {
+        if (reflexGame.round >= reflexGame.maxRounds) {
+            finishReflexGame();
+        } else {
+            nextReflexRound();
+        }
+    }, 3200);
+}
+
+function finishReflexGame() {
+    reflexGame.active = false;
+    reflexGame.status = 'finished';
+    if (reflexGame.delayTimer) clearTimeout(reflexGame.delayTimer);
+    if (reflexGame.roundTimeoutTimer) clearTimeout(reflexGame.roundTimeoutTimer);
+    if (reflexGame.nextRoundTimer) clearTimeout(reflexGame.nextRoundTimer);
+
+    const ranked = Object.entries(reflexGame.scores).sort((a, b) => b[1] - a[1]);
+    const fastestOfAll = reflexGame.allRoundsFastest.slice().sort((a, b) => a.ms - b.ms)[0] || null;
+    io.emit('reflex_game_over', {
+        scores: ranked,
+        fastestOfAll
+    });
 }
 
 io.use(async (socket, next) => {
@@ -3396,6 +3578,78 @@ socket.on('admin_trigger_salawat', (data = {}) => {
         socket.emit('codepad_sync', { text: sharedCodePadText });
     });
 
+    // Reflex Battle (سرعة رد الفعل)
+    if (reflexGame.active) {
+        socket.emit('reflex_state', {
+            status: reflexGame.status,
+            round: reflexGame.round,
+            maxRounds: reflexGame.maxRounds,
+            greenAt: reflexGame.greenAt,
+            scores: Object.entries(reflexGame.scores).sort((a, b) => b[1] - a[1])
+        });
+    }
+
+    socket.on('reflex_start', () => {
+        if (reflexGame.active) {
+            socket.emit('error_notification', { message: 'تحدي سرعة رد الفعل قيد التشغيل بالفعل!' });
+            return;
+        }
+        startReflexGame();
+    });
+
+    socket.on('reflex_click', (data = {}) => {
+        if (!reflexGame.active) return;
+        const nickname = socket.data.user ? socket.data.user.nickname : 'طالب';
+
+        if (reflexGame.status === 'waiting') {
+            if (!reflexGame.falseStarters.has(nickname)) {
+                reflexGame.falseStarters.add(nickname);
+                socket.emit('reflex_player_result', {
+                    falseStart: true,
+                    message: 'تسرعت! ضغطت قبل اللون الأخضر ❌'
+                });
+                io.emit('reflex_player_false_start', { nickname });
+            }
+            return;
+        }
+
+        if (reflexGame.status === 'green') {
+            if (reflexGame.falseStarters.has(nickname)) return;
+            if (reflexGame.roundFinishers.some(f => f.nickname === nickname)) return;
+
+            const now = Date.now();
+            const reactionMs = Math.max(1, now - reflexGame.greenAt);
+            const rank = reflexGame.roundFinishers.length + 1;
+            const points = rank === 1 ? 5 : (rank === 2 ? 3 : (rank === 3 ? 2 : 1));
+            reflexGame.scores[nickname] = (reflexGame.scores[nickname] || 0) + points;
+
+            const finisher = { nickname, ms: reactionMs, rank, points };
+            reflexGame.roundFinishers.push(finisher);
+
+            socket.emit('reflex_player_result', {
+                falseStart: false,
+                ms: reactionMs,
+                rank,
+                points
+            });
+
+            io.emit('reflex_finisher', finisher);
+
+            if (reflexGame.roundFinishers.length >= 4) {
+                if (reflexGame.roundTimeoutTimer) clearTimeout(reflexGame.roundTimeoutTimer);
+                reflexGame.roundTimeoutTimer = setTimeout(endReflexRound, 1000);
+            }
+        }
+    });
+
+    socket.on('admin_emergency_mute', async () => {
+        stopQuranRelay();
+        activeRadioTrack = null;
+        io.emit('radio_sync_state', null);
+        io.emit('GLOBAL_EMERGENCY_MUTE');
+        console.log('🔇 [ADMIN EMERGENCY MUTE] Broadcasted to entire classroom');
+    });
+
     // 5. GLOBAL PANIC BUTTON ("زر البشمهندسة" 🚨)
     // Accessible by ANY student! Instantly broadcasts to everyone in <15ms
     socket.on('TRIGGER_GLOBAL_PANIC', async () => {
@@ -3403,6 +3657,13 @@ socket.on('admin_trigger_salawat', (data = {}) => {
         await run(`UPDATE system_settings SET value = '1' WHERE key = 'stealth_active'`);
         const senderInfo = onlineUsers.get(socket.id);
         console.log(`🚨 [GLOBAL PANIC] Triggered by ${senderInfo ? senderInfo.nickname : 'Unknown'} (${clientIp})`);
+
+        // Emergency silent mute across LAN in 0ms
+        stopQuranRelay();
+        activeRadioTrack = null;
+        io.emit('radio_sync_state', null);
+        io.emit('GLOBAL_EMERGENCY_MUTE');
+
         io.emit('GLOBAL_STEALTH_ENGAGED', {
             triggeredBy: senderInfo ? senderInfo.nickname : 'أحد الزملاء',
             timestamp: Date.now()

@@ -14,6 +14,7 @@ const STATE = {
     stories: [],
     streaks: [],
     airdropFiles: [],
+    reflex: { status: 'idle', round: 1, maxRounds: 5, greenAt: 0, hasClickedThisRound: false },
     networkInfo: {},
     disappearingSeconds: 0,
     isChatLocked: false,
@@ -526,6 +527,194 @@ function handleMemoryGameResult(data) {
     const statusEl = document.getElementById('memoryGameStatusText');
     if (!statusEl) return;
     statusEl.textContent = data.correct ? 'صح! استنى الجولة الجاية...' : 'غلط! خرجت من اللعبة، تابع الباقيين.';
+}
+
+// ---------------------- ⚡ REFLEX BATTLE (تحدي سرعة رد الفعل) ----------------------
+function startReflexGame() {
+    if (STATE.socket) {
+        STATE.socket.emit('reflex_start');
+    }
+}
+
+function handleReflexState(state) {
+    if (!state) return;
+    STATE.reflex.status = state.status;
+    STATE.reflex.round = state.round || 1;
+    STATE.reflex.maxRounds = state.maxRounds || 5;
+    STATE.reflex.hasClickedThisRound = false;
+
+    const modal = document.getElementById('reflexGameModal');
+    const idleView = document.getElementById('reflexGameIdleView');
+    const arenaView = document.getElementById('reflexGameArenaView');
+    const finishedView = document.getElementById('reflexGameFinishedView');
+    if (!modal || !idleView || !arenaView || !finishedView) return;
+
+    if (state.status === 'waiting') {
+        idleView.classList.add('hidden');
+        finishedView.classList.add('hidden');
+        arenaView.classList.remove('hidden');
+
+        document.getElementById('reflexRoundProgress').textContent = `جولة ${state.round} / ${state.maxRounds}`;
+        document.getElementById('reflexRoundFastest').textContent = '';
+        document.getElementById('reflexLiveScores').innerHTML = '';
+        setReflexPadState('waiting');
+
+        if (state.round === 1 && modal.classList.contains('hidden')) {
+            showNotification('⚡ بدأ تحدي سرعة رد الفعل في المعمل! ادخل من قائمة الألعاب.');
+        }
+    } else if (state.status === 'finished') {
+        idleView.classList.add('hidden');
+        arenaView.classList.add('hidden');
+        finishedView.classList.remove('hidden');
+    }
+}
+
+function handleReflexTurnGreen(data) {
+    STATE.reflex.status = 'green';
+    STATE.reflex.greenAt = data?.greenAt || Date.now();
+    STATE.reflex.hasClickedThisRound = false;
+
+    setReflexPadState('green');
+
+    if (window.soundEngine && typeof window.soundEngine.playReflexGreen === 'function') {
+        window.soundEngine.playReflexGreen();
+    }
+}
+
+function setReflexPadState(mode, val) {
+    const pad = document.getElementById('reflexPad');
+    const iconEl = document.getElementById('reflexPadIcon');
+    const mainText = document.getElementById('reflexPadMainText');
+    const subText = document.getElementById('reflexPadSubText');
+    if (!pad || !iconEl || !mainText || !subText) return;
+
+    // Reset base classes
+    pad.className = 'w-full h-56 rounded-2xl border-2 flex flex-col items-center justify-center cursor-pointer select-none transition-all duration-150 p-4 text-center shadow-inner';
+
+    if (mode === 'waiting') {
+        pad.classList.add('bg-rose-950/40', 'border-rose-500/50', 'text-rose-200');
+        iconEl.innerHTML = '<i data-lucide="timer" class="w-10 h-10 text-rose-400 animate-pulse"></i>';
+        mainText.textContent = 'استعد... ركّز! 🛑';
+        subText.textContent = 'لا تضغط قبل ظهور اللون الأخضر';
+    } else if (mode === 'green') {
+        pad.classList.add('bg-emerald-500', 'border-emerald-300', 'text-slate-950', 'font-black', 'animate-pulse', 'shadow-2xl');
+        iconEl.innerHTML = '<i data-lucide="zap" class="w-12 h-12 text-slate-950 animate-bounce"></i>';
+        mainText.textContent = 'اضغط الآن بأقصى سرعة! ⚡';
+        subText.textContent = 'اضغط هنا أو زر المسافة (Spacebar)';
+    } else if (mode === 'early') {
+        pad.classList.add('bg-amber-950/60', 'border-amber-500/50', 'text-amber-200');
+        iconEl.innerHTML = '<i data-lucide="alert-circle" class="w-10 h-10 text-amber-400"></i>';
+        mainText.textContent = 'تسرعت! ضغطت قبل الأخضر ❌';
+        subText.textContent = 'تم احتساب تسرع لهذه الجولة — ركّز في الجولة القادمة';
+    } else if (mode === 'success') {
+        const ms = val || 0;
+        pad.classList.add('bg-cyan-950/70', 'border-cyan-500/60', 'text-cyan-200');
+        iconEl.innerHTML = '<i data-lucide="zap" class="w-10 h-10 text-cyan-300"></i>';
+        mainText.textContent = `سرعتك: ${ms} ms! ⚡`;
+        subText.textContent = ms < 200 ? 'سرعة خارقة للعادة! ⚡' : (ms < 280 ? 'ممتاز جداً! رد فعل سريع 🏎️' : 'جيد! خليك أسرع الجولة الجاية 🎯');
+    }
+    renderIcons();
+}
+
+function handleReflexPadClick() {
+    if (!STATE.reflex || STATE.reflex.hasClickedThisRound) return;
+    if (STATE.reflex.status !== 'waiting' && STATE.reflex.status !== 'green') return;
+
+    STATE.reflex.hasClickedThisRound = true;
+
+    if (STATE.reflex.status === 'waiting') {
+        setReflexPadState('early');
+        if (STATE.socket) STATE.socket.emit('reflex_click', { status: 'waiting' });
+        if (window.soundEngine && typeof window.soundEngine.playReaction === 'function') {
+            window.soundEngine.playReaction();
+        }
+        return;
+    }
+
+    if (STATE.reflex.status === 'green') {
+        const reactionMs = Math.max(1, Date.now() - (STATE.reflex.greenAt || Date.now()));
+        setReflexPadState('success', reactionMs);
+        if (STATE.socket) STATE.socket.emit('reflex_click', { status: 'green', reactionMs });
+        if (window.soundEngine && typeof window.soundEngine.playSend === 'function') {
+            window.soundEngine.playSend();
+        }
+    }
+}
+
+function handleReflexFinisher(finisher) {
+    if (!finisher) return;
+    const list = document.getElementById('reflexLiveScores');
+    if (!list) return;
+
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900/60 border border-white/5 text-xs';
+    row.innerHTML = `
+        <span class="font-bold text-slate-200">#${finisher.rank} ${escapeHtml(finisher.nickname)}</span>
+        <div class="flex items-center gap-2">
+            <span class="font-mono text-cyan-300">${finisher.ms} ms</span>
+            <span class="text-micro bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-bold">+${finisher.points}ن</span>
+        </div>
+    `;
+    list.appendChild(row);
+}
+
+function handleReflexPlayerFalseStart(data) {
+    if (!data) return;
+    const list = document.getElementById('reflexLiveScores');
+    if (!list) return;
+
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-rose-950/40 border border-rose-500/20 text-xs text-rose-300';
+    row.innerHTML = `
+        <span>${escapeHtml(data.nickname)}</span>
+        <span class="text-micro text-rose-400 font-bold">تسرع (False Start) ❌</span>
+    `;
+    list.appendChild(row);
+}
+
+function handleReflexRoundResult(data) {
+    if (!data) return;
+    const banner = document.getElementById('reflexRoundFastest');
+    if (banner) {
+        if (data.winner) {
+            banner.textContent = `أسرع ضغطة: ${escapeHtml(data.winner.nickname)} (${data.winner.ms} ms)`;
+        } else {
+            banner.textContent = 'انتهت الجولة بدون فائز';
+        }
+    }
+}
+
+function handleReflexGameOver(data) {
+    const idleView = document.getElementById('reflexGameIdleView');
+    const arenaView = document.getElementById('reflexGameArenaView');
+    const finishedView = document.getElementById('reflexGameFinishedView');
+    if (!idleView || !arenaView || !finishedView) return;
+
+    idleView.classList.add('hidden');
+    arenaView.classList.add('hidden');
+    finishedView.classList.remove('hidden');
+
+    const badge = document.getElementById('reflexFastestEverBadge');
+    if (badge && data.fastestOfAll) {
+        badge.textContent = `⚡ الرقم القياسي: ${escapeHtml(data.fastestOfAll.nickname)} في ${data.fastestOfAll.ms} ms!`;
+    }
+
+    const container = document.getElementById('reflexFinalScores');
+    if (container && Array.isArray(data.scores)) {
+        if (data.scores.length === 0) {
+            container.innerHTML = '<div class="text-center text-xs text-slate-500 py-2">لا توجد نقاط مسجلة</div>';
+            return;
+        }
+        container.innerHTML = data.scores.map(([name, pts], idx) => `
+            <div class="flex items-center justify-between px-3 py-2 rounded-xl ${idx === 0 ? 'bg-amber-500/15 border border-amber-400/40' : 'bg-slate-900/60 border border-white/5'} text-xs">
+                <div class="flex items-center gap-2">
+                    <span class="font-bold ${idx === 0 ? 'text-amber-300' : 'text-slate-400'}">#${idx + 1}</span>
+                    <span class="font-bold text-white">${escapeHtml(name)}</span>
+                </div>
+                <span class="font-mono font-black text-amber-300">${pts} نقطة</span>
+            </div>
+        `).join('');
+    }
 }
 
 // ---------------------------------------------------------------
@@ -1407,6 +1596,34 @@ function getSyncedServerTime() {
     STATE.socket.on('memory_game_state', (state) => handleMemoryGameState(state));
     STATE.socket.on('memory_game_result', (data) => handleMemoryGameResult(data));
 
+    // ⚡ REFLEX BATTLE SOCKET LISTENERS
+    STATE.socket.on('reflex_state', (state) => handleReflexState(state));
+    STATE.socket.on('reflex_turn_green', (data) => handleReflexTurnGreen(data));
+    STATE.socket.on('reflex_finisher', (data) => handleReflexFinisher(data));
+    STATE.socket.on('reflex_player_false_start', (data) => handleReflexPlayerFalseStart(data));
+    STATE.socket.on('reflex_round_result', (data) => handleReflexRoundResult(data));
+    STATE.socket.on('reflex_game_over', (data) => handleReflexGameOver(data));
+
+    // 🔇 EMERGENCY SILENT MUTE
+    STATE.socket.on('GLOBAL_EMERGENCY_MUTE', () => {
+        emergencyMuteAllAudio();
+        showNotification('🔇 تم كتم جميع أصوات الفصل فوراً');
+    });
+
+    // 📦 AIRDROP AUTO-CLEANUP & EXPIRATION
+    STATE.socket.on('airdrop_file_deleted', ({ id }) => {
+        STATE.airdropFiles = (STATE.airdropFiles || []).filter(f => f.id !== id);
+        renderAirDropList();
+    });
+    STATE.socket.on('airdrop_file_expiring', ({ id, ttlSeconds }) => {
+        const file = (STATE.airdropFiles || []).find(f => f.id === id);
+        if (file) {
+            file.expiring = true;
+            file.ttlSeconds = ttlSeconds || 25;
+            renderAirDropList();
+        }
+    });
+
     // 👁️ LIVE STORY VIEW UPDATE
     STATE.socket.on('story_view_updated', ({ storyId, viewsCount }) => {
         if (currentViewingGroup && currentViewingGroup.stories[activeStoryIndex]?.id === storyId) {
@@ -1499,11 +1716,34 @@ let lastEscPress = 0;
 
 function setupStealthHotkeys() {
     window.addEventListener('keydown', (e) => {
-        // Hotkey: F2 triggers instant stealth on EVERYONE!
+        // Hotkey: F2 triggers instant stealth & emergency mute on EVERYONE!
         if (e.key === 'F2') {
             e.preventDefault();
             triggerPanicButton();
             return;
+        }
+
+        // Emergency Mute Hotkey: Ctrl + Alt + M or Ctrl + Shift + M
+        if ((e.ctrlKey && e.altKey && (e.key === 'm' || e.key === 'M' || e.key === 'ة')) ||
+            (e.ctrlKey && e.shiftKey && (e.key === 'm' || e.key === 'M' || e.key === 'ة'))) {
+            e.preventDefault();
+            if (STATE.socket) STATE.socket.emit('admin_emergency_mute');
+            emergencyMuteAllAudio();
+            showNotification('🔇 تم كتم كل الأصوات فوراً');
+            return;
+        }
+
+        // Reflex Battle Spacebar click
+        if (e.code === 'Space') {
+            const reflexModal = document.getElementById('reflexGameModal');
+            if (reflexModal && !reflexModal.classList.contains('hidden')) {
+                const arenaView = document.getElementById('reflexGameArenaView');
+                if (arenaView && !arenaView.classList.contains('hidden')) {
+                    e.preventDefault();
+                    handleReflexPadClick();
+                    return;
+                }
+            }
         }
 
         // Hotkey: F3 closes stealth on THIS device only (Requires Password)
@@ -1547,9 +1787,64 @@ function triggerPanicButton() {
     engageStealthMode({ triggeredBy: STATE.user ? STATE.user.nickname : 'أنت' });
 }
 
+function emergencyMuteAllAudio() {
+    if (window.soundEngine) {
+        window.soundEngine.killAllAudio();
+    }
+    if (sharedWebAudioCtx) {
+        try { sharedWebAudioCtx.suspend(); } catch (e) {}
+    }
+    if (window._activeAudioBufferSources) {
+        window._activeAudioBufferSources.forEach(src => {
+            try { src.stop(0); } catch (e) {}
+        });
+        window._activeAudioBufferSources.clear();
+    }
+    if (typeof PRELOADED_SALAWAT_AUDIO === 'object') {
+        Object.values(PRELOADED_SALAWAT_AUDIO).forEach(aud => {
+            try {
+                aud.pause();
+                aud.currentTime = 0;
+            } catch (e) {}
+        });
+    }
+    const radioAudio = document.getElementById('classroomAudioElement');
+    if (radioAudio) {
+        radioAudio.pause();
+        radioAudio.muted = true;
+        radioAudio.currentTime = 0;
+    }
+    document.querySelectorAll('audio, video').forEach(el => {
+        try {
+            el.pause();
+            el.muted = true;
+            el.currentTime = 0;
+        } catch (e) {}
+    });
+    if (window.ytPlayer && typeof window.ytPlayer.pauseVideo === 'function') {
+        try {
+            window.ytPlayer.pauseVideo();
+            window.ytPlayer.mute();
+        } catch (e) {}
+    }
+    if (window.speechSynthesis) {
+        try { window.speechSynthesis.cancel(); } catch (e) {}
+    }
+    if (window.salawatBannerTimer) clearTimeout(window.salawatBannerTimer);
+    if (window._scheduledSalawatTimeout) clearTimeout(window._scheduledSalawatTimeout);
+    if (window._dhikrToastTimer) clearTimeout(window._dhikrToastTimer);
+
+    if (STATE.radio) {
+        STATE.radio.isPlaying = false;
+        STATE.radio.activeTrack = null;
+        if (typeof updateRadioUI === 'function') updateRadioUI();
+    }
+}
+window.emergencyMuteAllAudio = emergencyMuteAllAudio;
+
 function engageStealthMode(info) {
     STATE.isStealthActive = true;
-    window.soundEngine.killAllAudio();
+    emergencyMuteAllAudio();
 
     // Mute and pause any active screen share immediately!
     const screenVideo = document.getElementById('screenShareVideo');
@@ -3410,20 +3705,27 @@ function renderAirDropList() {
     }
 
     container.innerHTML = STATE.airdropFiles.map(f => `
-        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-cyan-500/30 transition-all">
-            <div class="flex items-center gap-3">
+        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-cyan-500/30 transition-all gap-2">
+            <div class="flex items-center gap-3 min-w-0">
                 <i data-lucide="package" class="w-5 h-5 text-cyan-400 shrink-0"></i>
-                <div>
-                    <h4 class="text-sm font-bold text-white truncate max-w-xs">${escapeHtml(f.file_name)}</h4>
+                <div class="min-w-0">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <h4 class="text-sm font-bold text-white truncate max-w-xs">${escapeHtml(f.file_name)}</h4>
+                        <span class="text-[10px] bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 px-1.5 py-0.5 rounded-full font-mono">مؤقت</span>
+                        ${f.expiring ? '<span class="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-full font-bold">جاري الحذف ⏳</span>' : ''}
+                    </div>
                     <p class="text-[11px] text-slate-400">بواسطة: ${escapeHtml(f.sender_name)} • ${(f.file_size / (1024*1024)).toFixed(2)} MB</p>
                 </div>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 shrink-0">
                 <span id="airdrop-dl-${f.id}" class="text-xs text-slate-400 flex items-center gap-1"><i data-lucide="download" class="w-3 h-3"></i> ${f.downloads_count || 0}</span>
-                <a href="${f.file_url}" download="${f.file_name}" onclick="recordAirDropDownload('${f.id}')" class="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-bold text-xs hover:bg-cyan-400 transition-all flex items-center gap-1">
-                    <span>تحميل فوري</span>
+                <a href="${f.file_url}" download="${f.file_name}" onclick="recordAirDropDownload('${f.id}')" class="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-bold text-xs hover:bg-cyan-400 transition-all flex items-center gap-1 cursor-pointer">
+                    <span>تحميل</span>
                     <i data-lucide="zap" class="w-3 h-3"></i>
                 </a>
+                <button type="button" onclick="deleteAirDropFile('${f.id}')" class="p-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 transition-all cursor-pointer" title="حذف الملف الآن لتوفير المساحة">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
             </div>
         </div>
     `).join('');
@@ -3433,7 +3735,23 @@ function renderAirDropList() {
 async function recordAirDropDownload(id) {
     try {
         await fetch(`/api/airdrop/download/${id}`, { method: 'POST' });
+        const file = (STATE.airdropFiles || []).find(f => f.id === id);
+        if (file) {
+            file.expiring = true;
+            renderAirDropList();
+        }
     } catch (e) {}
+}
+
+async function deleteAirDropFile(id) {
+    try {
+        await fetch(`/api/airdrop/file/${id}`, { method: 'DELETE' });
+        STATE.airdropFiles = (STATE.airdropFiles || []).filter(f => f.id !== id);
+        renderAirDropList();
+        showNotification('🗑️ تم حذف الملف من شبكة الفصل بنجاح');
+    } catch (e) {
+        console.error('Failed to delete airdrop file:', e);
+    }
 }
 
 async function handleAirDropUpload(file) {
@@ -5963,6 +6281,14 @@ async function adminNetSupportDeviceControl(action, targetSocketId, targetIp, pa
 }
 
 async function adminNetSupportGlobalAction(action) {
+    if (action === 'mute_all') {
+        if (STATE.socket) {
+            STATE.socket.emit('admin_emergency_mute');
+        }
+        emergencyMuteAllAudio();
+        showNotification('🔇 تم كتم جميع الأصوات في المعمل فوراً');
+        return;
+    }
     if (action === 'lock_all') {
         if (confirm('هل أنت متأكد من قفل شاشات جميع الأجهزة في المعمل فوراً؟')) {
             await adminNetSupportDeviceControl('lock_screen', 'all', 'all');
@@ -7087,7 +7413,7 @@ function showDhikrFloatingToast(data) {
 }
 
 function schedulePrecisionSalawat(voiceKey, targetServerTime) {
-    if (!tasbeehState.soundEnabled) return;
+    if (STATE.isStealthActive || !tasbeehState.soundEnabled) return;
     const nowServer = getSyncedServerTime();
     const delayMs = targetServerTime ? (targetServerTime - nowServer) : 0;
 
@@ -7100,6 +7426,11 @@ function schedulePrecisionSalawat(voiceKey, targetServerTime) {
         const source = ctx.createBufferSource();
         source.buffer = buffer;
         source.connect(ctx.destination);
+        window._activeAudioBufferSources = window._activeAudioBufferSources || new Set();
+        window._activeAudioBufferSources.add(source);
+        source.onended = () => {
+            if (window._activeAudioBufferSources) window._activeAudioBufferSources.delete(source);
+        };
 
         if (delayMs > 0) {
             const startAtCtxTime = ctx.currentTime + (delayMs / 1000);

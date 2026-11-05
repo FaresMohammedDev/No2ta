@@ -97,6 +97,26 @@ class SoundEngine {
         } catch (e) {}
     }
 
+    playReflexGreen() {
+        if (this.isMuted) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            const now = this.ctx.currentTime;
+            osc.frequency.setValueAtTime(880, now);
+            osc.frequency.exponentialRampToValueAtTime(1760, now + 0.12);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.15);
+        } catch (e) {}
+    }
+
     killAllAudio() {
         this.isMuted = true;
         if (this.ctx) {
@@ -108,9 +128,13 @@ class SoundEngine {
         document.querySelectorAll('audio, video').forEach(el => {
             try {
                 el.pause();
+                el.muted = true;
                 el.currentTime = 0;
             } catch (e) {}
         });
+        if (window.speechSynthesis) {
+            try { window.speechSynthesis.cancel(); } catch (e) {}
+        }
     }
 
     resumeAudio() {

@@ -70,6 +70,7 @@
         <button type="button"  class="paper-tool" onclick="showModal('wordGuessModal')"><i data-lucide="lightbulb"></i><strong>خمّن الكلمة</strong><small>كل حرف يقرّبك</small></button>
         <button type="button"  class="paper-tool" onclick="showModal('triviaModal')"><i data-lucide="brain-circuit"></i><strong>تريفيا</strong><small>اختبر معلوماتك</small></button>
         <button type="button"  class="paper-tool" onclick="showModal('memoryGameModal')"><i data-lucide="palette"></i><strong>ذاكرة الألوان</strong><small>ركّز وافتكر الترتيب</small></button>
+        <button type="button"  class="paper-tool" onclick="showModal('reflexGameModal')"><i data-lucide="zap"></i><strong>سرعة رد الفعل</strong><small>مين أسرع واحد يضغط؟</small></button>
       </div></section>
       <footer class="paper-home-footer">نؤطة · حكاية فصل، صفحة كل يوم.</footer>
     </main>
@@ -611,7 +612,10 @@
             <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
                 <div class="flex items-center gap-2">
                     <i data-lucide="send" class="w-5 h-5 text-cyan-400"></i>
-                    <h3 class="text-base font-black text-white">Classroom AirDrop (مشاركة الملفات السريعة)</h3>
+                    <div>
+                        <h3 class="text-base font-black text-white">Classroom AirDrop (مشاركة الملفات السريعة)</h3>
+                        <p class="text-[11px] text-cyan-400/80">نقل مؤقت ومباشر بين أجهزة الفصل — تُحذف الملفات تلقائياً بعد التنزيل لتوفير المساحة</p>
+                    </div>
                 </div>
                 <button type="button" onclick="hideModal('airdropModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
                     <i data-lucide="x" class="w-4 h-4"></i>
@@ -1551,6 +1555,10 @@
                         <i data-lucide="book-open" class="w-3 h-3"></i>
                         <span>تمويه للكل</span>
                     </button>
+                    <button onclick="adminNetSupportGlobalAction('mute_all')" class="px-2.5 py-1 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="إسكات فوري لكل الأصوات في المعمل">
+                        <i data-lucide="volume-x" class="w-3 h-3"></i>
+                        <span>كتم الأصوات (0ms)</span>
+                    </button>
                     <button onclick="adminNetSupportGlobalAction('message_all')" class="px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
                         <i data-lucide="message-circle" class="w-3 h-3"></i>
                         <span>رسالة للكل</span>
@@ -2221,6 +2229,84 @@
                 <button type="button" onclick="startMemoryGame()" class="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-black text-xs flex items-center justify-center gap-2">
                     <i data-lucide="rotate-ccw" class="w-[14px] h-[14px]"></i>
                     <span>لعبة جديدة</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ⚡ REFLEX BATTLE (تحدي سرعة رد الفعل) -->
+    <div id="reflexGameModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+        <div class="n-paper-card glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-md w-full border border-amber-500/40 shadow-2xl relative">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shadow-inner">
+                        <i data-lucide="zap" class="w-5 h-5 text-amber-300"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-black text-white">تحدي سرعة رد الفعل</h3>
+                        <p class="text-[11px] text-amber-400/80">الشاشة بتتحول من الأحمر للأخضر فجأة — أسرع ضغطة تفوز</p>
+                    </div>
+                </div>
+                <button type="button" onclick="hideModal('reflexGameModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Idle state -->
+            <div id="reflexGameIdleView">
+                <div class="p-4 rounded-2xl bg-slate-900/80 border border-white/5 mb-4 text-center">
+                    <div class="flex items-center justify-center gap-2 mb-2 text-amber-300 font-bold text-xs">
+                        <i data-lucide="timer" class="w-4 h-4"></i>
+                        <span>قواعد التحدي (5 جولات سريعة)</span>
+                    </div>
+                    <p class="text-xs text-slate-400 leading-relaxed">
+                        1. انتظر الشاشة الحمراء "استعد..."<br>
+                        2. أول ما تتحول للأخضر، اضغط بأقصى سرعة على الشاشة أو زر المسافة (Spacebar)!<br>
+                        3. ممنوع التسرع! الضغط قبل الأخضر يحسب خطأ للجولة.
+                    </p>
+                </div>
+                <button type="button" onclick="startReflexGame()" class="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/30 transition cursor-pointer">
+                    <i data-lucide="play" class="w-4 h-4"></i>
+                    <span>ابدأ التحدي في المعمل</span>
+                </button>
+            </div>
+
+            <!-- Active arena state -->
+            <div id="reflexGameArenaView" class="hidden">
+                <div class="flex items-center justify-between mb-3 text-micro text-slate-400 font-bold">
+                    <span id="reflexRoundProgress">جولة 1 / 5</span>
+                    <span id="reflexRoundFastest" class="text-emerald-400 font-mono"></span>
+                </div>
+
+                <!-- Big Interactive Touch / Click Arena Pad -->
+                <div id="reflexPad" onclick="handleReflexPadClick()" class="w-full h-56 rounded-2xl border-2 flex flex-col items-center justify-center cursor-pointer select-none transition-all duration-150 p-4 text-center bg-rose-950/40 border-rose-500/50 text-rose-200 shadow-inner">
+                    <div id="reflexPadIcon" class="mb-2">
+                        <i data-lucide="timer" class="w-10 h-10 text-rose-400 animate-pulse"></i>
+                    </div>
+                    <div id="reflexPadMainText" class="text-xl sm:text-2xl font-black mb-1">استعد... ركّز! 🛑</div>
+                    <div id="reflexPadSubText" class="text-xs opacity-80">لا تضغط قبل ظهور اللون الأخضر</div>
+                </div>
+
+                <div class="mt-3">
+                    <div class="text-[11px] font-bold text-slate-400 mb-1.5 flex items-center justify-between">
+                        <span>لوحة الشرف اللحظية للجولة:</span>
+                        <span class="text-micro text-slate-500">مسافة أو لمس</span>
+                    </div>
+                    <div id="reflexLiveScores" class="space-y-1 max-h-28 overflow-y-auto custom-scrollbar"></div>
+                </div>
+            </div>
+
+            <!-- Finished state -->
+            <div id="reflexGameFinishedView" class="hidden">
+                <div class="text-center mb-4">
+                    <i data-lucide="trophy" class="w-12 h-12 text-amber-400 mx-auto mb-2"></i>
+                    <h4 class="text-base font-black text-white">انتهى تحدي سرعة رد الفعل!</h4>
+                    <p id="reflexFastestEverBadge" class="text-xs text-amber-300 font-bold mt-1"></p>
+                </div>
+                <div id="reflexFinalScores" class="space-y-1.5 mb-4 max-h-48 overflow-y-auto custom-scrollbar"></div>
+                <button type="button" onclick="startReflexGame()" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 cursor-pointer">
+                    <i data-lucide="rotate-ccw" class="w-[14px] h-[14px]"></i>
+                    <span>تحدي جديد</span>
                 </button>
             </div>
         </div>
