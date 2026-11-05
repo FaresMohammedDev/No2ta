@@ -502,27 +502,27 @@
     <!-- ======================================================== -->
     <!-- 🚨 THE FULLSCREEN STEALTH OVERLAY (كتاب وكويز الفيزيكس) 🚨 -->
     <!-- ======================================================== -->
-    <div id="stealthPhysicsOverlay" class="hidden fixed inset-0 z-50 bg-[#030712] flex flex-col">
-        <!-- Discreet Teacher Safety Top Bar -->
-        <div class="bg-gray-900 border-b border-gray-800 px-4 py-2 flex items-center justify-between text-xs text-gray-400">
+    <div id="stealthPhysicsOverlay" class="hidden fixed inset-0 z-50 bg-[var(--n-bg)] flex flex-col">
+        <!-- Discreet Teacher Safety Top Bar (No2ta Paper Style) -->
+        <div class="bg-[var(--n-surface)] border-b border-[var(--n-line)] px-4 py-2 flex items-center justify-between text-xs text-[var(--n-muted)] shadow-sm">
             <div class="flex items-center gap-2">
-                <i data-lucide="book-marked" class="w-4 h-4 text-cyan-400"></i>
-                <span class="font-extrabold text-white">المركز القومي للمناهج والتقويم التربوي - بنك أسئلة ونموذج إجابة مادة تطبيقات الهاتف (Flutter Competency Model Revision)</span>
+                <img src="/brand/no2ta-paper-mark.svg" alt="" class="w-4 h-4 shrink-0">
+                <span class="font-extrabold text-[var(--n-ink)]">كشكول المراجعة والتقييم — مهارات تطبيقات فلاتر (Flutter Competency Model Revision)</span>
             </div>
             <div class="flex items-center gap-2">
-                <span class="text-gray-500 hidden sm:inline">Flutter Competency Assessment • Mobile App Development</span>
+                <span class="text-[var(--n-muted)] hidden sm:inline">بنك الأسئلة ونموذج الإجابة المعتمد · نؤطة</span>
                 <!-- F3 Close on this device only (Requires Password) -->
-                <button onclick="promptLocalStealthUnlock()" class="px-2.5 py-1 rounded bg-gray-800 hover:bg-gray-700 text-cyan-400 hover:text-white transition-all text-[11px] font-mono font-bold flex items-center gap-1">
-                    <i data-lucide="lock" class="w-3 h-3"></i> F3 إغلاق عندي فقط
+                <button onclick="promptLocalStealthUnlock()" class="n-btn px-2.5 py-1 text-[11px] font-mono font-bold flex items-center gap-1" style="min-height:30px;">
+                    <i data-lucide="lock" class="w-3 h-3 text-[var(--n-primary)]"></i> F3 إنهاء وضع التخفي
                 </button>
                 <!-- Admin Only Global Unlock -->
-                <button id="stealthGlobalUnlockBtn" onclick="promptGlobalStealthUnlock()" class="hidden px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 transition-all text-[11px] font-bold flex items-center gap-1">
-                    <i data-lucide="crown" class="w-3 h-3"></i> فك للجميع
+                <button id="stealthGlobalUnlockBtn" onclick="promptGlobalStealthUnlock()" class="hidden n-btn n-btn-primary px-2.5 py-1 text-[11px] font-bold flex items-center gap-1" style="min-height:30px;">
+                    <i data-lucide="crown" class="w-3 h-3"></i> فتح للجميع
                 </button>
             </div>
         </div>
         <!-- Iframe with authentic Solved Physics Revision -->
-        <iframe id="stealthIframe" src="/stealth/physics.html" class="flex-1 w-full h-full border-none bg-gray-950"></iframe>
+        <iframe id="stealthIframe" src="/stealth/physics.html" class="flex-1 w-full h-full border-none bg-[var(--n-bg)]"></iframe>
     </div>
 
     <!-- ======================================================== -->
