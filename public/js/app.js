@@ -642,7 +642,7 @@ function stopTabTitleAlert() {
 window.addEventListener('focus', () => {
     stopTabTitleAlert();
     // When returning to window, mark active direct chat as read
-    if (STATE.activeChat && STATE.activeChat.type === 'direct' && STATE.activeChat.recipient && STATE.user) {
+    if ((window.No2taHome?.isChatVisible() ?? true) && STATE.activeChat && STATE.activeChat.type === 'direct' && STATE.activeChat.recipient && STATE.user) {
         STATE.socket?.emit('mark_messages_read', {
             senderId: STATE.activeChat.recipient.id,
             recipientId: STATE.user.id
@@ -1000,6 +1000,7 @@ function initSocket() {
     STATE.socket.on('new_message', (data) => {
         const { message, streakInfo } = data;
         const isMe = STATE.user && message.sender_id === STATE.user.id;
+        const isChatVisible = window.No2taHome?.isChatVisible() ?? true;
         const isCurrentChat = (message.chat_type === 'general' && STATE.activeChat.type === 'general') ||
             (message.chat_type === 'direct' && STATE.activeChat.type === 'direct' &&
              (message.sender_id === STATE.activeChat.recipient?.id || message.recipient_id === STATE.activeChat.recipient?.id)) ||
@@ -1029,7 +1030,7 @@ function initSocket() {
                 partner.last_message_text = message.content || (message.media_type ? 'ملف مرفق 📎' : '');
 
                 if (!isMe) {
-                    if (!isCurrentChat || !document.hasFocus()) {
+                    if (!isCurrentChat || !isChatVisible || !document.hasFocus()) {
                         partner.unread_count = (Number(partner.unread_count) || 0) + 1;
                     } else {
                         STATE.socket.emit('mark_messages_read', { senderId: partner.id, recipientId: STATE.user.id });
@@ -1060,7 +1061,7 @@ function initSocket() {
                 : (message.media_type ? 'أرسل مرفقاً 📎' : 'رسالة جديدة');
 
             // Floating in-app pill notification (if chat is not active or window blurred)
-            if (!isCurrentChat || !document.hasFocus()) {
+            if (!isCurrentChat || !isChatVisible || !document.hasFocus()) {
                 const chatTag = message.chat_type === 'direct' ? 'خاص' : (message.chat_type === 'group' ? 'جروب' : 'عام');
                 showNotification(`💬 [${chatTag}] ${senderName}: ${previewText}`, 4000);
             }
@@ -1636,7 +1637,7 @@ function renderUsersList() {
         }
 
         return `
-            <div onclick="selectDirectChat('${u.id}')" class="flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all ${cardBgClass}">
+            <div role="button" tabindex="0" aria-current="${STATE.activeChat.recipient?.id === u.id && STATE.activeChat.type === 'direct'}" onclick="selectDirectChat('${u.id}')" class="flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all ${cardBgClass}">
                 <div class="flex items-center gap-3 min-w-0 flex-1">
                     <div class="relative shrink-0">
                         <div class="w-10 h-10 rounded-full bg-slate-800 border ${hasUnread ? 'border-cyan-400 ring-2 ring-cyan-400/30' : 'border-slate-700'} flex items-center justify-center text-xl overflow-hidden transition-all">
@@ -1711,6 +1712,9 @@ function switchSidebarTab(tabName) {
 }
 
 function updateSidebarTabsUI(activeTab) {
+    for (const [name, id] of [['general','tabGeneralBtn'],['groups','tabGroupsBtn'],['direct','tabDirectBtn']]) {
+        document.getElementById(id)?.setAttribute('aria-pressed', String(activeTab === name));
+    }
     const tabGen = document.getElementById('tabGeneralBtn');
     const tabGroups = document.getElementById('tabGroupsBtn');
     const tabDirect = document.getElementById('tabDirectBtn');
@@ -1759,6 +1763,8 @@ function updateDirectStreakBadge(otherUserId) {
 }
 
 function selectGeneralChat() {
+    window.No2taHome?.show('chat');
+    window.No2taHome?.closeChatList();
     stopTabTitleAlert();
     STATE.activeChat = { type: 'general', recipient: null, group: null };
     document.getElementById('currentChatTitle').textContent = 'شات الفصل العام (General)';
@@ -1781,6 +1787,8 @@ function selectGeneralChat() {
 }
 
 function selectDirectChat(userId) {
+    window.No2taHome?.show('chat');
+    window.No2taHome?.closeChatList();
     const target = STATE.users.find(u => u.id === userId);
     if (!target) return;
 
@@ -1823,6 +1831,8 @@ function selectDirectChat(userId) {
 }
 
 function selectGroupChat(groupId) {
+    window.No2taHome?.show('chat');
+    window.No2taHome?.closeChatList();
     stopTabTitleAlert();
     const target = STATE.groups.find(g => g.id === groupId);
     if (!target) return;
@@ -1969,7 +1979,7 @@ function renderGroupsList() {
         }
 
         html += `
-            <div onclick="selectGroupChat('${g.id}')" class="flex items-center justify-between p-2.5 rounded-2xl cursor-pointer transition-all ${isSelected ? 'bg-purple-500/20 border border-purple-500/40 shadow-md' : 'hover:bg-slate-800/60 border border-transparent'}">
+            <div role="button" tabindex="0" aria-current="${isSelected}" onclick="selectGroupChat('${g.id}')" class="flex items-center justify-between p-2.5 rounded-2xl cursor-pointer transition-all ${isSelected ? 'bg-purple-500/20 border border-purple-500/40 shadow-md' : 'hover:bg-slate-800/60 border border-transparent'}">
                 <div class="flex items-center gap-2.5 min-w-0">
                     <div class="w-10 h-10 rounded-2xl bg-purple-900/40 border border-purple-500/30 flex items-center justify-center text-xl shrink-0 shadow">
                         ${g.icon || '👥'}
@@ -2633,7 +2643,7 @@ function formatMessageHTML(m) {
     if (m.media_type === 'code') {
         const langOrTitle = escapeHtml(m.media_name || 'Code Snippet');
         codeSnippetHTML = `
-            <div class="mt-1.5 rounded-xl overflow-hidden border border-cyan-500/30 bg-[#070b16] max-w-full shadow-lg">
+            <div class="paper-code-snippet mt-1.5 rounded-xl overflow-hidden border border-cyan-500/30 bg-[#070b16] max-w-full shadow-lg">
                 <div class="flex items-center justify-between px-3 py-1.5 bg-slate-900/90 border-b border-white/10 text-xs gap-3">
                     <div class="flex items-center gap-1.5 font-mono text-cyan-400 font-bold truncate">
                         <span>&lt;/&gt;</span>
@@ -2673,7 +2683,7 @@ function formatMessageHTML(m) {
                 </div>
 
                 <!-- Quick Reaction Trigger Buttons (on hover) -->
-                <div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-full px-2 py-0.5 mt-1 shadow-lg text-xs">
+                <div class="paper-message-actions opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-full px-2 py-0.5 mt-1 shadow-lg text-xs">
                     <button onclick="toggleReaction('${m.id}', '❤️')" class="hover:scale-125 transition-transform">❤️</button>
                     <button onclick="toggleReaction('${m.id}', '😂')" class="hover:scale-125 transition-transform">😂</button>
                     <button onclick="toggleReaction('${m.id}', '🔥')" class="hover:scale-125 transition-transform">🔥</button>
@@ -3883,6 +3893,8 @@ function handleScreenShareControlClick() {
 }
 
 function openScreenSharePanel({ presenterName, isPresenter }) {
+    window.No2taHome?.show('chat');
+    window.No2taHome?.closeChatList();
     const panel = document.getElementById('screenShareTheaterPanel');
     const nameEl = document.getElementById('screenSharePresenterName');
     const controlBtnText = document.getElementById('screenShareControlBtnText');
@@ -5212,6 +5224,7 @@ function hideTypingIndicator() {
 }
 
 function setDisappearingTimer(seconds) {
+    window.No2taHome?.closeTimer(true);
     STATE.disappearingSeconds = seconds;
     const btn = document.getElementById('disappearingToggleBtn');
     if (btn) {

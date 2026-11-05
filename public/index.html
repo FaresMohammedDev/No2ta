@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl" class="dark">
+<html lang="ar" dir="rtl" class="dark" data-no2ta-theme="paper">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,15 +14,69 @@
     <link rel="stylesheet" href="/css/design-tokens.css">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/css/style.css?v=20261104-1">
+    <link rel="stylesheet" href="/css/paper-tokens.css?v=20261105-1">
+    <link rel="stylesheet" href="/css/paper-components.css?v=20261105-1">
+    <link rel="stylesheet" href="/css/paper-home.css?v=20261105-1">
+    <link rel="stylesheet" href="/css/paper-chat.css?v=20261105-1">
+    <link rel="stylesheet" href="/css/paper-legacy-modals.css?v=20261105-1">
     <!-- Socket.IO Client -->
     <script src="/socket.io/socket.io.js"></script>
     <!-- Audio Synthesizer -->
     <script src="/js/audio_synth.js"></script>
 </head>
-<body class="bg-[var(--no2ta-bg-canvas)] text-slate-100 min-h-screen flex flex-col antialiased selection:bg-cyan-500 selection:text-black">
+<body class="paper-app bg-[var(--no2ta-bg-canvas)] text-slate-100 min-h-screen flex flex-col antialiased selection:bg-cyan-500 selection:text-black">
+
+    <div id="paperShell">
+      <nav class="paper-nav n-page" aria-label="التنقل الرئيسي">
+        <a class="n-brand" href="#" onclick="No2taHome.show('home'); return false;" aria-label="نؤطة — الرئيسية"><img src="/brand/no2ta-paper-mark.svg" alt=""><strong>نؤطة</strong></a>
+        <div class="paper-nav-links"><button type="button" data-paper-nav="home"><i data-lucide="house"></i>الرئيسية</button><button type="button" data-paper-nav="chat"><i data-lucide="messages-square"></i>المحادثات</button><button type="button" data-paper-nav="paperTools"><i data-lucide="pencil-ruler"></i>الأدوات</button><button type="button" data-paper-nav="paperGames"><i data-lucide="gamepad-2"></i>الألعاب</button><button type="button" data-paper-nav="paperDay"><i data-lucide="calendar-days"></i>يومي</button></div>
+        <div class="paper-nav-foot"><span>دفترنا، وكل يوم فيه حكاية.</span><span>نؤطة · مساحة الفصل</span></div>
+      </nav>
+      <header class="paper-top n-page">
+        <div><div class="paper-connection" id="paperConnection" role="status">جاري الاتصال…</div><span id="paperDate" class="paper-date n-small n-muted"></span></div>
+        <div class="n-row paper-top-actions">
+          <button type="button" class="n-btn n-btn-icon" onclick="showModal('networkModal')" aria-label="معلومات الشبكة"><i data-lucide="wifi"></i></button>
+          <button type="button" class="n-btn" onclick="showModal('profileModal')"><i data-lucide="user-round"></i>حسابي</button>
+          <button type="button" class="n-btn n-btn-danger" onclick="triggerPanicButton()" title="إخفاء فوري — F2"><i data-lucide="siren"></i>البشمهندسة!</button>
+        </div>
+      </header>
+    </div>
+    <main id="paperHome" class="paper-home n-page">
+      <section class="paper-hero" aria-labelledby="paperGreeting">
+        <div><span class="n-badge" id="paperOnline">الفصل اليوم</span><h1 id="paperGreeting">أهلًا بيك في نؤطة</h1><p>يوم جديد، صفحة جديدة. شوف أخبار زمايلك، كمّل كلامك، وخلي أدواتك جنبك.</p><div class="n-row" style="margin-top:20px"><button type="button" class="n-btn n-btn-primary" onclick="selectGeneralChat()">ادخل شات الفصل<i data-lucide="arrow-left"></i></button><button type="button" class="n-btn n-btn-ghost" onclick="No2taHome.show('home','paperTools')">افتح أدواتك</button></div></div>
+        <div class="paper-clock"><span class="n-small n-muted">توقيت الإسكندرية</span><strong id="paperClock">--:--</strong><span id="paperSchool" class="n-small">جاري حساب اليوم…</span></div>
+      </section>
+      <section id="paperActivity" class="paper-activity" hidden aria-label="بث مباشر"><span id="paperActivityText"></span><button type="button" class="n-btn n-btn-primary" onclick="joinScreenShare()"><i data-lucide="monitor-play"></i>شاهد البث</button></section>
+      <section class="paper-section" aria-labelledby="paperStoriesHeading"><div class="paper-section-head"><h2 id="paperStoriesHeading">لحظات من يومنا</h2><span class="n-small n-muted">استوريهات الفصل</span></div><div id="paperStories" class="paper-stories"></div></section>
+      <div class="paper-columns paper-section">
+        <section class="n-card" aria-labelledby="paperRecentHeading"><div class="paper-section-head"><h2 id="paperRecentHeading">كمّل كلامك</h2><button type="button" class="n-btn n-btn-ghost" onclick="No2taHome.openChats()">كل المحادثات<i data-lucide="arrow-left"></i></button></div><div id="paperRecent" class="paper-list"></div></section>
+        <section id="paperDay" class="n-card" aria-labelledby="paperDayHeading"><div class="paper-section-head"><h2 id="paperDayHeading">يومك على ورقة</h2><i data-lucide="sun"></i></div><div class="paper-prayer"><div><span class="paper-mini-title">الصلاة القادمة</span><div><strong id="paperNextPrayer">—</strong></div></div><span id="paperPrayerCountdown" class="n-small">جاري حساب المواقيت…</span></div><div class="paper-schedule-line"><span>الحصة</span><span id="paperSessionTimer">—</span></div><div class="paper-schedule-line"><span>الاستراحة</span><span id="paperBreak">—</span></div><div class="paper-schedule-line"><span>نهاية اليوم</span><span id="paperDismissal">—</span></div><div class="n-row" style="margin-top:16px"><button type="button" class="n-btn n-btn-ghost" onclick="openPrayerTimesModal()">مواقيت الصلاة</button><button type="button" class="n-btn n-btn-ghost" onclick="openSchoolScheduleModal()">جدول الحصص</button></div></section>
+      </div>
+      <section id="paperTools" class="paper-section" aria-labelledby="paperToolsHeading"><div class="paper-section-head"><h2 id="paperToolsHeading">كل أدواتك، في مكانها</h2><span class="n-small n-muted">نفكّر ونشارك سوا</span></div><div class="paper-tools">
+        <button type="button"  class="paper-tool" onclick="showModal('whiteboardModal')"><i data-lucide="pen-tool"></i><strong>السبورة المشتركة</strong><small>ارسم واشرح فكرتك</small></button>
+        <button type="button"  class="paper-tool" onclick="showModal('airdropModal')"><i data-lucide="send"></i><strong>مشاركة الملفات</strong><small>ملفاتك توصل للفصل</small></button>
+        <button type="button"  class="paper-tool" onclick="openCodepadModal()"><i data-lucide="code-2"></i><strong>كشكول الأكواد</strong><small>اكتبوا وراجعوا مع بعض</small></button>
+        <button type="button"  class="paper-tool" onclick="toggleScreenShare()"><i data-lucide="monitor-play"></i><strong>بث الشاشة</strong><small>شارك شاشتك أو شاهد البث</small></button>
+        <button type="button"  class="paper-tool" onclick="openHolyQuranRadioModal()"><i data-lucide="radio"></i><strong>إذاعة القرآن</strong><small>استمع لإذاعة القاهرة</small></button>
+        <button type="button"  class="paper-tool" onclick="openMusicModal()"><i data-lucide="music-2"></i><strong>راديو الفصل</strong><small>قائمة الاستماع المشتركة</small></button>
+        <button type="button"  class="paper-tool" onclick="openTasbeehModal()"><i data-lucide="circle-dot-dashed"></i><strong>السبحة</strong><small>وقت صغير للذكر</small></button>
+        <button type="button"  class="paper-tool" onclick="showModal('connectHostModal')"><i data-lucide="network"></i><strong>سيرفر الفصل</strong><small>اتصل بزمايلك على الشبكة</small></button>
+        <button type="button" id="paperAdmin" hidden class="paper-tool" onclick="openAdminDashboard()"><i data-lucide="crown"></i><strong>إدارة الفصل</strong><small>إعدادات وصلاحيات الفصل</small></button>
+        <button type="button" id="paperMonitor" hidden class="paper-tool" onclick="openNetSupportModal()"><i data-lucide="monitor"></i><strong>مراقبة المعمل</strong><small>الأجهزة المتصلة والتحكم</small></button>
+      </div></section>
+      <section id="paperGames" class="paper-section" aria-labelledby="paperGamesHeading"><div class="paper-section-head"><h2 id="paperGamesHeading">فسحة صغيرة</h2><span class="n-small n-muted">اختار تحدّيك</span></div><div class="paper-tools paper-games">
+        <button type="button"  class="paper-tool" onclick="showModal('mathGameModal')"><i data-lucide="swords"></i><strong>تحدي الرياضيات</strong><small>سرعة وتفكير</small></button>
+        <button type="button"  class="paper-tool" onclick="showModal('typingRaceModal')"><i data-lucide="keyboard"></i><strong>سباق الكتابة</strong><small>مين أسرع على الكيبورد؟</small></button>
+        <button type="button"  class="paper-tool" onclick="showModal('wordGuessModal')"><i data-lucide="lightbulb"></i><strong>خمّن الكلمة</strong><small>كل حرف يقرّبك</small></button>
+        <button type="button"  class="paper-tool" onclick="showModal('triviaModal')"><i data-lucide="brain-circuit"></i><strong>تريفيا</strong><small>اختبر معلوماتك</small></button>
+        <button type="button"  class="paper-tool" onclick="showModal('memoryGameModal')"><i data-lucide="palette"></i><strong>ذاكرة الألوان</strong><small>ركّز وافتكر الترتيب</small></button>
+      </div></section>
+      <footer class="paper-home-footer">نؤطة · حكاية فصل، صفحة كل يوم.</footer>
+    </main>
+
 
     <!-- 🌟 TOP GLOBAL HEADER — 3 Groups: Collaboration · Broadcast/Faith · Identity, Panic isolated last (DESIGN_SYSTEM.md §7.5) -->
-    <header id="classroomHeader" class="sticky top-0 z-40 bg-[var(--no2ta-bg-surface)]/90 backdrop-blur-xl border-b border-white/10 px-4 py-2">
+    <header id="classroomHeader" hidden class="sticky top-0 z-40 bg-[var(--no2ta-bg-surface)]/90 backdrop-blur-xl border-b border-white/10 px-4 py-2">
         <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
 
             <!-- Group 1: Collaboration Tools -->
@@ -172,30 +226,31 @@
     </div>
 
     <!-- 📸 INSTAGRAM STORIES RIBBON -->
-    <section class="bg-[#090e1b] border-b border-white/5 py-2.5 px-4 overflow-x-auto">
+    <section id="legacyStories" hidden class="bg-[#090e1b] border-b border-white/5 py-2.5 px-4 overflow-x-auto">
         <div class="max-w-7xl mx-auto flex items-center gap-4" id="storiesList">
             <!-- Dynamic Stories Appended Here -->
         </div>
     </section>
 
     <!-- 💬 MAIN APPLICATION VIEW -->
-    <main class="flex-1 max-w-7xl w-full mx-auto p-2 sm:p-4 grid grid-cols-1 md:grid-cols-12 gap-3 overflow-hidden">
+    <main id="legacyChat" hidden class="flex-1 max-w-7xl w-full mx-auto p-2 sm:p-4 grid grid-cols-1 md:grid-cols-12 gap-3 overflow-hidden">
         
         <!-- SIDEBAR: CLASSMATES & CHATS (4 cols) -->
-        <aside class="md:col-span-4 lg:col-span-3 glass-panel rounded-2xl flex flex-col h-[calc(100vh-165px)] overflow-hidden">
+        <aside id="paperChatSidebar" aria-label="قائمة المحادثات" class="md:col-span-4 lg:col-span-3 glass-panel rounded-2xl flex flex-col h-[calc(100vh-165px)] overflow-hidden">
+            <div class="paper-chat-sidebar-heading"><h2>المحادثات</h2><span>قريبين، حتى من بعيد</span></div>
             <!-- Navigation Tabs -->
             <div class="p-2 border-b border-white/10 bg-slate-900/50">
                 <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/5">
-                    <button id="tabGeneralBtn" onclick="selectGeneralChat()" class="flex-1 py-1.5 text-[11px] font-bold rounded-lg bg-cyan-500 text-slate-950 transition-all flex items-center justify-center gap-1">
+                    <button id="tabGeneralBtn" aria-pressed="true" onclick="selectGeneralChat()" class="flex-1 py-1.5 text-[11px] font-bold rounded-lg bg-cyan-500 text-slate-950 transition-all flex items-center justify-center gap-1">
                         <i data-lucide="message-circle" class="w-[13px] h-[13px]"></i>
                         <span>الفصل</span>
                     </button>
-                    <button id="tabGroupsBtn" onclick="switchSidebarTab('groups')" class="flex-1 py-1.5 text-[11px] font-semibold rounded-lg text-slate-400 hover:text-white transition-all flex items-center justify-center gap-1">
+                    <button id="tabGroupsBtn" aria-pressed="false" onclick="switchSidebarTab('groups')" class="flex-1 py-1.5 text-[11px] font-semibold rounded-lg text-slate-400 hover:text-white transition-all flex items-center justify-center gap-1">
                         <i data-lucide="users" class="w-[13px] h-[13px]"></i>
                         <span>الجروبات</span>
                         <span id="groupsCountBadge" class="hidden px-1.5 py-0.2 text-micro rounded-full bg-purple-500/30 text-purple-300 font-bold">0</span>
                     </button>
-                    <button id="tabDirectBtn" onclick="switchSidebarTab('direct')" class="flex-1 py-1.5 text-[11px] font-semibold rounded-lg text-slate-400 hover:text-white transition-all flex items-center justify-center gap-1">
+                    <button id="tabDirectBtn" aria-pressed="false" onclick="switchSidebarTab('direct')" class="flex-1 py-1.5 text-[11px] font-semibold rounded-lg text-slate-400 hover:text-white transition-all flex items-center justify-center gap-1">
                         <i data-lucide="user" class="w-[13px] h-[13px]"></i>
                         <span>الزملاء</span>
                     </button>
@@ -240,7 +295,7 @@
         <section class="md:col-span-8 lg:col-span-9 glass-panel rounded-2xl flex flex-col h-[calc(100vh-165px)] overflow-hidden relative">
             
             <!-- Chat Header -->
-            <div class="p-3 border-b border-white/10 bg-slate-900/70 flex items-center justify-between gap-3">
+            <div class="paper-chat-header p-3 border-b border-white/10 bg-slate-900/70 flex items-center justify-between gap-3">
                 <div class="flex items-center gap-3 min-w-0">
                     <div id="currentChatAvatar" class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xl shrink-0">
                         <i data-lucide="globe" class="w-[18px] h-[18px] text-cyan-400"></i>
@@ -256,6 +311,7 @@
                     </div>
                 </div>
 
+                <button type="button" id="paperChatListToggle" class="n-btn paper-chat-list-toggle" aria-expanded="false" aria-controls="paperChatSidebar" onclick="No2taHome.toggleChatList()"><i data-lucide="messages-square"></i>المحادثات</button>
                 <!-- Chat Controls -->
                 <div class="flex items-center gap-1.5 shrink-0">
                     <!-- Group Action Controls -->
@@ -276,11 +332,11 @@
                     </div>
                     <!-- Disappearing Message Selector -->
                     <div class="relative group">
-                        <button id="disappearingToggleBtn" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition-all flex items-center gap-1">
+                        <button id="disappearingToggleBtn" type="button" aria-expanded="false" aria-controls="paperTimerMenu" onclick="No2taHome.toggleTimer()" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition-all flex items-center gap-1">
                             <i data-lucide="timer" class="w-[13px] h-[13px]"></i>
                             <span>مؤقت</span>
                         </button>
-                        <div class="absolute left-0 top-full mt-1 hidden group-hover:flex flex-col bg-slate-900 border border-slate-700 rounded-xl p-1 shadow-2xl z-20 min-w-[125px]">
+                        <div id="paperTimerMenu" hidden aria-label="مدة الرسالة">
                             <button onclick="setDisappearingTimer(0)" class="text-right px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800 rounded">بدون مؤقت</button>
                             <button onclick="setDisappearingTimer(2)" class="text-right px-2.5 py-1 text-xs text-orange-400 font-black hover:bg-slate-800 rounded flex items-center gap-1"><i data-lucide="zap" class="w-3 h-3"></i> 2 ثانية (فوري!)</button>
                             <button onclick="setDisappearingTimer(5)" class="text-right px-2.5 py-1 text-xs text-red-400 font-bold hover:bg-slate-800 rounded flex items-center gap-1"><i data-lucide="flame" class="w-3 h-3"></i> 5 ثوانٍ</button>
@@ -408,7 +464,7 @@
                     </button>
 
                     <!-- Text Input Field -->
-                    <input type="text" id="messageInput" placeholder="اكتب رسالتك لزمايلك في الفصل... (اضغط Enter للإرسال)" class="flex-1 bg-slate-950 border border-slate-800 focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/60 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none transition-all">
+                    <input type="text" id="messageInput" aria-label="رسالتك" placeholder="اكتب رسالة…" class="flex-1 bg-slate-950 border border-slate-800 focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/60 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none transition-all">
 
                     <!-- Voice Recorder Button -->
                     <button type="button" id="voiceRecordBtn" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-all" title="تسجيل صوتي (WhatsApp Voice Note)">
@@ -543,7 +599,7 @@
 
     <!-- 3. AIRDROP MODAL -->
     <div id="airdropModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-        <div class="glass-panel-elevated rounded-3xl p-6 max-w-lg w-full border border-white/10 flex flex-col max-h-[85vh]">
+        <div class="n-paper-card glass-panel-elevated rounded-3xl p-6 max-w-lg w-full border border-white/10 flex flex-col max-h-[85vh]">
             <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
                 <div class="flex items-center gap-2">
                     <i data-lucide="send" class="w-5 h-5 text-cyan-400"></i>
@@ -576,7 +632,7 @@
 
     <!-- 4. LIVE WHITEBOARD MODAL -->
     <div id="whiteboardModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4">
-        <div class="glass-panel-elevated rounded-3xl p-4 max-w-5xl w-full border border-white/10 flex flex-col h-[90vh]">
+        <div class="n-paper-card glass-panel-elevated rounded-3xl p-4 max-w-5xl w-full border border-white/10 flex flex-col h-[90vh]">
             <!-- Whiteboard Toolbar -->
             <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10 mb-2">
                 <div class="flex items-center gap-2">
@@ -585,13 +641,13 @@
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <!-- Color Palette -->
-                    <div class="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
-                        <button onclick="setWhiteboardColor('#06b6d4')" class="w-6 h-6 rounded-full bg-cyan-400"></button>
-                        <button onclick="setWhiteboardColor('#8b5cf6')" class="w-6 h-6 rounded-full bg-purple-500"></button>
-                        <button onclick="setWhiteboardColor('#22c55e')" class="w-6 h-6 rounded-full bg-emerald-500"></button>
-                        <button onclick="setWhiteboardColor('#eab308')" class="w-6 h-6 rounded-full bg-yellow-500"></button>
-                        <button onclick="setWhiteboardColor('#ffffff')" class="w-6 h-6 rounded-full bg-white"></button>
+                    <!-- Color Palette (real pen colors — exempt from the paper repaint) -->
+                    <div class="n-literal-color flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                        <button onclick="setWhiteboardColor('#06b6d4')" class="n-literal-color w-6 h-6 rounded-full" style="background:#06b6d4" aria-label="أزرق سماوي"></button>
+                        <button onclick="setWhiteboardColor('#8b5cf6')" class="n-literal-color w-6 h-6 rounded-full bg-purple-500" aria-label="بنفسجي"></button>
+                        <button onclick="setWhiteboardColor('#22c55e')" class="n-literal-color w-6 h-6 rounded-full bg-emerald-500" aria-label="أخضر"></button>
+                        <button onclick="setWhiteboardColor('#eab308')" class="n-literal-color w-6 h-6 rounded-full bg-yellow-500" aria-label="أصفر"></button>
+                        <button onclick="setWhiteboardColor('#ffffff')" class="n-literal-color w-6 h-6 rounded-full bg-white border border-slate-700" aria-label="أبيض"></button>
                         <button onclick="setWhiteboardEraser()" class="px-2 py-0.5 text-xs text-slate-300 font-bold hover:text-white" title="ممحاة"><i data-lucide="eraser" class="w-[14px] h-[14px]"></i></button>
                     </div>
 
@@ -619,7 +675,7 @@
 
     <!-- 4b. COLLABORATIVE LIVE CODEPAD MODAL (Plain Text / Code Bin) -->
     <div id="codepadModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4">
-        <div class="glass-panel-elevated rounded-3xl p-4 sm:p-5 max-w-5xl w-full border border-indigo-500/30 flex flex-col h-[90vh]">
+        <div class="n-paper-card glass-panel-elevated rounded-3xl p-4 sm:p-5 max-w-5xl w-full border border-indigo-500/30 flex flex-col h-[90vh]">
             <!-- CodePad Header & Actions Toolbar -->
             <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10 mb-2">
                 <div class="flex items-center gap-2">
@@ -681,7 +737,7 @@
 
     <!-- 4c. IN-CHAT CODE SNIPPET SHARING MODAL -->
     <div id="codeSnippetModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-        <div class="glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-lg w-full border border-cyan-500/30 flex flex-col relative">
+        <div class="n-paper-card glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-lg w-full border border-cyan-500/30 flex flex-col relative">
             <div class="flex items-center justify-between gap-2 mb-3">
                 <div class="flex items-center gap-2">
                     <span class="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-mono font-black text-sm">&lt;/&gt;</span>
@@ -727,8 +783,8 @@
                         إلغاء
                     </button>
                     <button type="submit" class="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs transition-all shadow-md shadow-cyan-500/20 flex items-center gap-1.5">
+                        <i data-lucide="send" class="w-[14px] h-[14px]"></i>
                         <span>إرسال الكود للشات</span>
-                        <span>🚀</span>
                     </button>
                 </div>
             </form>
@@ -2187,6 +2243,7 @@
 
     <!-- Main Application Scripts -->
     <script src="/js/html2canvas.min.js"></script>
-    <script src="/js/app.js?v=20261104-1"></script>
+    <script src="/js/app.js?v=20261105-2"></script>
+    <script src="/js/paper-home.js?v=20261105-2"></script>
 </body>
 </html>
