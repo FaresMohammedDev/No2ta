@@ -346,13 +346,15 @@ function broadcastSalawat(soundType = 'voice1', source = 'timer') {
     if (source === 'manual' && now - lastSalawatBroadcastAt < SALAWAT_MANUAL_COOLDOWN_MS) return false;
     lastSalawatBroadcastAt = now;
     nextSalawatAt = now + SALAWAT_INTERVAL_MS;
-    console.log(`[SALAWAT BROADCAST] (${source}) next automatic one at ${new Date(nextSalawatAt).toLocaleTimeString()}`);
+    const playAt = now + 750; // High-precision future timestamp for zero-latency cross-LAN sync
+    console.log(`[SALAWAT BROADCAST] (${source}) playAt: ${playAt}, next at ${new Date(nextSalawatAt).toLocaleTimeString()}`);
     io.emit('salawat_broadcast', {
         phrase: 'اللهم صلِّ على محمد',
         fullPhrase: '«اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ»',
         soundType: soundType || 'voice1',
         source,
         timestamp: now,
+        playAt,
         nextAt: nextSalawatAt
     });
     return true;
@@ -638,7 +640,7 @@ function buildQuranLibraryTrack(reciterId, surahNumber, djName) {
         },
         currentTime: 0,
         isPlaying: true,
-        startedAt: Date.now(),
+        startedAt: Date.now() + 600, // 600ms future scheduled start time
         djName: djName || 'المشرف'
     };
 }
@@ -2003,7 +2005,7 @@ app.post('/api/music/online/play', async (req, res) => {
             },
             currentTime: 0,
             isPlaying: true,
-            startedAt: Date.now(),
+            startedAt: Date.now() + 600, // 600ms future scheduled start time
             djName: djName || 'دي جي الفصل',
             djId: djId || null
         };
@@ -2905,6 +2907,14 @@ io.on('connection', async (socket) => {
     const clientIp = cleanIP(rawIp);
     const clientMac = await resolveMacAddress(clientIp);
 
+    // Precision Clock Synchronization (NTP / SNTP over WebSocket)
+    socket.on('time_sync_ping', (data = {}) => {
+        socket.emit('time_sync_pong', {
+            clientSendTime: data.clientSendTime || 0,
+            serverTime: Date.now()
+        });
+    });
+
     // Send current classroom tasbeeh total
     socket.emit('tasbeeh_global_update', { total: classroomTotalTasbeeh });
 
@@ -3501,11 +3511,12 @@ socket.on('admin_trigger_salawat', (data = {}) => {
     });
 
     socket.on('radio_play', (data) => {
+        const hasTime = !!(data && data.currentTime && data.currentTime > 0);
         activeRadioTrack = {
             track: data.track,
             currentTime: data.currentTime || 0,
             isPlaying: true,
-            startedAt: Date.now() - ((data.currentTime || 0) * 1000),
+            startedAt: hasTime ? (Date.now() - (data.currentTime * 1000)) : (Date.now() + 600),
             djName: data.djName || 'أحد الزملاء',
             djId: data.djId || null
         };

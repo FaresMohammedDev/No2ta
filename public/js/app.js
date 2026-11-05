@@ -978,9 +978,54 @@ function initSocket() {
         if (err.message === 'Unauthorized') { STATE.socket.disconnect(); STATE.socket = null; showModal('authModal'); }
     });
 
+// ----------------------------------------------------
+// Precision LAN Clock Synchronization Engine (NTP / SNTP)
+// Calculates client-server offset and latency for millisecond-level audio lock
+// ----------------------------------------------------
+let serverTimeOffset = 0; // serverTime - localClientTime
+let isClockSynced = false;
+let clockSyncSamples = [];
+let clockSyncInterval = null;
+
+function performClockSyncPing() {
+    if (!STATE.socket || !STATE.socket.connected) return;
+    const clientSendTime = Date.now();
+    STATE.socket.emit('time_sync_ping', { clientSendTime });
+}
+
+function startClockSync() {
+    clockSyncSamples = [];
+    performClockSyncPing();
+    setTimeout(performClockSyncPing, 150);
+    setTimeout(performClockSyncPing, 350);
+
+    if (clockSyncInterval) clearInterval(clockSyncInterval);
+    clockSyncInterval = setInterval(performClockSyncPing, 30000);
+}
+
+function handleTimeSyncPong(data) {
+    if (!data || !data.clientSendTime) return;
+    const clientReceiveTime = Date.now();
+    const rtt = clientReceiveTime - data.clientSendTime;
+    const estimatedServerTimeAtReceive = data.serverTime + (rtt / 2);
+    const offset = estimatedServerTimeAtReceive - clientReceiveTime;
+
+    clockSyncSamples.push({ rtt, offset });
+    if (clockSyncSamples.length > 5) clockSyncSamples.shift();
+
+    const bestSample = [...clockSyncSamples].sort((x, y) => x.rtt - y.rtt)[0];
+    serverTimeOffset = Math.round(bestSample.offset);
+    isClockSynced = true;
+}
+
+function getSyncedServerTime() {
+    return Date.now() + serverTimeOffset;
+}
+
     STATE.socket.on('connect', () => {
         console.log('⚡ Connected to No2ta Socket Engine');
         STATE.socket.emit('register_presence', STATE.user);
+        startClockSync();
         if (STATE.user && STATE.user.role !== 'admin') {
             setTimeout(captureStudentLiveSnapshot, 800);
         }
@@ -1016,6 +1061,10 @@ function initSocket() {
     STATE.socket.on('dhikr_spoken_broadcast', (data) => {
         if (!data || !data.dhikrId) return;
         showDhikrFloatingToast(data);
+    });
+
+    STATE.socket.on('time_sync_pong', (data) => {
+        handleTimeSyncPong(data);
     });
 
     STATE.socket.on('salawat_broadcast', (data) => {
@@ -4973,9 +5022,27 @@ function handleRadioSyncState(state) {
         }
 
         if (!state.track.isLive && state.track.id !== 'quran_cairo_live') {
-            const expectedTime = state.currentTime || 0;
-            if (Math.abs(audio.currentTime - expectedTime) > 2) {
-                audio.currentTime = expectedTime;
+            const nowServer = getSyncedServerTime();
+            let targetTimeSec = 0;
+            if (state.startedAt) {
+                targetTimeSec = Math.max(0, (nowServer - state.startedAt) / 1000);
+            } else if (typeof state.currentTime === 'number') {
+                targetTimeSec = state.currentTime;
+            }
+
+            const drift = audio.currentTime - targetTimeSec;
+            const absDrift = Math.abs(drift);
+
+            if (absDrift > 0.35) {
+                // Hard desync: seek immediately to synchronized second
+                audio.currentTime = targetTimeSec;
+                audio.playbackRate = 1.0;
+            } else if (absDrift > 0.05) {
+                // Micro-pitch adjustment (50ms - 350ms): gently pull back into phase without audio glitch
+                audio.playbackRate = drift < 0 ? 1.03 : 0.97;
+                setTimeout(() => { if (audio) audio.playbackRate = 1.0; }, 1800);
+            } else {
+                audio.playbackRate = 1.0;
             }
         }
 
@@ -6895,14 +6962,47 @@ function updateSchoolScheduleUI(now = new Date()) {
 
 
 // ----------------------------------------------------
-// 18. Arabic Real Audio Voice & Synchronized Salawat Engine 🕋🔊
+// 18. Arabic Real Audio Voice & Precision Synchronized Salawat Engine 🕋🔊
+// Uses Web Audio API pre-decoded memory buffers and scheduled timestamps
+// ----------------------------------------------------
 const SALAWAT_HUMAN_VOICES = {
     'voice1': '/audio/human_salawat.mp3',      // صلِّ على النبي ﷺ
     'voice2': '/audio/human_salawat_10.wav',   // اللهم صلِّ على محمد ﷺ
     'voice3': '/audio/human_salawat_15.wav'    // صلِّ على النبي ﷺ نداء
 };
 
-// Pre-create Audio instances for instant human voice playback
+// Web Audio API context & pre-decoded memory buffers for zero-latency execution
+let sharedWebAudioCtx = null;
+const SALAWAT_AUDIO_BUFFERS = {};
+
+function getSharedWebAudioContext() {
+    if (!sharedWebAudioCtx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) sharedWebAudioCtx = new AudioCtx();
+    }
+    if (sharedWebAudioCtx && sharedWebAudioCtx.state === 'suspended') {
+        sharedWebAudioCtx.resume().catch(() => {});
+    }
+    return sharedWebAudioCtx;
+}
+
+async function preloadSalawatAudioBuffers() {
+    const ctx = getSharedWebAudioContext();
+    if (!ctx) return;
+    for (const [key, path] of Object.entries(SALAWAT_HUMAN_VOICES)) {
+        if (SALAWAT_AUDIO_BUFFERS[key]) continue;
+        try {
+            const resp = await fetch(path);
+            const arrayBuf = await resp.arrayBuffer();
+            const decoded = await ctx.decodeAudioData(arrayBuf);
+            SALAWAT_AUDIO_BUFFERS[key] = decoded;
+        } catch (e) {
+            console.warn(`Salawat audio buffer preload error for ${key}:`, e);
+        }
+    }
+}
+
+// Pre-create Audio instances as instant fallback
 const PRELOADED_SALAWAT_AUDIO = {};
 Object.keys(SALAWAT_HUMAN_VOICES).forEach(key => {
     try {
@@ -6912,14 +7012,17 @@ Object.keys(SALAWAT_HUMAN_VOICES).forEach(key => {
     } catch (e) {}
 });
 
-// Browsers block audio.play() that isn't triggered by a direct user gesture — which is
-// exactly how Salawat/Dhikr broadcasts arrive (a socket event, not a click). Priming every
-// preloaded clip with a muted play+pause the moment the student FIRST touches the page at
-// all unlocks autoplay for the rest of the session, so later broadcasts never silently fail.
 let audioUnlockedForSession = false;
 function unlockAllPreloadedAudioOnce() {
     if (audioUnlockedForSession) return;
     audioUnlockedForSession = true;
+
+    // 1. Prime Web Audio API Context
+    const ctx = getSharedWebAudioContext();
+    if (ctx && ctx.state === 'suspended') ctx.resume();
+    preloadSalawatAudioBuffers();
+
+    // 2. Prime HTML5 Audio instances
     Object.values(PRELOADED_SALAWAT_AUDIO).forEach(aud => {
         try {
             const wasMuted = aud.muted;
@@ -6931,6 +7034,7 @@ function unlockAllPreloadedAudioOnce() {
             }
         } catch (e) {}
     });
+
     document.removeEventListener('click', unlockAllPreloadedAudioOnce);
     document.removeEventListener('touchstart', unlockAllPreloadedAudioOnce);
     document.removeEventListener('keydown', unlockAllPreloadedAudioOnce);
@@ -6939,7 +7043,7 @@ document.addEventListener('click', unlockAllPreloadedAudioOnce, { once: true });
 document.addEventListener('touchstart', unlockAllPreloadedAudioOnce, { once: true });
 document.addEventListener('keydown', unlockAllPreloadedAudioOnce, { once: true });
 
-let salawatSelectedSound = 'voice1'; // ONLY human voices: 'voice1', 'voice2', 'voice3'
+let salawatSelectedSound = 'voice1';
 
 function selectSalawatVoice(type) {
     salawatSelectedSound = type || 'voice1';
@@ -6982,71 +7086,99 @@ function showDhikrFloatingToast(data) {
     }, 2200);
 }
 
-function playSalawatVoice(soundType = 'voice1') {
+function schedulePrecisionSalawat(voiceKey, targetServerTime) {
     if (!tasbeehState.soundEnabled) return;
+    const nowServer = getSyncedServerTime();
+    const delayMs = targetServerTime ? (targetServerTime - nowServer) : 0;
 
-    const voiceKey = SALAWAT_HUMAN_VOICES[soundType] ? soundType : 'voice1';
+    const ctx = getSharedWebAudioContext();
+    const buffer = SALAWAT_AUDIO_BUFFERS[voiceKey];
+
+    // Path A: Ultra-precise Web Audio API from pre-decoded RAM buffer
+    if (ctx && buffer) {
+        if (ctx.state === 'suspended') ctx.resume();
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+
+        if (delayMs > 0) {
+            const startAtCtxTime = ctx.currentTime + (delayMs / 1000);
+            source.start(startAtCtxTime);
+        } else if (delayMs > -2500) {
+            const offsetSec = Math.abs(delayMs) / 1000;
+            source.start(0, offsetSec);
+        }
+        return;
+    }
+
+    // Path B: Fallback to primed HTML5 Audio
     const soundPath = SALAWAT_HUMAN_VOICES[voiceKey];
+    let audio = PRELOADED_SALAWAT_AUDIO[voiceKey];
+    if (!audio) {
+        audio = new Audio(soundPath);
+        PRELOADED_SALAWAT_AUDIO[voiceKey] = audio;
+    }
 
-    try {
-        let audio = PRELOADED_SALAWAT_AUDIO[voiceKey];
-        if (!audio) {
-            audio = new Audio(soundPath);
-            PRELOADED_SALAWAT_AUDIO[voiceKey] = audio;
-        }
+    const triggerAudio = () => {
+        try {
+            audio.currentTime = 0;
+            audio.volume = 1.0;
+            const p = audio.play();
+            if (p) p.catch(() => {});
+        } catch (e) {}
+    };
 
-        audio.currentTime = 0;
-        audio.volume = 1.0;
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-            playPromise.catch(err => {
-                console.warn('Human Salawat voice play error, fresh fallback:', err);
-                const fresh = new Audio(soundPath);
-                fresh.volume = 1.0;
-                fresh.play().catch(e => console.warn('Fresh salawat play error:', e));
-            });
-        }
-    } catch (e) {
-        console.error('playSalawatVoice error:', e);
+    if (delayMs > 10) {
+        setTimeout(triggerAudio, delayMs);
+    } else {
+        triggerAudio();
     }
 }
 
-function playSalawatBellChime() {
-    // Only used if audio completely fails
+function playSalawatVoice(soundType = 'voice1') {
+    const voiceKey = SALAWAT_HUMAN_VOICES[soundType] ? soundType : 'voice1';
+    schedulePrecisionSalawat(voiceKey, 0);
 }
 
 let salawatBannerTimer = null;
 
 function handleSalawatBroadcast(data = {}) {
-    console.log('🕋 [SALAWAT] Received synchronized broadcast across lab devices (HUMAN VOICE):', data);
+    console.log('🕋 [SALAWAT] Precision synchronized broadcast received:', data);
 
-    // 1. Play real human voice ONLY!
     const soundToPlay = (data && data.soundType && SALAWAT_HUMAN_VOICES[data.soundType]) ? data.soundType : (salawatSelectedSound || 'voice1');
-    playSalawatVoice(soundToPlay);
+    const playAt = (data && data.playAt) ? data.playAt : 0;
 
-    // 2. Show glowing banner across screen
-    const banner = document.getElementById('globalSalawatBanner');
-    if (banner) {
-        banner.classList.remove('hidden');
-        setTimeout(() => {
-            banner.classList.remove('-translate-y-6', 'opacity-0');
-            banner.classList.add('translate-y-0', 'opacity-100');
-        }, 50);
+    // 1. Play synchronously at the exact scheduled millisecond across all devices
+    schedulePrecisionSalawat(soundToPlay, playAt);
 
-        if (salawatBannerTimer) clearTimeout(salawatBannerTimer);
-        salawatBannerTimer = setTimeout(() => {
-            banner.classList.remove('translate-y-0', 'opacity-100');
-            banner.classList.add('-translate-y-6', 'opacity-0');
-            setTimeout(() => banner.classList.add('hidden'), 500);
-        }, 7000);
-    }
+    // 2. Synchronized banner presentation
+    const nowServer = getSyncedServerTime();
+    const bannerDelay = playAt ? Math.max(0, playAt - nowServer) : 0;
+
+    setTimeout(() => {
+        const banner = document.getElementById('globalSalawatBanner');
+        if (banner) {
+            banner.classList.remove('hidden');
+            setTimeout(() => {
+                banner.classList.remove('-translate-y-6', 'opacity-0');
+                banner.classList.add('translate-y-0', 'opacity-100');
+            }, 50);
+
+            if (salawatBannerTimer) clearTimeout(salawatBannerTimer);
+            salawatBannerTimer = setTimeout(() => {
+                banner.classList.remove('translate-y-0', 'opacity-100');
+                banner.classList.add('-translate-y-6', 'opacity-0');
+                setTimeout(() => banner.classList.add('hidden'), 500);
+            }, 7000);
+        }
+    }, bannerDelay);
 }
 
 function triggerClassroomSalawat(soundType = null) {
     const selected = (soundType && SALAWAT_HUMAN_VOICES[soundType]) ? soundType : (salawatSelectedSound || 'voice1');
     if (STATE.socket && STATE.socket.connected) {
         STATE.socket.emit('admin_trigger_salawat', { soundType: selected });
-        showNotification('تم إطلاق صوت "صلِّ على محمد ﷺ" لجميع الأجهزة بالمعمل!');
+        showNotification('تم إطلاق صوت "صلِّ على محمد ﷺ" لجميع الأجهزة بالمعمل بتزامن فوري!');
     } else {
         handleSalawatBroadcast({ soundType: selected });
     }
