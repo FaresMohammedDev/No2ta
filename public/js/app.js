@@ -4944,7 +4944,9 @@ function renderOnlineMusicResults(songs, query) {
     let html = '';
     songs.forEach((song, idx) => {
         const isCurrentPlaying = STATE.radio.activeTrack && 
-            (STATE.radio.activeTrack.id === 'track_online_' + song.id || STATE.radio.activeTrack.title === song.title) && 
+            (STATE.radio.activeTrack.id === 'track_online_' + song.id || 
+             STATE.radio.activeTrack.id === 'local_online_' + song.id || 
+             STATE.radio.activeTrack.title === song.title) && 
             STATE.radio.isPlaying;
 
         html += `
@@ -4955,8 +4957,8 @@ function renderOnlineMusicResults(songs, query) {
                     </div>
                     <div class="min-w-0">
                         <div class="flex items-center gap-1.5">
-                            <h4 class="text-xs font-bold text-[var(--n-ink)] truncate max-w-[130px] sm:max-w-xs group-hover:text-[var(--n-primary)] transition-colors">${escapeHtml(song.title)}</h4>
-                            ${isCurrentPlaying ? '<span class="text-micro px-1.5 py-0.2 rounded-full bg-[var(--n-primary)] text-[var(--n-on-primary)] font-bold animate-pulse">شغالة الآن</span>' : ''}
+                            <h4 class="text-xs font-bold text-[var(--n-ink)] truncate max-w-[120px] sm:max-w-xs group-hover:text-[var(--n-primary)] transition-colors">${escapeHtml(song.title)}</h4>
+                            ${isCurrentPlaying ? `<span class="text-micro px-1.5 py-0.2 rounded-full ${STATE.radio.isLocalOnly ? 'bg-cyan-500/20 text-cyan-400' : 'bg-[var(--n-primary)] text-[var(--n-on-primary)]'} font-bold animate-pulse">${STATE.radio.isLocalOnly ? 'عندي فقط' : 'شغالة الآن'}</span>` : ''}
                         </div>
                         <p class="text-micro text-[var(--n-muted)] truncate mt-0.5">
                             ${escapeHtml(song.artist || 'فنان')} 
@@ -4966,13 +4968,19 @@ function renderOnlineMusicResults(songs, query) {
                     </div>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
+                    <!-- Play on this device only -->
+                    <button type="button" onclick="playOnlineSongLocally(${idx})" class="px-2.5 py-1.5 rounded-xl bg-[var(--n-surface)] hover:bg-[var(--n-sunken)] text-[var(--n-ink)] border border-[var(--n-line)] text-xs font-bold transition-all flex items-center gap-1 shadow-sm" title="تشغيل على جهازك فقط (دون إزعاج الفصل)">
+                        <i data-lucide="headphones" class="w-3.5 h-3.5 text-[var(--n-primary)]"></i>
+                        <span>عندي لوحدي</span>
+                    </button>
+                    <!-- Play for Class -->
+                    <button type="button" id="onlinePlayBtn_${idx}" onclick="playOnlineSongForEveryone(${idx})" class="n-btn n-btn-primary px-3 py-1.5 text-xs font-bold flex items-center gap-1" title="بث الأغنية لكل أجهزة الفصل في نفس اللحظة">
+                        <i data-lucide="radio" class="w-3.5 h-3.5"></i>
+                        <span>${isCurrentPlaying && !STATE.radio.isLocalOnly ? 'إعادة تشغيل' : 'تشغيل للكل'}</span>
+                    </button>
                     <!-- Share to Chat -->
                     <button type="button" onclick="shareOnlineTrackToChat(${idx})" class="p-2 rounded-xl bg-[var(--n-surface)] hover:bg-[var(--n-sunken)] text-[var(--n-ink)] border border-[var(--n-line)] text-xs font-bold transition-all" title="مشاركة في الشات">
                         <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
-                    </button>
-                    <!-- Play for Class -->
-                    <button type="button" id="onlinePlayBtn_${idx}" onclick="playOnlineSongForEveryone(${idx})" class="n-btn n-btn-primary px-3 py-1.5 text-xs font-bold flex items-center gap-1">
-                        <span>${isCurrentPlaying ? 'إعادة تشغيل' : 'تشغيل للكل'}</span>
                     </button>
                 </div>
             </div>
@@ -4981,6 +4989,92 @@ function renderOnlineMusicResults(songs, query) {
 
     container.innerHTML = html;
     renderIcons();
+}
+
+function playOnlineSongLocally(idx) {
+    const song = window._lastOnlineSongs?.[idx];
+    if (!song) return;
+
+    const streamUrl = `/api/music/stream?songId=${song.id}&url=${encodeURIComponent(song.streamUrl)}`;
+    const track = {
+        id: 'local_online_' + song.id,
+        title: song.title,
+        artist: song.artist,
+        cover: song.cover || song.rawCover || '',
+        audioUrl: streamUrl,
+        file_url: streamUrl,
+        duration: song.duration || '',
+        isLocalOnly: true
+    };
+
+    setupLocalRadioPlayback(track);
+    hideModal('musicSearchModal');
+    showNotification(`تم تشغيل "${song.title}" على جهازك فقط 🎧`);
+}
+
+function playTrackLocallyByIndex(idx) {
+    const track = window._lastSearchedTracks?.[idx];
+    if (!track) return;
+
+    const localTrack = {
+        id: 'local_lib_' + track.id,
+        title: track.title,
+        artist: track.artist,
+        cover: track.cover || '',
+        audioUrl: track.file_url,
+        file_url: track.file_url,
+        duration: track.duration || '',
+        isLocalOnly: true
+    };
+
+    setupLocalRadioPlayback(localTrack);
+    hideModal('musicSearchModal');
+    showNotification(`تم تشغيل "${track.title}" على جهازك فقط 🎧`);
+}
+
+function setupLocalRadioPlayback(track) {
+    const bar = document.getElementById('classroomMusicBar');
+    const audio = getRadioAudioElement();
+    const titleEl = document.getElementById('radioTrackTitle');
+    const artistEl = document.getElementById('radioTrackArtist');
+    const coverWrapper = document.getElementById('radioCoverWrapper');
+    const playIconPlay = document.getElementById('radioPlayIconPlay');
+    const playIconPause = document.getElementById('radioPlayIconPause');
+
+    STATE.radio.isLocalOnly = true;
+    STATE.radio.activeTrack = track;
+    STATE.radio.isPlaying = true;
+
+    if (bar) bar.classList.remove('hidden');
+
+    if (titleEl) titleEl.textContent = track.title || 'أغنية';
+    if (artistEl) artistEl.textContent = `${track.artist || 'موسيقى'} • تشغيل على جهازك فقط 🎧`;
+    if (playIconPlay) playIconPlay.classList.add('hidden');
+    if (playIconPause) playIconPause.classList.remove('hidden');
+
+    if (coverWrapper) {
+        const defaultCoverHTML = `<i data-lucide="disc-3" class="w-5 h-5" style="color:var(--n-primary); animation: n-spin 4s linear infinite;"></i>`;
+        if (track.cover) {
+            coverWrapper.innerHTML = `<img src="${track.cover}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='${defaultCoverHTML.replace(/'/g, "\\\'")}'; renderIcons();">`;
+        } else {
+            coverWrapper.innerHTML = defaultCoverHTML;
+        }
+        renderIcons();
+    }
+
+    if (audio) {
+        audio.muted = false;
+        audio.volume = 1.0;
+        const targetSrc = track.audioUrl || track.file_url;
+        if (targetSrc) {
+            audio.src = targetSrc;
+            audio.load();
+            audio.play().catch(e => {
+                console.warn('Local play error:', e);
+                showAutoplayUnlockBanner(track.title);
+            });
+        }
+    }
 }
 
 async function playOnlineSongForEveryone(idx) {
@@ -5100,12 +5194,12 @@ function renderMusicResults(tracks, query) {
 
     if (tracks.length === 0) {
         container.innerHTML = `
-            <div class="text-center py-10 text-slate-500">
-                <i data-lucide="search" class="w-7 h-7 mx-auto mb-2"></i>
-                <p class="text-xs font-bold text-slate-400">
+            <div class="text-center py-10 text-[var(--n-muted)]">
+                <i data-lucide="search" class="w-7 h-7 mx-auto mb-2 text-[var(--n-muted)]"></i>
+                <p class="text-xs font-bold text-[var(--n-ink)]">
                     ${query ? `لم يتم العثور على أغاني مطابقة لـ "${escapeHtml(query)}"` : 'لا توجد أغاني في مكتبة الفصل حالياً!'}
                 </p>
-                <p class="text-micro text-slate-500 mt-1">اضغط على زر "رفع أغنية" فوق لرفع أي أغنية عندك على الجهاز!</p>
+                <p class="text-micro text-[var(--n-muted)] mt-1">اضغط على زر "رفع أغنية" فوق لرفع أي أغنية عندك على الجهاز!</p>
             </div>
         `;
         renderIcons();
@@ -5114,21 +5208,23 @@ function renderMusicResults(tracks, query) {
 
     let html = '';
     tracks.forEach((track, idx) => {
-        const isCurrentPlaying = STATE.radio.activeTrack && STATE.radio.activeTrack.id === track.id && STATE.radio.isPlaying;
+        const isCurrentPlaying = STATE.radio.activeTrack && 
+            (STATE.radio.activeTrack.id === track.id || STATE.radio.activeTrack.id === 'local_lib_' + track.id) && 
+            STATE.radio.isPlaying;
         const canDelete = STATE.user && (track.uploader_id === STATE.user.id || STATE.user.role === 'admin');
 
         html += `
-            <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-900/70 border ${isCurrentPlaying ? 'border-pink-500/60 bg-pink-500/10' : 'border-slate-800'} hover:border-pink-500/40 transition-all group">
+            <div class="music-song-card flex items-center justify-between p-2.5 rounded-2xl ${isCurrentPlaying ? 'playing' : ''} group">
                 <div class="flex items-center gap-3 min-w-0">
-                    <div class="w-11 h-11 rounded-xl bg-slate-800 border border-white/10 overflow-hidden shrink-0 shadow-md flex items-center justify-center text-pink-400">
+                    <div class="w-11 h-11 rounded-xl bg-[var(--n-surface)] border border-[var(--n-line)] overflow-hidden shrink-0 shadow-sm flex items-center justify-center text-[var(--n-primary)]">
                         ${track.cover ? `<img src="${track.cover}" class="w-full h-full object-cover" onerror="this.outerHTML='<i data-lucide=&quot;music&quot; class=&quot;w-4 h-4&quot;></i>'; renderIcons();">` : `<i data-lucide="${isCurrentPlaying ? 'disc-3' : 'music'}" class="w-4 h-4"></i>`}
                     </div>
                     <div class="min-w-0">
                         <div class="flex items-center gap-1.5">
-                            <h4 class="text-xs font-bold text-white truncate max-w-[140px] sm:max-w-xs group-hover:text-pink-300 transition-colors">${escapeHtml(track.title)}</h4>
-                            ${isCurrentPlaying ? '<span class="text-micro px-1.5 py-0.2 rounded-full bg-pink-500/30 text-pink-300 font-bold animate-pulse">شغالة الآن</span>' : ''}
+                            <h4 class="text-xs font-bold text-[var(--n-ink)] truncate max-w-[130px] sm:max-w-xs group-hover:text-[var(--n-primary)] transition-colors">${escapeHtml(track.title)}</h4>
+                            ${isCurrentPlaying ? `<span class="text-micro px-1.5 py-0.2 rounded-full ${STATE.radio.isLocalOnly ? 'bg-cyan-500/20 text-cyan-400' : 'bg-[var(--n-primary)] text-[var(--n-on-primary)]'} font-bold animate-pulse">${STATE.radio.isLocalOnly ? 'عندي فقط' : 'شغالة الآن'}</span>` : ''}
                         </div>
-                        <p class="text-micro text-slate-400 truncate">
+                        <p class="text-micro text-[var(--n-muted)] truncate">
                             ${escapeHtml(track.artist || 'فنان')} 
                             ${track.uploader_name ? `• رافعها: ${escapeHtml(track.uploader_name)}` : ''}
                             ${track.duration ? '• ' + track.duration : ''}
@@ -5136,21 +5232,26 @@ function renderMusicResults(tracks, query) {
                     </div>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
+                    <!-- Play on this device only -->
+                    <button type="button" onclick="playTrackLocallyByIndex(${idx})" class="px-2.5 py-1.5 rounded-xl bg-[var(--n-surface)] hover:bg-[var(--n-sunken)] text-[var(--n-ink)] border border-[var(--n-line)] text-xs font-bold transition-all flex items-center gap-1 shadow-sm" title="تشغيل على جهازك فقط">
+                        <i data-lucide="headphones" class="w-3.5 h-3.5 text-[var(--n-primary)]"></i>
+                        <span>عندي لوحدي</span>
+                    </button>
+                    <!-- Play for Class -->
+                    <button type="button" onclick="playTrackForEveryoneByIndex(${idx})" class="n-btn n-btn-primary px-3 py-1.5 text-xs font-bold flex items-center gap-1" title="بث الأغنية لكل أجهزة الفصل">
+                        <i data-lucide="radio" class="w-3.5 h-3.5"></i>
+                        <span>${isCurrentPlaying && !STATE.radio.isLocalOnly ? 'إعادة تشغيل' : 'تشغيل للكل'}</span>
+                    </button>
                     <!-- Share to Chat -->
-                    <button onclick="shareTrackToChatByIndex(${idx})" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all" title="مشاركة في الشات">
+                    <button type="button" onclick="shareTrackToChatByIndex(${idx})" class="p-2 rounded-xl bg-[var(--n-surface)] hover:bg-[var(--n-sunken)] text-[var(--n-ink)] border border-[var(--n-line)] text-xs font-bold transition-all" title="مشاركة في الشات">
                         <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
                     </button>
                     <!-- Delete Track (if allowed) -->
                     ${canDelete ? `
-                        <button onclick="deleteLibraryMusic('${track.id}')" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 text-xs font-bold transition-all" title="حذف الأغنية من المكتبة">
+                        <button type="button" onclick="deleteLibraryMusic('${track.id}')" class="p-2 rounded-xl bg-[var(--n-surface)] hover:bg-red-500/10 text-[var(--n-muted)] hover:text-red-500 border border-[var(--n-line)] text-xs font-bold transition-all" title="حذف الأغنية من المكتبة">
                             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                         </button>
                     ` : ''}
-                    <!-- Play for Class -->
-                    <button onclick="playTrackForEveryoneByIndex(${idx})" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1">
-                        <i data-lucide="${isCurrentPlaying ? 'rotate-cw' : 'play'}" class="w-3.5 h-3.5"></i>
-                        <span>${isCurrentPlaying ? 'إعادة تشغيل' : 'تشغيل للكل'}</span>
-                    </button>
                 </div>
             </div>
         `;
@@ -5278,6 +5379,9 @@ function handleRadioSyncState(state) {
     const playIconPause = document.getElementById('radioPlayIconPause');
 
     if (!state || !state.track) {
+        if (STATE.radio.isLocalOnly) {
+            return; // keep playing private local audio
+        }
         STATE.radio.activeTrack = null;
         STATE.radio.isPlaying = false;
         if (audio) {
@@ -5288,6 +5392,9 @@ function handleRadioSyncState(state) {
         hideAutoplayUnlockBanner();
         return;
     }
+
+    // New broadcast from classroom overrides local play
+    STATE.radio.isLocalOnly = false;
 
     STATE.radio.activeTrack = state.track;
     STATE.radio.isPlaying = !!state.isPlaying;
@@ -5447,8 +5554,15 @@ function getRadioAudioElement() {
                 } else if (STATE.radio.activeTrack && String(STATE.radio.activeTrack.id || '').startsWith('quran_surah_')) {
                     // Continuous Quran playback: tell the server to advance everyone to the next surah.
                     if (STATE.socket) STATE.socket.emit('quran_track_ended');
-                } else if (STATE.socket && STATE.radio.activeTrack) {
-                    STATE.socket.emit('radio_stop');
+                } else if (STATE.radio.activeTrack) {
+                    if (STATE.radio.isLocalOnly) {
+                        STATE.radio.isPlaying = false;
+                        STATE.radio.activeTrack = null;
+                        const bar = document.getElementById('classroomMusicBar');
+                        if (bar) bar.classList.add('hidden');
+                    } else if (STATE.socket) {
+                        STATE.socket.emit('radio_stop');
+                    }
                 }
             });
         }
@@ -5488,7 +5602,7 @@ function handleRadioProgressInput(percent) {
     const newTime = (percent / 100) * audio.duration;
     audio.currentTime = newTime;
 
-    if (STATE.socket) {
+    if (!STATE.radio.isLocalOnly && STATE.socket) {
         STATE.socket.emit('radio_seek', { currentTime: newTime });
     }
 }
@@ -5498,6 +5612,23 @@ function toggleRadioPlayPause() {
     const isPlaying = STATE.radio.isPlaying;
     const audio = getRadioAudioElement();
     const curTime = audio ? (audio.currentTime || 0) : 0;
+    const playIconPlay = document.getElementById('radioPlayIconPlay');
+    const playIconPause = document.getElementById('radioPlayIconPause');
+
+    if (STATE.radio.isLocalOnly) {
+        if (isPlaying) {
+            if (audio) audio.pause();
+            STATE.radio.isPlaying = false;
+            if (playIconPlay) playIconPlay.classList.remove('hidden');
+            if (playIconPause) playIconPause.classList.add('hidden');
+        } else {
+            if (audio) audio.play().catch(e => console.warn(e));
+            STATE.radio.isPlaying = true;
+            if (playIconPlay) playIconPlay.classList.add('hidden');
+            if (playIconPause) playIconPause.classList.remove('hidden');
+        }
+        return;
+    }
 
     if (isPlaying) {
         if (STATE.socket) {
@@ -5515,6 +5646,20 @@ function toggleRadioPlayPause() {
 }
 
 function closeRadioBar() {
+    if (STATE.radio.isLocalOnly) {
+        const audio = getRadioAudioElement();
+        if (audio) {
+            audio.pause();
+            audio.removeAttribute('src');
+        }
+        STATE.radio.activeTrack = null;
+        STATE.radio.isPlaying = false;
+        STATE.radio.isLocalOnly = false;
+        const bar = document.getElementById('classroomMusicBar');
+        if (bar) bar.classList.add('hidden');
+        return;
+    }
+
     if (confirm('هل تريد إيقاف الأغنية للجميع في الفصل؟')) {
         if (STATE.socket) {
             STATE.socket.emit('radio_stop');
