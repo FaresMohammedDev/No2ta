@@ -1,7 +1,23 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl" class="dark" data-no2ta-theme="paper">
+<html lang="ar" dir="rtl" data-no2ta-theme="paper">
 <head>
     <meta charset="UTF-8">
+    <script>
+      (function() {
+        try {
+          var mode = localStorage.getItem('no2ta_theme_mode') || 'light';
+          document.documentElement.setAttribute('data-theme', mode);
+          document.documentElement.setAttribute('data-no2ta-theme', 'paper');
+          if (mode === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light');
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.classList.add('light');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نؤطة (No2ta) - شبكة الفصل الاجتماعية</title>
     <link id="appFavicon" rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><rect width=%2224%22 height=%2224%22 rx=%226%22 fill=%22%23161310%22/><path d=%22M13 2 4 14h6l-1 8 9-12h-6l1-8z%22 fill=%22%23D6B26E%22/></svg>">
@@ -24,7 +40,7 @@
     <!-- Audio Synthesizer -->
     <script src="/js/audio_synth.js"></script>
 </head>
-<body class="paper-app bg-[var(--no2ta-bg-canvas)] text-slate-100 min-h-screen flex flex-col antialiased selection:bg-cyan-500 selection:text-black">
+<body class="paper-app bg-[var(--no2ta-bg-canvas)] text-[var(--n-ink)] min-h-screen flex flex-col antialiased selection:bg-cyan-500 selection:text-black">
 
     <div id="paperShell">
       <nav class="paper-nav n-page" aria-label="التنقل الرئيسي">
@@ -35,6 +51,7 @@
       <header class="paper-top n-page">
         <div><div class="paper-connection" id="paperConnection" role="status">جاري الاتصال…</div><span id="paperDate" class="paper-date n-small n-muted"></span></div>
         <div class="n-row paper-top-actions">
+          <button type="button" id="themeToggleBtn" class="n-btn n-btn-icon" onclick="toggleThemeMode()" aria-label="تبديل المظهر (فاتح / داكن)" title="تبديل المظهر"><i data-lucide="moon"></i></button>
           <button type="button" class="n-btn n-btn-icon" onclick="showModal('networkModal')" aria-label="معلومات الشبكة"><i data-lucide="wifi"></i></button>
           <button type="button" class="n-btn" onclick="showModal('profileModal')"><i data-lucide="user-round"></i>حسابي</button>
           <button type="button" class="n-btn n-btn-danger" onclick="triggerPanicButton()" title="إخفاء فوري — F2"><i data-lucide="siren"></i>البشمهندسة!</button>
@@ -1051,6 +1068,20 @@
                     </div>
                 </div>
 
+                <div class="pt-1">
+                    <label class="block text-xs font-bold text-slate-300 mb-2">مظهر التطبيق (المظهر)</label>
+                    <div class="flex gap-2">
+                        <button type="button" id="themeSelectLightBtn" onclick="setThemeMode('light')" class="flex-1 py-2 px-3 rounded-xl border border-slate-300 bg-white/40 text-slate-700 text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+                            <i data-lucide="sun" class="w-4 h-4"></i>
+                            <span>الوضع الفاتح</span>
+                        </button>
+                        <button type="button" id="themeSelectDarkBtn" onclick="setThemeMode('dark')" class="flex-1 py-2 px-3 rounded-xl border border-slate-700 bg-black/40 text-slate-300 text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+                            <i data-lucide="moon" class="w-4 h-4"></i>
+                            <span>الوضع الداكن</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="pt-2 flex gap-2">
                     <button type="button" onclick="logoutCurrentUser()" class="flex-1 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 font-bold text-xs transition-all flex items-center justify-center gap-1.5">
                         <i data-lucide="log-out" class="w-4 h-4"></i>
@@ -1078,8 +1109,6 @@
                 </button>
             </div>
             <div class="text-center mb-4">
-                <p class="text-xs text-slate-400 mt-1">يجب أن يكون جميع الطلاب متصلين بنفس الـ IP الخاص بسيرفر الأدمن لتروا بعضكم وتتحدثوا معاً!</p>
-            </div>
                 <p class="text-xs text-slate-400 mt-1">يجب أن يكون جميع الطلاب متصلين بنفس الـ IP الخاص بسيرفر الأدمن لتروا بعضكم وتتحدثوا معاً!</p>
             </div>
 
@@ -1681,12 +1710,12 @@
         <div class="n-paper-card glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-lg w-full max-h-[92vh] overflow-y-auto custom-scrollbar border border-cyan-500/40 shadow-2xl relative">
             <!-- Modal Header Bar: Tabs Switcher + Close Button cleanly separated without overlap -->
             <div class="flex items-center justify-between gap-2.5 mb-4 pb-1">
-                <div class="flex-1 flex items-center gap-1.5 p-1 rounded-2xl bg-black/50 border border-white/10 text-xs font-bold">
-                    <button id="tabBtnSchoolSchedule" onclick="switchTimetableTab('schedule')" class="flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-500/25 to-blue-500/25 text-cyan-300 border border-cyan-500/40 shadow-sm cursor-pointer truncate">
+                <div class="flex-1 flex items-center gap-1.5 p-1 rounded-2xl bg-black/10 border border-white/10 text-xs font-bold">
+                    <button id="tabBtnSchoolSchedule" onclick="switchTimetableTab('schedule')" class="flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 shadow-sm cursor-pointer truncate font-bold text-xs timetable-tab-active">
                         <i data-lucide="calendar-days" class="w-4 h-4 shrink-0"></i>
                         <span class="truncate">جدول الحصص واليوم الدراسي</span>
                     </button>
-                    <button id="tabBtnPrayerTimes" onclick="switchTimetableTab('prayers')" class="flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer truncate">
+                    <button id="tabBtnPrayerTimes" onclick="switchTimetableTab('prayers')" class="flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 shadow-sm cursor-pointer truncate font-bold text-xs timetable-tab-inactive">
                         <i data-lucide="moon-star" class="w-4 h-4 shrink-0"></i>
                         <span class="truncate">مواقيت الصلاة (الإسكندرية)</span>
                     </button>

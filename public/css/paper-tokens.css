@@ -1,5 +1,33 @@
-/* No2ta v2 — دفتر حي. Explicit opt-in until each legacy screen is migrated. */
+/* No2ta v2 — دفتر حي / Living Notebook Design System Tokens
+   يدعم كلا المظهرين: الوضع الفاتح (Light Mode) والوضع الداكن (Dark Mode) */
+
 [data-no2ta-theme="paper"] {
+  --n-font: 'Cairo', Tahoma, Arial, sans-serif;
+  --n-mono: 'JetBrains Mono', monospace;
+  --n-text-sm: .75rem;
+  --n-text-body: .875rem;
+  --n-text-lead: 1rem;
+  --n-title: 1.5rem;
+  --n-display: clamp(2rem, 5vw, 3.25rem);
+  --n-space-1: 4px;
+  --n-space-2: 8px;
+  --n-space-3: 12px;
+  --n-space-4: 16px;
+  --n-space-5: 24px;
+  --n-space-6: 32px;
+  --n-space-7: 48px;
+  --n-radius-sm: 8px;
+  --n-radius-md: 12px;
+  --n-radius-lg: 20px;
+  --n-radius-pill: 999px;
+  --n-fast: 120ms;
+  --n-base: 200ms;
+}
+
+/* ☀️ 1. الوضع الفاتح — دفتر نهاري (Light Mode) */
+[data-no2ta-theme="paper"],
+[data-no2ta-theme="paper"][data-theme="light"],
+html:not(.dark)[data-no2ta-theme="paper"] {
   color-scheme: light;
   --n-bg: #F5F1E8;
   --n-surface: #FFFCF6;
@@ -25,26 +53,92 @@
   --n-info: #355F78;
   --n-info-soft: #E8EFF3;
   --n-scrim: #29282399;
-  --n-font: 'Cairo', Tahoma, Arial, sans-serif;
-  --n-mono: 'JetBrains Mono', monospace;
-  --n-text-sm: .75rem;
-  --n-text-body: .875rem;
-  --n-text-lead: 1rem;
-  --n-title: 1.5rem;
-  --n-display: clamp(2rem, 5vw, 3.25rem);
-  --n-space-1: 4px;
-  --n-space-2: 8px;
-  --n-space-3: 12px;
-  --n-space-4: 16px;
-  --n-space-5: 24px;
-  --n-space-6: 32px;
-  --n-space-7: 48px;
-  --n-radius-sm: 8px;
-  --n-radius-md: 12px;
-  --n-radius-lg: 20px;
-  --n-radius-pill: 999px;
   --n-shadow-sm: 0 2px 8px #463A2008;
   --n-shadow-lg: 0 20px 60px #463A2024;
-  --n-fast: 120ms;
-  --n-base: 200ms;
+  --n-bubble-border: #b8cdbd;
+
+  /* Legacy Bridge Tokens */
+  --no2ta-bg-canvas: #F5F1E8;
+  --no2ta-bg-surface: #FFFCF6;
+  --no2ta-text-main: #292823;
+  --no2ta-text-muted: #686458;
+}
+
+/* 🌙 2. الوضع الداكن — دفتر ليلي (Dark Mode) */
+[data-no2ta-theme="paper"][data-theme="dark"],
+[data-no2ta-theme="paper"].theme-dark,
+html.dark[data-theme="dark"][data-no2ta-theme="paper"],
+html.dark[data-no2ta-theme="paper"]:not([data-theme="light"]) {
+  color-scheme: dark;
+  --n-bg: #121518;            /* عمق ورقي مظلم دافئ ومريح للعين */
+  --n-surface: #1A1E24;       /* أسطح الكروت والبطاقات */
+  --n-raised: #222830;        /* حقول الإدخال والعناصر المرتفعة */
+  --n-sunken: #15181D;        /* الحاويات الفرعية والآبار */
+  --n-ink: #F0EDE6;           /* النص الأساسي بأعلى وضوح وتباين */
+  --n-muted: #9E998E;         /* النصوص المساعدة بتباين واضح ومقروء */
+  --n-primary: #4FA88C;       /* الأخضر الغابي المتناسق بحيوية */
+  --n-primary-hover: #5FC2A2; /* الأخضر عند التحويم */
+  --n-primary-active: #3C8770;/* الأخضر عند الضغط */
+  --n-on-primary: #0A1C15;    /* تباين داكن مقروء فوق الزر الأساسي */
+  --n-primary-soft: #172C24;  /* خلفيات التمييز والبادجات الخفيفة */
+  --n-accent: #E5B46C;        /* اللمسة النحاسية الدافئة */
+  --n-on-accent: #2A1C06;     /* النص فوق اللمسة النحاسية */
+  --n-line: #292F38;          /* حدود البطاقات والفواصل */
+  --n-input-line: #3E4652;    /* حدود حقول الإدخال */
+  --n-success: #4CAE68;
+  --n-success-soft: #16301E;
+  --n-warning: #E5A93C;
+  --n-warning-soft: #38270A;
+  --n-danger: #E05D52;
+  --n-danger-soft: #381816;
+  --n-info: #5CA3D0;
+  --n-info-soft: #132A3B;
+  --n-scrim: #000000CC;       /* تعتيم الخلفيات للمودالز */
+  --n-shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.45);
+  --n-shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.75);
+  --n-bubble-border: #23473A; /* حدود فقاعة الشات المرسلة في الدارك */
+
+  /* Legacy Bridge Tokens */
+  --no2ta-bg-canvas: #121518;
+  --no2ta-bg-surface: #1A1E24;
+  --no2ta-text-main: #F0EDE6;
+  --no2ta-text-muted: #9E998E;
+}
+
+/* 🔄 دعم تفضيل النظام التلقائي (System Preference) */
+@media (prefers-color-scheme: dark) {
+  [data-no2ta-theme="paper"]:not([data-theme="light"]):not([data-theme="dark"]) {
+    color-scheme: dark;
+    --n-bg: #121518;
+    --n-surface: #1A1E24;
+    --n-raised: #222830;
+    --n-sunken: #15181D;
+    --n-ink: #F0EDE6;
+    --n-muted: #9E998E;
+    --n-primary: #4FA88C;
+    --n-primary-hover: #5FC2A2;
+    --n-primary-active: #3C8770;
+    --n-on-primary: #0A1C15;
+    --n-primary-soft: #172C24;
+    --n-accent: #E5B46C;
+    --n-on-accent: #2A1C06;
+    --n-line: #292F38;
+    --n-input-line: #3E4652;
+    --n-success: #4CAE68;
+    --n-success-soft: #16301E;
+    --n-warning: #E5A93C;
+    --n-warning-soft: #38270A;
+    --n-danger: #E05D52;
+    --n-danger-soft: #381816;
+    --n-info: #5CA3D0;
+    --n-info-soft: #132A3B;
+    --n-scrim: #000000CC;
+    --n-shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.45);
+    --n-shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.75);
+    --n-bubble-border: #23473A;
+    --no2ta-bg-canvas: #121518;
+    --no2ta-bg-surface: #1A1E24;
+    --no2ta-text-main: #F0EDE6;
+    --no2ta-text-muted: #9E998E;
+  }
 }

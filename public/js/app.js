@@ -591,9 +591,16 @@ function setReflexPadState(mode, val) {
     // Reset base classes
     pad.className = 'w-full h-56 rounded-2xl border-2 flex flex-col items-center justify-center cursor-pointer select-none transition-all duration-150 p-4 text-center shadow-inner';
 
+    const isLightMode = document.documentElement.getAttribute('data-theme') === 'light' || (!document.documentElement.classList.contains('dark') && document.documentElement.getAttribute('data-theme') !== 'dark');
+
     if (mode === 'waiting') {
-        pad.classList.add('bg-rose-950/40', 'border-rose-500/50', 'text-rose-200');
-        iconEl.innerHTML = '<i data-lucide="timer" class="w-10 h-10 text-rose-400 animate-pulse"></i>';
+        if (isLightMode) {
+            pad.classList.add('bg-rose-100', 'border-rose-400', 'text-rose-950');
+            iconEl.innerHTML = '<i data-lucide="timer" class="w-10 h-10 text-rose-600 animate-pulse"></i>';
+        } else {
+            pad.classList.add('bg-rose-950/40', 'border-rose-500/50', 'text-rose-200');
+            iconEl.innerHTML = '<i data-lucide="timer" class="w-10 h-10 text-rose-400 animate-pulse"></i>';
+        }
         mainText.textContent = 'استعد... ركّز! 🛑';
         subText.textContent = 'لا تضغط قبل ظهور اللون الأخضر';
     } else if (mode === 'green') {
@@ -602,14 +609,24 @@ function setReflexPadState(mode, val) {
         mainText.textContent = 'اضغط الآن بأقصى سرعة! ⚡';
         subText.textContent = 'اضغط هنا أو زر المسافة (Spacebar)';
     } else if (mode === 'early') {
-        pad.classList.add('bg-amber-950/60', 'border-amber-500/50', 'text-amber-200');
-        iconEl.innerHTML = '<i data-lucide="alert-circle" class="w-10 h-10 text-amber-400"></i>';
+        if (isLightMode) {
+            pad.classList.add('bg-amber-100', 'border-amber-400', 'text-amber-950');
+            iconEl.innerHTML = '<i data-lucide="alert-circle" class="w-10 h-10 text-amber-600"></i>';
+        } else {
+            pad.classList.add('bg-amber-950/60', 'border-amber-500/50', 'text-amber-200');
+            iconEl.innerHTML = '<i data-lucide="alert-circle" class="w-10 h-10 text-amber-400"></i>';
+        }
         mainText.textContent = 'تسرعت! ضغطت قبل الأخضر ❌';
         subText.textContent = 'تم احتساب تسرع لهذه الجولة — ركّز في الجولة القادمة';
     } else if (mode === 'success') {
         const ms = val || 0;
-        pad.classList.add('bg-cyan-950/70', 'border-cyan-500/60', 'text-cyan-200');
-        iconEl.innerHTML = '<i data-lucide="zap" class="w-10 h-10 text-cyan-300"></i>';
+        if (isLightMode) {
+            pad.classList.add('bg-cyan-100', 'border-cyan-400', 'text-cyan-950');
+            iconEl.innerHTML = '<i data-lucide="zap" class="w-10 h-10 text-cyan-700"></i>';
+        } else {
+            pad.classList.add('bg-cyan-950/70', 'border-cyan-500/60', 'text-cyan-200');
+            iconEl.innerHTML = '<i data-lucide="zap" class="w-10 h-10 text-cyan-300"></i>';
+        }
         mainText.textContent = `سرعتك: ${ms} ms! ⚡`;
         subText.textContent = ms < 200 ? 'سرعة خارقة للعادة! ⚡' : (ms < 280 ? 'ممتاز جداً! رد فعل سريع 🏎️' : 'جيد! خليك أسرع الجولة الجاية 🎯');
     }
@@ -1210,6 +1227,10 @@ function handleTimeSyncPong(data) {
 function getSyncedServerTime() {
     return Date.now() + serverTimeOffset;
 }
+
+    STATE.socket.on('error_notification', (data) => {
+        showNotification(data?.message || 'حدث خطأ في العملية', 'error');
+    });
 
     STATE.socket.on('connect', () => {
         console.log('⚡ Connected to No2ta Socket Engine');
@@ -5681,14 +5702,64 @@ function hideModal(id) {
     }
 }
 
-function showNotification(text) {
+let notificationTimeoutId = null;
+
+function showNotification(text, type = null) {
     const banner = document.getElementById('globalNotificationPill');
-    const msgEl = document.getElementById('globalNotificationMsg');
-    if (banner && msgEl) {
-        msgEl.textContent = text;
-        banner.classList.remove('hidden');
-        setTimeout(() => banner.classList.add('hidden'), 4000);
+    if (!banner) return;
+
+    if (!type) {
+        const str = String(text || '').toLowerCase();
+        if (str.includes('خطأ') || str.includes('فشل') || str.includes('تعذر') || str.includes('ممنوع') || str.includes('تسرعت') || str.includes('❌') || str.includes('غير مسموح')) {
+            type = 'error';
+        } else if (str.includes('تم ') || str.includes('بنجاح') || str.includes('مبروك') || str.includes('✓') || str.includes('✅') || str.includes('أهلاً')) {
+            type = 'success';
+        } else {
+            type = 'info';
+        }
     }
+
+    let dotColor = 'var(--n-primary, #4FA88C)';
+    let borderColor = 'var(--n-line, rgba(255,255,255,0.15))';
+    let iconName = 'bell';
+    let iconColor = 'var(--n-primary, #4FA88C)';
+
+    if (type === 'error') {
+        dotColor = 'var(--n-danger, #E05D52)';
+        borderColor = 'var(--n-danger, #E05D52)';
+        iconName = 'alert-circle';
+        iconColor = 'var(--n-danger, #E05D52)';
+    } else if (type === 'success') {
+        dotColor = 'var(--n-success, #4CAE68)';
+        borderColor = 'var(--n-success, #4CAE68)';
+        iconName = 'check-circle';
+        iconColor = 'var(--n-success, #4CAE68)';
+    } else {
+        dotColor = 'var(--n-primary, #4FA88C)';
+        borderColor = 'var(--n-line, rgba(255,255,255,0.15))';
+        iconName = 'bell';
+        iconColor = 'var(--n-primary, #4FA88C)';
+    }
+
+    banner.style.borderColor = borderColor;
+    banner.innerHTML = `
+        <span class="w-2 h-2 rounded-full animate-ping shrink-0" style="background:${dotColor}"></span>
+        <i data-lucide="${iconName}" class="w-[15px] h-[15px] shrink-0" style="color:${iconColor}"></i>
+        <span id="globalNotificationMsg" class="text-xs font-bold leading-tight" style="color:var(--n-ink)">${escapeHtml(String(text))}</span>
+    `;
+
+    if (typeof renderIcons === 'function') {
+        renderIcons();
+    } else if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+    }
+
+    banner.classList.remove('hidden');
+
+    if (notificationTimeoutId) clearTimeout(notificationTimeoutId);
+    notificationTimeoutId = setTimeout(() => {
+        banner.classList.add('hidden');
+    }, 4500);
 }
 
 function showAnnouncementModal({ title, message, time }) {
@@ -6747,14 +6818,16 @@ function switchTimetableTab(tabName) {
 
     if (!tabBtnSchedule || !tabBtnPrayers || !contentSchedule || !contentPrayers) return;
 
+    const baseClass = 'flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 shadow-sm cursor-pointer truncate font-bold text-xs';
+
     if (tabName === 'schedule') {
-        tabBtnSchedule.className = 'flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-500/25 to-blue-500/25 text-cyan-300 border border-cyan-500/40 shadow-sm cursor-pointer truncate font-bold text-xs';
-        tabBtnPrayers.className = 'flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer truncate font-bold text-xs border border-transparent';
+        tabBtnSchedule.className = `${baseClass} timetable-tab-active`;
+        tabBtnPrayers.className = `${baseClass} timetable-tab-inactive`;
         contentSchedule.classList.remove('hidden');
         contentPrayers.classList.add('hidden');
     } else {
-        tabBtnPrayers.className = 'flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 bg-gradient-to-r from-emerald-500/25 to-teal-500/25 text-emerald-300 border border-emerald-500/40 shadow-sm cursor-pointer truncate font-bold text-xs';
-        tabBtnSchedule.className = 'flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer truncate font-bold text-xs border border-transparent';
+        tabBtnPrayers.className = `${baseClass} timetable-tab-active`;
+        tabBtnSchedule.className = `${baseClass} timetable-tab-inactive`;
         contentPrayers.classList.remove('hidden');
         contentSchedule.classList.add('hidden');
     }

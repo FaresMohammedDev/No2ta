@@ -119,7 +119,90 @@
         // Only create newly inserted icon placeholders, not all existing SVGs each second.
         if (document.querySelector('#paperShell i[data-lucide], #paperHome i[data-lucide]')) renderIcons();
     }
-    window.No2taHome = { show, render, openChats, closeChatList, toggleChatList, closeTimer, toggleTimer, isChatVisible: () => view === 'chat' };
+    // ----------------------------------------------------
+    // Theme Management Engine (Dark Mode / Light Mode) ☀️🌙
+    // ----------------------------------------------------
+    function getThemeMode() {
+        const saved = localStorage.getItem('no2ta_theme_mode');
+        if (saved === 'dark' || saved === 'light') return saved;
+        return 'light'; // Default to light mode
+    }
+
+    function applyThemeMode(mode) {
+        const isDark = (mode === 'dark');
+        document.documentElement.setAttribute('data-theme', mode);
+        document.documentElement.setAttribute('data-no2ta-theme', 'paper');
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light');
+        } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.classList.add('light');
+        }
+
+        // Update Theme Toggle Button in Header
+        const toggleBtn = document.getElementById('themeToggleBtn');
+        if (toggleBtn) {
+            toggleBtn.setAttribute('aria-label', isDark ? 'التبديل إلى الوضع الفاتح (Light Mode)' : 'التبديل إلى الوضع الداكن (Dark Mode)');
+            toggleBtn.setAttribute('title', isDark ? 'التبديل إلى الوضع الفاتح (Light Mode)' : 'التبديل إلى الوضع الداكن (Dark Mode)');
+            toggleBtn.innerHTML = `<i data-lucide="${isDark ? 'sun' : 'moon'}" class="w-4 h-4"></i>`;
+        }
+
+        // Update Segmented buttons in profileModal if present
+        const lightSelect = document.getElementById('themeSelectLightBtn');
+        const darkSelect = document.getElementById('themeSelectDarkBtn');
+        if (lightSelect && darkSelect) {
+            if (isDark) {
+                darkSelect.className = 'flex-1 py-2 px-3 rounded-xl border border-cyan-500 bg-cyan-500/20 text-cyan-300 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer';
+                lightSelect.className = 'flex-1 py-2 px-3 rounded-xl border border-white/10 bg-black/20 text-slate-400 hover:text-white text-xs flex items-center justify-center gap-1.5 transition cursor-pointer';
+            } else {
+                lightSelect.className = 'flex-1 py-2 px-3 rounded-xl border border-emerald-600 bg-emerald-600/20 text-emerald-800 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer';
+                darkSelect.className = 'flex-1 py-2 px-3 rounded-xl border border-slate-300 bg-white/40 text-slate-600 hover:text-slate-900 text-xs flex items-center justify-center gap-1.5 transition cursor-pointer';
+            }
+        }
+
+        // Sync with Stealth Exam iframe if present
+        const iframe = document.getElementById('stealthIframe');
+        if (iframe && iframe.contentWindow) {
+            try {
+                iframe.contentWindow.postMessage({ type: 'theme_change', mode }, '*');
+            } catch (e) {}
+        }
+
+        if (typeof renderIcons === 'function') {
+            renderIcons();
+        }
+    }
+
+    function setThemeMode(mode) {
+        if (mode !== 'dark' && mode !== 'light') return;
+        try {
+            localStorage.setItem('no2ta_theme_mode', mode);
+        } catch (e) {}
+        applyThemeMode(mode);
+        if (typeof showNotification === 'function') {
+            showNotification(mode === 'dark' ? '🌙 تم تفعيل الوضع الداكن (Dark Mode)' : '☀️ تم تفعيل الوضع الفاتح (Light Mode)');
+        }
+    }
+
+    function toggleThemeMode() {
+        const current = document.documentElement.getAttribute('data-theme') || getThemeMode();
+        const next = (current === 'dark') ? 'light' : 'dark';
+        setThemeMode(next);
+    }
+
+    window.getThemeMode = getThemeMode;
+    window.applyThemeMode = applyThemeMode;
+    window.setThemeMode = setThemeMode;
+    window.toggleThemeMode = toggleThemeMode;
+
+    window.addEventListener('message', (e) => {
+        if (e.data && e.data.type === 'theme_change' && (e.data.mode === 'light' || e.data.mode === 'dark')) {
+            applyThemeMode(e.data.mode);
+        }
+    });
+
+    window.No2taHome = { show, render, openChats, closeChatList, toggleChatList, closeTimer, toggleTimer, isChatVisible: () => view === 'chat', getThemeMode, applyThemeMode, setThemeMode, toggleThemeMode };
     document.addEventListener('DOMContentLoaded', () => {
         $('legacyChat').addEventListener('keydown', event => {
             const card = event.target.closest('[role="button"][tabindex="0"]');
@@ -136,6 +219,7 @@
             if (name === 'chat') openChats();
             else show('home', name === 'home' ? null : name);
         }));
+        applyThemeMode(getThemeMode());
         show('home');
         setInterval(() => { if (!document.hidden) render(); }, 1000);
         document.addEventListener('visibilitychange',()=>{if(!document.hidden) render();});

@@ -1,10 +1,5 @@
-/* Reusable adapter for legacy (Tailwind/dark) modal cards being migrated to the
-   "دفتر حي" paper identity one at a time. Add `n-paper-card` to a modal's inner
-   `.glass-panel-elevated` panel to re-skin it; the backdrop stays the dark scrim
-   (matches native <dialog>::backdrop) so the light card still reads as a modal.
-   Add `n-literal-color` to any element whose color is actual content (a pen
-   swatch, a status dot that must stay red/green, an avatar emoji background)
-   to exempt it from the repaint. */
+/* Reusable adapter for legacy modal cards being migrated to the
+   "دفتر حي" paper identity with full Dark and Light mode support. */
 .n-paper-card {
     background: var(--n-surface);
     border-color: var(--n-line);
@@ -15,24 +10,108 @@
     font-family: var(--n-font);
 }
 .n-paper-card :is(h1,h2,h3,h4) { color: var(--n-ink); }
-.n-paper-card :is([class*="bg-slate-"],[class*="bg-white/"],[class*="bg-black/"]):not(.n-literal-color) { background: var(--n-sunken); }
+.n-paper-card :is([class*="bg-slate-"],[class*="bg-white/"],[class*="bg-black/"]):not(.n-literal-color):not(button):not(.n-btn-primary) { background: var(--n-sunken); }
 .n-paper-card :is([class*="border-slate-"],[class*="border-white/"]):not(.n-literal-color) { border-color: var(--n-line); }
-.n-paper-card :is([class*="text-slate-"],[class*="text-white"]):not(.n-literal-color) { color: var(--n-ink); }
+.n-paper-card :is([class*="text-slate-"],[class*="text-white"]):not(.n-literal-color):not(.n-btn-primary):not([class*="bg-indigo-500"]):not([class*="bg-cyan-500"]):not([class*="bg-emerald-500"]):not([class*="bg-sky-500"]) { color: var(--n-ink); }
 .n-paper-card :is([class*="text-slate-400"],[class*="text-slate-500"]):not(.n-literal-color) { color: var(--n-muted); }
 .n-paper-card :is([class*="text-cyan-"],[class*="text-purple-"],[class*="text-emerald-"],[class*="text-indigo-"],[class*="text-pink-"],[class*="text-fuchsia-"],[class*="text-sky-"]):not(.n-literal-color) { color: var(--n-primary); }
-.n-paper-card :is([class*="bg-cyan-"],[class*="bg-purple-"],[class*="bg-emerald-"],[class*="bg-indigo-"],[class*="bg-pink-"],[class*="bg-fuchsia-"],[class*="bg-sky-"]):not(.n-literal-color) { background: var(--n-primary-soft); color: var(--n-primary); }
+
+/* Badges and soft highlight containers */
+.n-paper-card span:is([class*="bg-cyan-"],[class*="bg-purple-"],[class*="bg-emerald-"],[class*="bg-indigo-"],[class*="bg-pink-"],[class*="bg-fuchsia-"],[class*="bg-sky-"]):not(.n-literal-color),
+.n-paper-card div:is([class*="bg-cyan-"],[class*="bg-purple-"],[class*="bg-emerald-"],[class*="bg-indigo-"],[class*="bg-pink-"],[class*="bg-fuchsia-"],[class*="bg-sky-"]):not(.n-literal-color) { 
+    background: var(--n-primary-soft); 
+    color: var(--n-primary); 
+}
+
+/* Primary Action Buttons (Solid, high-contrast, prominent) */
+.n-paper-card button:is([class*="bg-indigo-"],[class*="bg-cyan-500"],[class*="bg-sky-500"],[class*="bg-emerald-500"],[class*="bg-amber-500"],[class*="bg-orange-500"]):not(.n-literal-color),
+.n-paper-card .n-btn-primary {
+    background: var(--n-primary) !important;
+    color: var(--n-on-primary) !important;
+    border-color: var(--n-primary) !important;
+    font-weight: 700;
+}
+.n-paper-card button:is([class*="bg-indigo-"],[class*="bg-cyan-500"],[class*="bg-sky-500"],[class*="bg-emerald-500"],[class*="bg-amber-500"],[class*="bg-orange-500"]):hover:not(.n-literal-color),
+.n-paper-card .n-btn-primary:hover {
+    background: var(--n-primary-hover) !important;
+    color: var(--n-on-primary) !important;
+    border-color: var(--n-primary-hover) !important;
+}
+
 .n-paper-card :is([class*="border-cyan-"],[class*="border-purple-"],[class*="border-emerald-"],[class*="border-indigo-"],[class*="border-pink-"],[class*="border-fuchsia-"],[class*="border-sky-"]):not(.n-literal-color) { border-color: var(--n-primary); }
 .n-paper-card :is([class*="text-amber-"],[class*="text-orange-"]):not(.n-literal-color) { color: var(--n-warning); }
-.n-paper-card :is([class*="bg-amber-"],[class*="bg-orange-"]):not(.n-literal-color) { background: var(--n-warning-soft); }
+.n-paper-card span:is([class*="bg-amber-"],[class*="bg-orange-"]):not(.n-literal-color),
+.n-paper-card div:is([class*="bg-amber-"],[class*="bg-orange-"]):not(.n-literal-color) { background: var(--n-warning-soft); color: var(--n-warning); }
 .n-paper-card [class*="text-red-"]:not(.n-literal-color) { color: var(--n-danger); }
-.n-paper-card [class*="bg-red-"]:not(.n-literal-color) { background: var(--n-danger-soft); }
+.n-paper-card [class*="bg-red-"]:not(.n-literal-color):not(button) { background: var(--n-danger-soft); color: var(--n-danger); }
 .n-paper-card span.bg-emerald-500.n-literal-color { background: var(--n-success); }
-.n-paper-card [class*="bg-gradient-"]:not(.n-literal-color) { background: var(--n-primary-soft); color: var(--n-primary); }
+.n-paper-card [class*="bg-gradient-"]:not(.n-literal-color):not(button) { background: var(--n-primary-soft); color: var(--n-primary); }
 .n-paper-card :is(.text-micro,[class*="text-[11px]"],[class*="text-[10px]"]) { font-size: 12px; }
 .n-paper-card :is(button,[role="button"],input,textarea,select):focus-visible { outline: 3px solid var(--n-primary); outline-offset: 2px; }
 .n-paper-card button { min-height: 36px; }
 .n-paper-card button:disabled { opacity: .5; cursor: not-allowed; }
-.n-paper-card :is(input,textarea,select):not(.n-literal-color) { background: var(--n-raised); color: var(--n-ink); border-color: var(--n-input-line); }
-.n-paper-card :is(input,textarea)::placeholder { color: var(--n-muted); }
+.n-paper-card :is(input,textarea,select):not(.n-literal-color) { 
+    background: var(--n-raised) !important; 
+    color: var(--n-ink) !important; 
+    border-color: var(--n-input-line) !important; 
+}
+.n-paper-card :is(input,textarea)::placeholder { color: var(--n-muted) !important; }
 .n-paper-card hr { border-color: var(--n-line); }
 @media (prefers-reduced-motion: reduce) { .n-paper-card * { animation: none !important; transition: none !important; } }
+
+
+/* Stealth Teacher Safety Overlay adaptation */
+[data-theme="light"] #stealthPhysicsOverlay {
+    background-color: #f8fafc !important;
+}
+[data-theme="light"] #stealthPhysicsOverlay .bg-gray-900 {
+    background-color: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    color: #475569 !important;
+}
+[data-theme="light"] #stealthPhysicsOverlay .text-white {
+    color: #0f172a !important;
+}
+[data-theme="light"] #stealthPhysicsOverlay button.bg-gray-800 {
+    background-color: #f1f5f9 !important;
+    color: #0284c7 !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+/* Floating Notification Pill Paper Adaptation */
+#globalNotificationPill {
+    background: var(--n-surface) !important;
+    color: var(--n-ink) !important;
+    border-color: var(--n-line) !important;
+    box-shadow: var(--n-shadow-lg) !important;
+}
+
+
+/* Modal Close & Timetable Tabs */
+.n-paper-card button:is([onclick*="hideModal"],[onclick*="closeModal"]):not(.n-btn-primary) {
+    background: var(--n-raised) !important;
+    color: var(--n-ink) !important;
+    border: 1px solid var(--n-line) !important;
+    cursor: pointer;
+    transition: background var(--n-fast), color var(--n-fast);
+}
+.n-paper-card button:is([onclick*="hideModal"],[onclick*="closeModal"]):hover:not(.n-btn-primary) {
+    background: var(--n-sunken) !important;
+    color: var(--n-ink) !important;
+}
+
+.timetable-tab-active {
+    background: var(--n-primary-soft) !important;
+    color: var(--n-primary) !important;
+    border: 1px solid var(--n-primary) !important;
+    font-weight: 700 !important;
+}
+.timetable-tab-inactive {
+    background: transparent !important;
+    color: var(--n-muted) !important;
+    border: 1px solid transparent !important;
+}
+.timetable-tab-inactive:hover {
+    color: var(--n-ink) !important;
+    background: var(--n-raised) !important;
+}
