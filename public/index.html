@@ -587,10 +587,12 @@
     <!-- 2. NETWORK & QR CODE MODAL -->
     <div id="networkModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
         <div class="n-paper-card glass-panel-elevated rounded-3xl p-6 max-w-sm w-full text-center relative border border-white/10">
-            <button onclick="hideModal('networkModal')" class="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition">
-                <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
-            <h3 class="text-base font-black text-white mb-1 flex items-center justify-center gap-1.5"><i data-lucide="wifi" class="w-4 h-4"></i> دخول الزملاء عبر الـ Wi-Fi</h3>
+            <div class="flex items-center justify-between pb-2 border-b border-white/10 mb-3">
+                <h3 class="text-sm font-black text-white flex items-center gap-1.5"><i data-lucide="wifi" class="w-4 h-4 text-cyan-400"></i> دخول الزملاء عبر الـ Wi-Fi</h3>
+                <button onclick="hideModal('networkModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
             <p class="text-xs text-slate-400 mb-4">امسح الكود بكاميرا الموبايل للدخول المباشر للشات</p>
 
             <div class="p-3 bg-white rounded-2xl inline-block mb-3 shadow-xl">
@@ -806,10 +808,12 @@
     <!-- 5. STORY CREATOR MODAL -->
     <div id="storyCreatorModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
         <div class="n-paper-card glass-panel-elevated rounded-3xl p-6 max-w-md w-full border border-white/10 relative">
-            <button type="button" onclick="hideModal('storyCreatorModal')" class="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0 z-10">
-                <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
-            <h3 class="text-base font-black text-white mb-3 flex items-center gap-1.5"><i data-lucide="camera" class="w-[18px] h-[18px] text-pink-400"></i> نشر استوري جديد</h3>
+            <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                <h3 class="text-base font-black text-white flex items-center gap-1.5"><i data-lucide="camera" class="w-[18px] h-[18px] text-pink-400"></i> نشر استوري جديد</h3>
+                <button type="button" onclick="hideModal('storyCreatorModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
 
             <form id="storyCreateForm" class="space-y-4">
                 <div>
@@ -987,10 +991,12 @@
     <!-- 10. PROFILE EDIT MODAL -->
     <div id="profileModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
         <div class="n-paper-card glass-panel-elevated rounded-3xl p-6 max-w-md w-full border border-white/10 relative">
-            <button type="button" onclick="hideModal('profileModal')" class="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0 z-10">
-                <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
-            <h3 class="text-base font-black text-white mb-3 flex items-center gap-1.5"><i data-lucide="user-cog" class="w-[18px] h-[18px] text-cyan-400"></i> تعديل ملفي الشخصي</h3>
+            <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                <h3 class="text-base font-black text-white flex items-center gap-1.5"><i data-lucide="user-cog" class="w-[18px] h-[18px] text-cyan-400"></i> تعديل ملفي الشخصي</h3>
+                <button type="button" onclick="hideModal('profileModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
 
             <form id="profileEditForm" class="space-y-4">
                 <div>
@@ -1062,12 +1068,18 @@
     <!-- 11. CONNECT TO HOST MODAL -->
     <div id="connectHostModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
         <div class="n-paper-card glass-panel-elevated rounded-3xl p-6 max-w-md w-full border border-white/10 relative text-right">
-            <button type="button" onclick="hideModal('connectHostModal')" class="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0 z-10">
-                <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
+            <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="link-2" class="w-5 h-5 text-cyan-400"></i>
+                    <h3 class="text-base font-black text-white">الاتصال بسيرفر الفصل الرئيسي</h3>
+                </div>
+                <button type="button" onclick="hideModal('connectHostModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
             <div class="text-center mb-4">
-                <i data-lucide="link-2" class="w-9 h-9 text-cyan-400 mx-auto mb-2"></i>
-                <h3 class="text-lg font-black text-white">الاتصال بسيرفر الفصل الرئيسي</h3>
+                <p class="text-xs text-slate-400 mt-1">يجب أن يكون جميع الطلاب متصلين بنفس الـ IP الخاص بسيرفر الأدمن لتروا بعضكم وتتحدثوا معاً!</p>
+            </div>
                 <p class="text-xs text-slate-400 mt-1">يجب أن يكون جميع الطلاب متصلين بنفس الـ IP الخاص بسيرفر الأدمن لتروا بعضكم وتتحدثوا معاً!</p>
             </div>
 
@@ -1667,20 +1679,20 @@
     <!-- 🕌 ALEXANDRIA PRAYER TIMES & SCHOOL TIMETABLE MODAL -->
     <div id="prayerTimesModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
         <div class="n-paper-card glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-lg w-full max-h-[92vh] overflow-y-auto custom-scrollbar border border-cyan-500/40 shadow-2xl relative">
-            <!-- Close Button -->
-            <button type="button" onclick="hideModal('prayerTimesModal')" class="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition cursor-pointer z-10">
-                <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
-
-            <!-- Modal Tabs Switcher -->
-            <div class="flex items-center gap-1.5 p-1 rounded-2xl bg-black/50 border border-white/10 mb-4 text-xs font-bold">
-                <button id="tabBtnSchoolSchedule" onclick="switchTimetableTab('schedule')" class="flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-500/25 to-blue-500/25 text-cyan-300 border border-cyan-500/40 shadow-sm cursor-pointer">
-                    <i data-lucide="school" class="w-[14px] h-[14px]"></i>
-                    <span>جدول الحصص واليوم الدراسي</span>
-                </button>
-                <button id="tabBtnPrayerTimes" onclick="switchTimetableTab('prayers')" class="flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer">
-                    <i data-lucide="moon-star" class="w-[14px] h-[14px]"></i>
-                    <span>مواقيت الصلاة (الإسكندرية)</span>
+            <!-- Modal Header Bar: Tabs Switcher + Close Button cleanly separated without overlap -->
+            <div class="flex items-center justify-between gap-2.5 mb-4 pb-1">
+                <div class="flex-1 flex items-center gap-1.5 p-1 rounded-2xl bg-black/50 border border-white/10 text-xs font-bold">
+                    <button id="tabBtnSchoolSchedule" onclick="switchTimetableTab('schedule')" class="flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-500/25 to-blue-500/25 text-cyan-300 border border-cyan-500/40 shadow-sm cursor-pointer truncate">
+                        <i data-lucide="calendar-days" class="w-4 h-4 shrink-0"></i>
+                        <span class="truncate">جدول الحصص واليوم الدراسي</span>
+                    </button>
+                    <button id="tabBtnPrayerTimes" onclick="switchTimetableTab('prayers')" class="flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer truncate">
+                        <i data-lucide="moon-star" class="w-4 h-4 shrink-0"></i>
+                        <span class="truncate">مواقيت الصلاة (الإسكندرية)</span>
+                    </button>
+                </div>
+                <button type="button" onclick="hideModal('prayerTimesModal')" class="w-9 h-9 rounded-2xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition cursor-pointer shrink-0 border border-white/10 shadow-sm" title="إغلاق">
+                    <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
             </div>
 

@@ -6748,16 +6748,17 @@ function switchTimetableTab(tabName) {
     if (!tabBtnSchedule || !tabBtnPrayers || !contentSchedule || !contentPrayers) return;
 
     if (tabName === 'schedule') {
-        tabBtnSchedule.className = 'flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-500/25 to-blue-500/25 text-cyan-300 border border-cyan-500/40 shadow-sm cursor-pointer';
-        tabBtnPrayers.className = 'flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer';
+        tabBtnSchedule.className = 'flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-500/25 to-blue-500/25 text-cyan-300 border border-cyan-500/40 shadow-sm cursor-pointer truncate font-bold text-xs';
+        tabBtnPrayers.className = 'flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer truncate font-bold text-xs border border-transparent';
         contentSchedule.classList.remove('hidden');
         contentPrayers.classList.add('hidden');
     } else {
-        tabBtnPrayers.className = 'flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 bg-gradient-to-r from-emerald-500/25 to-teal-500/25 text-emerald-300 border border-emerald-500/40 shadow-sm cursor-pointer';
-        tabBtnSchedule.className = 'flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer';
+        tabBtnPrayers.className = 'flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 bg-gradient-to-r from-emerald-500/25 to-teal-500/25 text-emerald-300 border border-emerald-500/40 shadow-sm cursor-pointer truncate font-bold text-xs';
+        tabBtnSchedule.className = 'flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer truncate font-bold text-xs border border-transparent';
         contentPrayers.classList.remove('hidden');
         contentSchedule.classList.add('hidden');
     }
+    renderIcons();
 }
 
 function openSchoolScheduleModal() {
@@ -7235,31 +7236,55 @@ function updateSchoolScheduleUI(now = new Date()) {
             let rowBgClass = 'hover:bg-white/5 transition';
 
             if (school.isWeekend) {
-                statusBadge = '<span class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 text-micro">ويك إند</span>';
+                statusBadge = '<span class="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-400 text-micro font-medium">ويك إند</span>';
             } else if (isBionicOnThu) {
-                statusBadge = '<span class="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-300 text-micro border border-purple-500/20">❌ مفيش بايونيك الخميس</span>';
+                statusBadge = '<span class="px-2.5 py-0.5 rounded-lg bg-purple-500/10 text-purple-300 text-micro border border-purple-500/20 font-medium">مفيش بايونيك الخميس</span>';
                 rowBgClass = 'opacity-40 line-through bg-black/20';
             } else if (isActive) {
                 const rem = school.fmtRemaining(item.endSec - school.curSec);
-                statusBadge = `<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40 text-micro animate-pulse">🟢 جارية الآن (باقي ${rem})</span>`;
-                rowBgClass = 'bg-cyan-500/15 border-r-4 border-r-cyan-400 font-bold shadow-inner';
+                statusBadge = `<span class="px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40 text-[11px] flex items-center gap-1.5 shadow-sm"><span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span><span>جارية الآن (باقي ${rem})</span></span>`;
+                rowBgClass = 'bg-cyan-500/10 border-r-4 border-r-cyan-400 font-bold';
             } else if (isPassed) {
-                statusBadge = '<span class="px-2 py-0.5 rounded-full bg-white/5 text-slate-400 text-micro">✓ انتهت</span>';
-                rowBgClass = 'opacity-60';
+                statusBadge = '<span class="px-2 py-0.5 rounded-lg text-slate-500 text-micro flex items-center gap-1 font-medium"><i data-lucide="check" class="w-3.5 h-3.5"></i><span>انتهت</span></span>';
+                rowBgClass = 'opacity-55 hover:opacity-85 transition';
             } else {
                 const until = school.fmtRemaining(item.startSec - school.curSec);
-                statusBadge = `<span class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 text-micro border border-white/5">قادمة (بعد ${until})</span>`;
+                statusBadge = `<span class="px-2 py-0.5 rounded-lg bg-slate-900 text-slate-300 text-micro border border-white/10 font-mono">بعد ${until}</span>`;
+            }
+
+            let iconHtml = '';
+            if (item.type === 'session') {
+                const activeStyle = isActive 
+                    ? 'bg-cyan-500 text-slate-950 font-black shadow-md shadow-cyan-500/30' 
+                    : (isPassed ? 'bg-slate-800/80 text-slate-500 font-bold' : 'bg-slate-800 text-cyan-300 border border-cyan-500/20 font-bold');
+                iconHtml = `<span class="w-7 h-7 rounded-xl flex items-center justify-center font-mono text-xs shrink-0 ${activeStyle}">${item.num}</span>`;
+            } else if (item.type === 'break') {
+                const activeStyle = isActive 
+                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30' 
+                    : 'bg-amber-500/15 text-amber-300 border border-amber-500/30';
+                iconHtml = `<span class="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${activeStyle}"><i data-lucide="coffee" class="w-4 h-4"></i></span>`;
+            } else if (item.type === 'bionic') {
+                const activeStyle = isActive 
+                    ? 'bg-purple-500 text-white shadow-md shadow-purple-500/30' 
+                    : 'bg-purple-500/15 text-purple-300 border border-purple-500/30';
+                iconHtml = `<span class="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${activeStyle}"><i data-lucide="flask-conical" class="w-4 h-4"></i></span>`;
+            } else if (item.type === 'dismissal') {
+                iconHtml = `<span class="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"><i data-lucide="home" class="w-4 h-4"></i></span>`;
             }
 
             const nameColor = item.type === 'break' ? 'text-amber-300 font-bold' : (item.type === 'bionic' ? 'text-purple-300 font-bold' : (item.type === 'dismissal' ? 'text-emerald-300 font-bold' : 'text-white font-medium'));
 
             rowsHtml += `
-                <div class="p-2.5 flex items-center justify-between gap-2 ${rowBgClass}">
-                    <div class="flex items-center gap-2.5 min-w-0">
-                        <span class="text-base shrink-0">${item.icon}</span>
-                        <div class="truncate">
-                            <span class="${nameColor} block truncate text-xs">${item.name}</span>
-                            <span class="text-micro text-slate-400 font-mono block mt-0.5">${item.time} • <span class="text-slate-500">${item.duration}</span></span>
+                <div class="p-3 flex items-center justify-between gap-3 ${rowBgClass}">
+                    <div class="flex items-center gap-3 min-w-0">
+                        ${iconHtml}
+                        <div class="min-w-0">
+                            <span class="${nameColor} block text-xs sm:text-sm font-bold truncate">${item.name}</span>
+                            <div class="flex items-center gap-2 text-micro text-slate-400 font-mono mt-0.5">
+                                <span>${item.time}</span>
+                                <span class="text-slate-600">•</span>
+                                <span class="text-slate-500">${item.duration}</span>
+                            </div>
                         </div>
                     </div>
                     <div class="shrink-0 text-left">
@@ -7269,6 +7294,7 @@ function updateSchoolScheduleUI(now = new Date()) {
             `;
         });
         container.innerHTML = rowsHtml;
+        renderIcons();
     }
 
     const dayBadge = document.getElementById('modalScheduleDayBadge');
