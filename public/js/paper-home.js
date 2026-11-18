@@ -119,16 +119,17 @@
         // Only create newly inserted icon placeholders, not all existing SVGs each second.
         if (document.querySelector('#paperShell i[data-lucide], #paperHome i[data-lucide]')) renderIcons();
     }
-    // Theme Manager (Dark Mode & Light Mode / داكن وفاتح)
+    // ----------------------------------------------------
+    // Theme Management Engine (Dark Mode / Light Mode) ☀️🌙
+    // ----------------------------------------------------
     function getThemeMode() {
         const saved = localStorage.getItem('no2ta_theme_mode');
         if (saved === 'dark' || saved === 'light') return saved;
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
-        return 'light';
+        return 'light'; // Default to light mode
     }
 
     function applyThemeMode(mode) {
-        const isDark = mode === 'dark';
+        const isDark = (mode === 'dark');
         document.documentElement.setAttribute('data-theme', mode);
         document.documentElement.setAttribute('data-no2ta-theme', 'paper');
         if (isDark) {
@@ -139,36 +140,37 @@
             document.documentElement.classList.add('light');
         }
 
-        // Update Theme Toggle Buttons
+        // Update Theme Toggle Button in Header
         const toggleBtn = document.getElementById('themeToggleBtn');
         if (toggleBtn) {
-            toggleBtn.setAttribute('aria-label', isDark ? 'التبديل إلى الوضع الفاتح (Light)' : 'التبديل إلى الوضع الداكن (Dark)');
-            toggleBtn.setAttribute('title', isDark ? 'التبديل إلى الوضع الفاتح (Light)' : 'التبديل إلى الوضع الداكن (Dark)');
-            const iconEl = toggleBtn.querySelector('i, svg');
-            if (iconEl) {
-                iconEl.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
-            }
+            toggleBtn.setAttribute('aria-label', isDark ? 'التبديل إلى الوضع الفاتح (Light Mode)' : 'التبديل إلى الوضع الداكن (Dark Mode)');
+            toggleBtn.setAttribute('title', isDark ? 'التبديل إلى الوضع الفاتح (Light Mode)' : 'التبديل إلى الوضع الداكن (Dark Mode)');
+            toggleBtn.innerHTML = `<i data-lucide="${isDark ? 'sun' : 'moon'}" class="w-4 h-4"></i>`;
         }
 
-        // Update segmented buttons in profileModal if present
+        // Update Segmented buttons in profileModal if present
         const lightSelect = document.getElementById('themeSelectLightBtn');
         const darkSelect = document.getElementById('themeSelectDarkBtn');
         if (lightSelect && darkSelect) {
             if (isDark) {
-                darkSelect.classList.add('border-cyan-500', 'bg-cyan-500/20', 'text-white', 'font-black');
-                darkSelect.classList.remove('border-slate-700', 'text-slate-400');
-                lightSelect.classList.remove('border-cyan-500', 'bg-cyan-500/20', 'text-white', 'font-black');
-                lightSelect.classList.add('border-slate-700', 'text-slate-400');
+                darkSelect.className = 'flex-1 py-2 px-3 rounded-xl border border-cyan-500 bg-cyan-500/20 text-cyan-300 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer';
+                lightSelect.className = 'flex-1 py-2 px-3 rounded-xl border border-white/10 bg-black/20 text-slate-400 hover:text-white text-xs flex items-center justify-center gap-1.5 transition cursor-pointer';
             } else {
-                lightSelect.classList.add('border-emerald-600', 'bg-emerald-600/20', 'text-slate-900', 'font-black');
-                lightSelect.classList.remove('border-slate-700', 'text-slate-400');
-                darkSelect.classList.remove('border-emerald-600', 'bg-emerald-600/20', 'text-slate-900', 'font-black');
-                darkSelect.classList.add('border-slate-700', 'text-slate-400');
+                lightSelect.className = 'flex-1 py-2 px-3 rounded-xl border border-emerald-600 bg-emerald-600/20 text-emerald-800 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer';
+                darkSelect.className = 'flex-1 py-2 px-3 rounded-xl border border-slate-300 bg-white/40 text-slate-600 hover:text-slate-900 text-xs flex items-center justify-center gap-1.5 transition cursor-pointer';
             }
         }
 
-        if (window.lucide && typeof lucide.createIcons === 'function') {
-            lucide.createIcons();
+        // Sync with Stealth Exam iframe if present
+        const iframe = document.getElementById('stealthIframe');
+        if (iframe && iframe.contentWindow) {
+            try {
+                iframe.contentWindow.postMessage({ type: 'theme_change', mode }, '*');
+            } catch (e) {}
+        }
+
+        if (typeof renderIcons === 'function') {
+            renderIcons();
         }
     }
 
@@ -185,7 +187,7 @@
 
     function toggleThemeMode() {
         const current = document.documentElement.getAttribute('data-theme') || getThemeMode();
-        const next = current === 'dark' ? 'light' : 'dark';
+        const next = (current === 'dark') ? 'light' : 'dark';
         setThemeMode(next);
     }
 
@@ -193,6 +195,12 @@
     window.applyThemeMode = applyThemeMode;
     window.setThemeMode = setThemeMode;
     window.toggleThemeMode = toggleThemeMode;
+
+    window.addEventListener('message', (e) => {
+        if (e.data && e.data.type === 'theme_change' && (e.data.mode === 'light' || e.data.mode === 'dark')) {
+            applyThemeMode(e.data.mode);
+        }
+    });
 
     window.No2taHome = { show, render, openChats, closeChatList, toggleChatList, closeTimer, toggleTimer, isChatVisible: () => view === 'chat', getThemeMode, applyThemeMode, setThemeMode, toggleThemeMode };
     document.addEventListener('DOMContentLoaded', () => {
@@ -211,6 +219,7 @@
             if (name === 'chat') openChats();
             else show('home', name === 'home' ? null : name);
         }));
+        applyThemeMode(getThemeMode());
         show('home');
         setInterval(() => { if (!document.hidden) render(); }, 1000);
         document.addEventListener('visibilitychange',()=>{if(!document.hidden) render();});

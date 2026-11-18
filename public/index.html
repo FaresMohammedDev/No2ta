@@ -1,7 +1,23 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl" class="dark" data-no2ta-theme="paper">
+<html lang="ar" dir="rtl" data-no2ta-theme="paper">
 <head>
     <meta charset="UTF-8">
+    <script>
+      (function() {
+        try {
+          var mode = localStorage.getItem('no2ta_theme_mode') || 'light';
+          document.documentElement.setAttribute('data-theme', mode);
+          document.documentElement.setAttribute('data-no2ta-theme', 'paper');
+          if (mode === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light');
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.classList.add('light');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نؤطة (No2ta) - شبكة الفصل الاجتماعية</title>
     <link id="appFavicon" rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><rect width=%2224%22 height=%2224%22 rx=%226%22 fill=%22%23161310%22/><path d=%22M13 2 4 14h6l-1 8 9-12h-6l1-8z%22 fill=%22%23D6B26E%22/></svg>">
@@ -18,31 +34,13 @@
     <link rel="stylesheet" href="/css/paper-components.css?v=20261105-1">
     <link rel="stylesheet" href="/css/paper-home.css?v=20261105-1">
     <link rel="stylesheet" href="/css/paper-chat.css?v=20261105-1">
-    <link rel="stylesheet" href="/css/paper-legacy-modals.css?v=20261105-2">
-    <script>
-        (function() {
-            try {
-                var saved = localStorage.getItem('no2ta_theme_mode');
-                var isDark = saved ? (saved === 'dark') : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-                var mode = isDark ? 'dark' : 'light';
-                document.documentElement.setAttribute('data-theme', mode);
-                document.documentElement.setAttribute('data-no2ta-theme', 'paper');
-                if (isDark) {
-                    document.documentElement.classList.add('dark');
-                    document.documentElement.classList.remove('light');
-                } else {
-                    document.documentElement.classList.remove('dark');
-                    document.documentElement.classList.add('light');
-                }
-            } catch (e) {}
-        })();
-    </script>
+    <link rel="stylesheet" href="/css/paper-legacy-modals.css?v=20261105-1">
     <!-- Socket.IO Client -->
     <script src="/socket.io/socket.io.js"></script>
     <!-- Audio Synthesizer -->
     <script src="/js/audio_synth.js"></script>
 </head>
-<body class="paper-app bg-[var(--no2ta-bg-canvas)] text-slate-100 min-h-screen flex flex-col antialiased selection:bg-cyan-500 selection:text-black">
+<body class="paper-app bg-[var(--no2ta-bg-canvas)] text-[var(--n-ink)] min-h-screen flex flex-col antialiased selection:bg-cyan-500 selection:text-black">
 
     <div id="paperShell">
       <nav class="paper-nav n-page" aria-label="التنقل الرئيسي">
@@ -53,7 +51,7 @@
       <header class="paper-top n-page">
         <div><div class="paper-connection" id="paperConnection" role="status">جاري الاتصال…</div><span id="paperDate" class="paper-date n-small n-muted"></span></div>
         <div class="n-row paper-top-actions">
-          <button type="button" class="n-btn n-btn-icon" id="themeToggleBtn" onclick="toggleThemeMode()" aria-label="تبديل الوضع (دارك / لايت)" title="تبديل الوضع (دارك / لايت)"><i data-lucide="moon" id="themeToggleIcon"></i></button>
+          <button type="button" id="themeToggleBtn" class="n-btn n-btn-icon" onclick="toggleThemeMode()" aria-label="تبديل المظهر (فاتح / داكن)" title="تبديل المظهر"><i data-lucide="moon"></i></button>
           <button type="button" class="n-btn n-btn-icon" onclick="showModal('networkModal')" aria-label="معلومات الشبكة"><i data-lucide="wifi"></i></button>
           <button type="button" class="n-btn" onclick="showModal('profileModal')"><i data-lucide="user-round"></i>حسابي</button>
           <button type="button" class="n-btn n-btn-danger" onclick="triggerPanicButton()" title="إخفاء فوري — F2"><i data-lucide="siren"></i>البشمهندسة!</button>
@@ -89,6 +87,7 @@
         <button type="button"  class="paper-tool" onclick="showModal('wordGuessModal')"><i data-lucide="lightbulb"></i><strong>خمّن الكلمة</strong><small>كل حرف يقرّبك</small></button>
         <button type="button"  class="paper-tool" onclick="showModal('triviaModal')"><i data-lucide="brain-circuit"></i><strong>تريفيا</strong><small>اختبر معلوماتك</small></button>
         <button type="button"  class="paper-tool" onclick="showModal('memoryGameModal')"><i data-lucide="palette"></i><strong>ذاكرة الألوان</strong><small>ركّز وافتكر الترتيب</small></button>
+        <button type="button"  class="paper-tool" onclick="showModal('reflexGameModal')"><i data-lucide="zap"></i><strong>سرعة رد الفعل</strong><small>مين أسرع واحد يضغط؟</small></button>
       </div></section>
       <footer class="paper-home-footer">نؤطة · حكاية فصل، صفحة كل يوم.</footer>
     </main>
@@ -503,27 +502,27 @@
     <!-- ======================================================== -->
     <!-- 🚨 THE FULLSCREEN STEALTH OVERLAY (كتاب وكويز الفيزيكس) 🚨 -->
     <!-- ======================================================== -->
-    <div id="stealthPhysicsOverlay" class="hidden fixed inset-0 z-50 bg-[#030712] flex flex-col">
-        <!-- Discreet Teacher Safety Top Bar -->
-        <div class="bg-gray-900 border-b border-gray-800 px-4 py-2 flex items-center justify-between text-xs text-gray-400">
+    <div id="stealthPhysicsOverlay" class="hidden fixed inset-0 z-50 bg-[var(--n-bg)] flex flex-col">
+        <!-- Discreet Teacher Safety Top Bar (No2ta Paper Style) -->
+        <div class="bg-[var(--n-surface)] border-b border-[var(--n-line)] px-4 py-2 flex items-center justify-between text-xs text-[var(--n-muted)] shadow-sm">
             <div class="flex items-center gap-2">
-                <i data-lucide="book-marked" class="w-4 h-4 text-cyan-400"></i>
-                <span class="font-extrabold text-white">المركز القومي للمناهج والتقويم التربوي - بنك أسئلة ونموذج إجابة مادة تطبيقات الهاتف (Flutter Competency Model Revision)</span>
+                <img src="/brand/no2ta-paper-mark.svg" alt="" class="w-4 h-4 shrink-0">
+                <span class="font-extrabold text-[var(--n-ink)]">كشكول المراجعة والتقييم — مهارات تطبيقات فلاتر (Flutter Competency Model Revision)</span>
             </div>
             <div class="flex items-center gap-2">
-                <span class="text-gray-500 hidden sm:inline">Flutter Competency Assessment • Mobile App Development</span>
+                <span class="text-[var(--n-muted)] hidden sm:inline">بنك الأسئلة ونموذج الإجابة المعتمد · نؤطة</span>
                 <!-- F3 Close on this device only (Requires Password) -->
-                <button onclick="promptLocalStealthUnlock()" class="px-2.5 py-1 rounded bg-gray-800 hover:bg-gray-700 text-cyan-400 hover:text-white transition-all text-[11px] font-mono font-bold flex items-center gap-1">
-                    <i data-lucide="lock" class="w-3 h-3"></i> F3 إغلاق عندي فقط
+                <button onclick="promptLocalStealthUnlock()" class="n-btn px-2.5 py-1 text-[11px] font-mono font-bold flex items-center gap-1" style="min-height:30px;">
+                    <i data-lucide="lock" class="w-3 h-3 text-[var(--n-primary)]"></i> F3 إنهاء وضع التخفي
                 </button>
                 <!-- Admin Only Global Unlock -->
-                <button id="stealthGlobalUnlockBtn" onclick="promptGlobalStealthUnlock()" class="hidden px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 transition-all text-[11px] font-bold flex items-center gap-1">
-                    <i data-lucide="crown" class="w-3 h-3"></i> فك للجميع
+                <button id="stealthGlobalUnlockBtn" onclick="promptGlobalStealthUnlock()" class="hidden n-btn n-btn-primary px-2.5 py-1 text-[11px] font-bold flex items-center gap-1" style="min-height:30px;">
+                    <i data-lucide="crown" class="w-3 h-3"></i> فتح للجميع
                 </button>
             </div>
         </div>
         <!-- Iframe with authentic Solved Physics Revision -->
-        <iframe id="stealthIframe" src="/stealth/physics.html" class="flex-1 w-full h-full border-none bg-gray-950"></iframe>
+        <iframe id="stealthIframe" src="/stealth/physics.html" class="flex-1 w-full h-full border-none bg-[var(--n-bg)]"></iframe>
     </div>
 
     <!-- ======================================================== -->
@@ -605,10 +604,12 @@
     <!-- 2. NETWORK & QR CODE MODAL -->
     <div id="networkModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
         <div class="n-paper-card glass-panel-elevated rounded-3xl p-6 max-w-sm w-full text-center relative border border-white/10">
-            <button onclick="hideModal('networkModal')" class="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition">
-                <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
-            <h3 class="text-base font-black text-white mb-1 flex items-center justify-center gap-1.5"><i data-lucide="wifi" class="w-4 h-4"></i> دخول الزملاء عبر الـ Wi-Fi</h3>
+            <div class="flex items-center justify-between pb-2 border-b border-white/10 mb-3">
+                <h3 class="text-sm font-black text-white flex items-center gap-1.5"><i data-lucide="wifi" class="w-4 h-4 text-cyan-400"></i> دخول الزملاء عبر الـ Wi-Fi</h3>
+                <button onclick="hideModal('networkModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
             <p class="text-xs text-slate-400 mb-4">امسح الكود بكاميرا الموبايل للدخول المباشر للشات</p>
 
             <div class="p-3 bg-white rounded-2xl inline-block mb-3 shadow-xl">
@@ -630,7 +631,10 @@
             <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
                 <div class="flex items-center gap-2">
                     <i data-lucide="send" class="w-5 h-5 text-cyan-400"></i>
-                    <h3 class="text-base font-black text-white">Classroom AirDrop (مشاركة الملفات السريعة)</h3>
+                    <div>
+                        <h3 class="text-base font-black text-white">Classroom AirDrop (مشاركة الملفات السريعة)</h3>
+                        <p class="text-[11px] text-cyan-400/80">نقل مؤقت ومباشر بين أجهزة الفصل — تُحذف الملفات تلقائياً بعد التنزيل لتوفير المساحة</p>
+                    </div>
                 </div>
                 <button type="button" onclick="hideModal('airdropModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
                     <i data-lucide="x" class="w-4 h-4"></i>
@@ -821,10 +825,12 @@
     <!-- 5. STORY CREATOR MODAL -->
     <div id="storyCreatorModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
         <div class="n-paper-card glass-panel-elevated rounded-3xl p-6 max-w-md w-full border border-white/10 relative">
-            <button type="button" onclick="hideModal('storyCreatorModal')" class="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0 z-10">
-                <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
-            <h3 class="text-base font-black text-white mb-3 flex items-center gap-1.5"><i data-lucide="camera" class="w-[18px] h-[18px] text-pink-400"></i> نشر استوري جديد</h3>
+            <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                <h3 class="text-base font-black text-white flex items-center gap-1.5"><i data-lucide="camera" class="w-[18px] h-[18px] text-pink-400"></i> نشر استوري جديد</h3>
+                <button type="button" onclick="hideModal('storyCreatorModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
 
             <form id="storyCreateForm" class="space-y-4">
                 <div>
@@ -1002,29 +1008,14 @@
     <!-- 10. PROFILE EDIT MODAL -->
     <div id="profileModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
         <div class="n-paper-card glass-panel-elevated rounded-3xl p-6 max-w-md w-full border border-white/10 relative">
-            <button type="button" onclick="hideModal('profileModal')" class="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0 z-10">
-                <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
-            <h3 class="text-base font-black text-white mb-3 flex items-center gap-1.5"><i data-lucide="user-cog" class="w-[18px] h-[18px] text-cyan-400"></i> تعديل ملفي الشخصي</h3>
+            <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                <h3 class="text-base font-black text-white flex items-center gap-1.5"><i data-lucide="user-cog" class="w-[18px] h-[18px] text-cyan-400"></i> تعديل ملفي الشخصي</h3>
+                <button type="button" onclick="hideModal('profileModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
 
             <form id="profileEditForm" class="space-y-4">
-                <div class="p-3 rounded-2xl bg-slate-950/60 border border-slate-800">
-                    <label class="block text-xs font-bold text-slate-300 mb-2 flex items-center justify-between">
-                        <span class="flex items-center gap-1.5"><i data-lucide="palette" class="w-3.5 h-3.5 text-cyan-400"></i> مظهر التطبيق (المظهر)</span>
-                        <span class="text-micro text-slate-500 font-normal">دارك أو لايت</span>
-                    </label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button type="button" onclick="setThemeMode('light')" id="themeSelectLightBtn" class="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-slate-700 bg-slate-900/60 font-bold text-xs transition-all">
-                            <i data-lucide="sun" class="w-4 h-4 text-amber-400"></i>
-                            <span>فاتح (ورقي)</span>
-                        </button>
-                        <button type="button" onclick="setThemeMode('dark')" id="themeSelectDarkBtn" class="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-slate-700 bg-slate-900/60 font-bold text-xs transition-all">
-                            <i data-lucide="moon" class="w-4 h-4 text-cyan-400"></i>
-                            <span>داكن (ليلي)</span>
-                        </button>
-                    </div>
-                </div>
-
                 <div>
                     <label class="block text-xs font-bold text-slate-300 mb-1">الاسم المستعار (Nickname)</label>
                     <input type="text" id="editNickname" class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none">
@@ -1077,6 +1068,20 @@
                     </div>
                 </div>
 
+                <div class="pt-1">
+                    <label class="block text-xs font-bold text-slate-300 mb-2">مظهر التطبيق (المظهر)</label>
+                    <div class="flex gap-2">
+                        <button type="button" id="themeSelectLightBtn" onclick="setThemeMode('light')" class="flex-1 py-2 px-3 rounded-xl border border-slate-300 bg-white/40 text-slate-700 text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+                            <i data-lucide="sun" class="w-4 h-4"></i>
+                            <span>الوضع الفاتح</span>
+                        </button>
+                        <button type="button" id="themeSelectDarkBtn" onclick="setThemeMode('dark')" class="flex-1 py-2 px-3 rounded-xl border border-slate-700 bg-black/40 text-slate-300 text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+                            <i data-lucide="moon" class="w-4 h-4"></i>
+                            <span>الوضع الداكن</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="pt-2 flex gap-2">
                     <button type="button" onclick="logoutCurrentUser()" class="flex-1 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 font-bold text-xs transition-all flex items-center justify-center gap-1.5">
                         <i data-lucide="log-out" class="w-4 h-4"></i>
@@ -1094,12 +1099,16 @@
     <!-- 11. CONNECT TO HOST MODAL -->
     <div id="connectHostModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
         <div class="n-paper-card glass-panel-elevated rounded-3xl p-6 max-w-md w-full border border-white/10 relative text-right">
-            <button type="button" onclick="hideModal('connectHostModal')" class="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0 z-10">
-                <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
+            <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="link-2" class="w-5 h-5 text-cyan-400"></i>
+                    <h3 class="text-base font-black text-white">الاتصال بسيرفر الفصل الرئيسي</h3>
+                </div>
+                <button type="button" onclick="hideModal('connectHostModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
             <div class="text-center mb-4">
-                <i data-lucide="link-2" class="w-9 h-9 text-cyan-400 mx-auto mb-2"></i>
-                <h3 class="text-lg font-black text-white">الاتصال بسيرفر الفصل الرئيسي</h3>
                 <p class="text-xs text-slate-400 mt-1">يجب أن يكون جميع الطلاب متصلين بنفس الـ IP الخاص بسيرفر الأدمن لتروا بعضكم وتتحدثوا معاً!</p>
             </div>
 
@@ -1290,21 +1299,23 @@
             <div id="onlineMusicTabPanel" class="flex flex-col flex-1 min-h-0 space-y-2.5">
                 <!-- Online Search Form -->
                 <div class="relative">
-                    <input type="text" id="onlineMusicSearchInput" onkeydown="if(event.key==='Enter') searchOnlineMusic(this.value)" placeholder="ابحث عن أي أغنية أو فنان أونلاين (عمرو دياب، ويجز، كايروكي...)" class="w-full bg-slate-950 border border-slate-800 focus:border-pink-500 rounded-xl pr-9 pl-16 py-2.5 text-xs text-white placeholder-slate-500 outline-none transition-all">
-                    <i data-lucide="search" class="w-3.5 h-3.5 absolute right-3 top-3 text-slate-400"></i>
-                    <button type="button" onclick="searchOnlineMusic(document.getElementById('onlineMusicSearchInput').value)" class="absolute left-1.5 top-1.5 px-3 py-1.5 bg-pink-500/20 hover:bg-pink-500 text-pink-300 hover:text-white rounded-lg text-micro font-bold transition-all">
+                    <input type="text" id="onlineMusicSearchInput" onkeydown="if(event.key==='Enter') searchOnlineMusic(this.value)" placeholder="ابحث عن أي أغنية أو فنان أونلاين (توليت، ويجز، كايروكي...)" class="w-full rounded-xl pr-9 pl-16 py-2.5 text-xs outline-none transition-all music-search-input">
+                    <i data-lucide="search" class="w-3.5 h-3.5 absolute right-3 top-3 text-[var(--n-muted)]"></i>
+                    <button type="button" onclick="searchOnlineMusic(document.getElementById('onlineMusicSearchInput').value)" class="absolute left-1.5 top-1.5 px-3 py-1.5 rounded-lg text-micro font-bold transition-all music-search-submit">
                         بحث
                     </button>
                 </div>
 
                 <!-- Fast Suggestion Pills -->
                 <div class="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar shrink-0 text-micro">
-                    <span class="text-slate-500 font-bold shrink-0">اقتراحات:</span>
-                    <button type="button" onclick="quickSearchOnline('عمرو دياب')" class="px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800 hover:border-pink-500 text-slate-300 hover:text-pink-300 shrink-0 transition">🔥 عمرو دياب</button>
-                    <button type="button" onclick="quickSearchOnline('ويجز')" class="px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800 hover:border-pink-500 text-slate-300 hover:text-pink-300 shrink-0 transition">⚡ ويجز</button>
-                    <button type="button" onclick="quickSearchOnline('كايروكي')" class="px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800 hover:border-pink-500 text-slate-300 hover:text-pink-300 shrink-0 transition">🎸 كايروكي</button>
-                    <button type="button" onclick="quickSearchOnline('تامر حسني')" class="px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800 hover:border-pink-500 text-slate-300 hover:text-pink-300 shrink-0 transition">🎤 تامر حسني</button>
-                    <button type="button" onclick="quickSearchOnline('شيرين')" class="px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800 hover:border-pink-500 text-slate-300 hover:text-pink-300 shrink-0 transition">✨ شيرين</button>
+                    <span class="text-[var(--n-muted)] font-bold shrink-0">اقتراحات:</span>
+                    <button type="button" onclick="quickSearchOnline('توليت')" class="music-quick-pill">توليت</button>
+                    <button type="button" onclick="quickSearchOnline('ويجز')" class="music-quick-pill">ويجز</button>
+                    <button type="button" onclick="quickSearchOnline('كايروكي')" class="music-quick-pill">كايروكي</button>
+                    <button type="button" onclick="quickSearchOnline('مروان بابلو')" class="music-quick-pill">مروان بابلو</button>
+                    <button type="button" onclick="quickSearchOnline('عمرو دياب')" class="music-quick-pill">عمرو دياب</button>
+                    <button type="button" onclick="quickSearchOnline('تامر حسني')" class="music-quick-pill">تامر حسني</button>
+                    <button type="button" onclick="quickSearchOnline('شيرين')" class="music-quick-pill">شيرين</button>
                 </div>
 
                 <!-- Online Results Container -->
@@ -1587,6 +1598,10 @@
                         <i data-lucide="book-open" class="w-3 h-3"></i>
                         <span>تمويه للكل</span>
                     </button>
+                    <button onclick="adminNetSupportGlobalAction('mute_all')" class="px-2.5 py-1 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="إسكات فوري لكل الأصوات في المعمل">
+                        <i data-lucide="volume-x" class="w-3 h-3"></i>
+                        <span>كتم الأصوات (0ms)</span>
+                    </button>
                     <button onclick="adminNetSupportGlobalAction('message_all')" class="px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
                         <i data-lucide="message-circle" class="w-3 h-3"></i>
                         <span>رسالة للكل</span>
@@ -1695,79 +1710,95 @@
     <!-- 🕌 ALEXANDRIA PRAYER TIMES & SCHOOL TIMETABLE MODAL -->
     <div id="prayerTimesModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
         <div class="n-paper-card glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-lg w-full max-h-[92vh] overflow-y-auto custom-scrollbar border border-cyan-500/40 shadow-2xl relative">
-            <!-- Close Button -->
-            <button type="button" onclick="hideModal('prayerTimesModal')" class="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition cursor-pointer z-10">
-                <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
+            <!-- Modal Header: Dedicated Top Bar (Zero overlap with tabs) -->
+            <div class="flex items-center justify-between pb-3 border-b border-[var(--n-line)] mb-3 shrink-0">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-10 h-10 rounded-2xl bg-[var(--n-primary-soft)] border border-[var(--n-primary)] flex items-center justify-center shrink-0">
+                        <i data-lucide="calendar-clock" class="w-5 h-5 text-[var(--n-primary)]"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h3 class="text-sm font-extrabold text-[var(--n-ink)] truncate flex items-center gap-2">
+                            <span>اليوم الدراسي ومواقيت الصلاة</span>
+                            <span class="text-micro px-2 py-0.5 rounded-full bg-[var(--n-sunken)] text-[var(--n-muted)] border border-[var(--n-line)] font-bold">الإسكندرية 🇪🇬</span>
+                        </h3>
+                        <p class="text-micro text-[var(--n-muted)] truncate mt-0.5">جدول الحصص والبريك ومواقيت الصلوات الخمس</p>
+                    </div>
+                </div>
+                <button type="button" onclick="hideModal('prayerTimesModal')" class="w-9 h-9 rounded-2xl bg-[var(--n-raised)] hover:bg-[var(--n-sunken)] text-[var(--n-ink)] flex items-center justify-center text-xs transition cursor-pointer shrink-0 border border-[var(--n-line)] shadow-sm" title="إغلاق">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
 
-            <!-- Modal Tabs Switcher -->
-            <div class="flex items-center gap-1.5 p-1 rounded-2xl bg-black/50 border border-white/10 mb-4 text-xs font-bold">
-                <button id="tabBtnSchoolSchedule" onclick="switchTimetableTab('schedule')" class="flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-500/25 to-blue-500/25 text-cyan-300 border border-cyan-500/40 shadow-sm cursor-pointer">
-                    <i data-lucide="school" class="w-[14px] h-[14px]"></i>
+            <!-- Segmented Tabs Switcher: Full width, balanced & never crowded -->
+            <div class="flex items-center gap-1.5 p-1 rounded-2xl bg-[var(--n-sunken)] border border-[var(--n-line)] text-xs font-bold mb-3 shrink-0">
+                <button id="tabBtnSchoolSchedule" type="button" onclick="switchTimetableTab('schedule')" class="flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-2 shadow-sm cursor-pointer font-bold text-xs timetable-tab-active">
+                    <i data-lucide="calendar-days" class="w-4 h-4 shrink-0"></i>
                     <span>جدول الحصص واليوم الدراسي</span>
                 </button>
-                <button id="tabBtnPrayerTimes" onclick="switchTimetableTab('prayers')" class="flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-1.5 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer">
-                    <i data-lucide="moon-star" class="w-[14px] h-[14px]"></i>
-                    <span>مواقيت الصلاة (الإسكندرية)</span>
+                <button id="tabBtnPrayerTimes" type="button" onclick="switchTimetableTab('prayers')" class="flex-1 py-2 px-3 rounded-xl transition text-center flex items-center justify-center gap-2 shadow-sm cursor-pointer font-bold text-xs timetable-tab-inactive">
+                    <i data-lucide="moon-star" class="w-4 h-4 shrink-0"></i>
+                    <span>مواقيت الصلاة</span>
                 </button>
             </div>
 
             <!-- TAB 1: SCHOOL SCHEDULE & PERIODS TABLE -->
             <div id="tabContentSchoolSchedule" class="space-y-3">
                 <!-- Current Live Status Banner -->
-                <div class="p-3.5 rounded-2xl bg-gradient-to-r from-cyan-950/60 via-slate-900/80 to-blue-950/60 border border-cyan-500/30">
-                    <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-white/10">
-                        <div class="flex items-center gap-2">
-                            <i data-lucide="school" class="w-5 h-5 text-cyan-300"></i>
-                            <div>
-                                <span class="font-black text-white text-sm block" id="modalSchoolCurrentStatus">--</span>
-                                <span class="text-micro text-slate-400" id="modalSchoolSessionInfo">الحصة 55 دقيقة • يبدأ اليوم 7:30 ص</span>
+                <div class="p-3.5 rounded-2xl timetable-hero-card border border-[var(--n-line)]">
+                    <div class="flex items-center justify-between gap-3 mb-2.5 pb-2 border-b border-[var(--n-line)]">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-9 h-9 rounded-xl bg-[var(--n-primary-soft)] text-[var(--n-primary)] flex items-center justify-center shrink-0">
+                                <i data-lucide="school" class="w-5 h-5"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <span class="font-extrabold text-[var(--n-ink)] text-sm block truncate" id="modalSchoolCurrentStatus">--</span>
+                                <span class="text-micro text-[var(--n-muted)] truncate block" id="modalSchoolSessionInfo">الحصة 55 دقيقة • يبدأ اليوم 7:30 ص</span>
                             </div>
                         </div>
-                        <span id="modalSchoolSessionTimer" class="px-2.5 py-1 rounded-xl bg-cyan-500/20 text-cyan-300 font-mono font-bold text-xs border border-cyan-500/30">--</span>
+                        <span id="modalSchoolSessionTimer" class="px-3 py-1 rounded-xl bg-[var(--n-primary-soft)] text-[var(--n-primary)] font-mono font-bold text-xs border border-[var(--n-primary)] shrink-0">--</span>
                     </div>
 
-                    <div class="grid grid-cols-3 gap-1.5 text-center font-mono text-micro">
-                        <div class="p-2 rounded-xl bg-black/40 border border-white/5">
-                            <span class="text-slate-400 text-micro flex items-center justify-center gap-1"><i data-lucide="coffee" class="w-3 h-3"></i> البريك (11:10)</span>
-                            <strong id="modalSchoolBreakTimer" class="text-amber-300 text-xs block mt-0.5">--</strong>
+                    <div class="grid grid-cols-3 gap-2 text-center font-mono text-micro">
+                        <div class="p-2 rounded-xl bg-[var(--n-surface)] border border-[var(--n-line)]">
+                            <span class="text-[var(--n-muted)] text-micro flex items-center justify-center gap-1"><i data-lucide="coffee" class="w-3 h-3 text-[var(--n-accent)]"></i> البريك (11:10)</span>
+                            <strong id="modalSchoolBreakTimer" class="text-[var(--n-ink)] text-xs block mt-0.5">--</strong>
                         </div>
-                        <div class="p-2 rounded-xl bg-black/40 border border-white/5">
-                            <span class="text-slate-400 text-micro flex items-center justify-center gap-1"><i data-lucide="flask-conical" class="w-3 h-3"></i> <span id="modalSchoolBionicHeader">البايونيك (3:30)</span></span>
-                            <strong id="modalSchoolBionicTimer" class="text-purple-300 text-xs block mt-0.5">--</strong>
+                        <div class="p-2 rounded-xl bg-[var(--n-surface)] border border-[var(--n-line)]">
+                            <span class="text-[var(--n-muted)] text-micro flex items-center justify-center gap-1"><i data-lucide="flask-conical" class="w-3 h-3 text-[var(--n-primary)]"></i> <span id="modalSchoolBionicHeader">البايونيك (3:30)</span></span>
+                            <strong id="modalSchoolBionicTimer" class="text-[var(--n-ink)] text-xs block mt-0.5">--</strong>
                         </div>
-                        <div class="p-2 rounded-xl bg-black/40 border border-white/5">
-                            <span class="text-slate-400 text-micro flex items-center justify-center gap-1"><i data-lucide="home" class="w-3 h-3"></i> <span id="modalSchoolDismissalHeader">المرواح (4:00)</span></span>
-                            <strong id="modalSchoolDismissalTimer" class="text-emerald-300 text-xs block mt-0.5">--</strong>
+                        <div class="p-2 rounded-xl bg-[var(--n-surface)] border border-[var(--n-line)]">
+                            <span class="text-[var(--n-muted)] text-micro flex items-center justify-center gap-1"><i data-lucide="home" class="w-3 h-3 text-[var(--n-success)]"></i> <span id="modalSchoolDismissalHeader">المرواح (4:00)</span></span>
+                            <strong id="modalSchoolDismissalTimer" class="text-[var(--n-ink)] text-xs block mt-0.5">--</strong>
                         </div>
                     </div>
                 </div>
 
                 <!-- Schedule Table Container -->
-                <div class="rounded-2xl border border-white/10 overflow-hidden bg-slate-950/70 shadow-lg">
-                    <div class="p-3 bg-white/5 border-b border-white/10 flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-2 font-bold text-white">
-                            <i data-lucide="clipboard-list" class="w-[14px] h-[14px]"></i>
+                <div class="rounded-2xl border border-[var(--n-line)] overflow-hidden bg-[var(--n-surface)] shadow-sm">
+                    <div class="p-3 bg-[var(--n-sunken)] border-b border-[var(--n-line)] flex items-center justify-between text-xs">
+                        <div class="flex items-center gap-2 font-bold text-[var(--n-ink)]">
+                            <i data-lucide="clipboard-list" class="w-4 h-4 text-[var(--n-primary)]"></i>
                             <span>جدول مواعيد اليوم الدراسي بالتفصيل</span>
                         </div>
-                        <span id="modalScheduleDayBadge" class="text-micro px-2.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-bold">اليوم الدراسي</span>
+                        <span id="modalScheduleDayBadge" class="text-micro px-2.5 py-0.5 rounded-full bg-[var(--n-primary-soft)] text-[var(--n-primary)] border border-[var(--n-primary)] font-bold">اليوم الدراسي</span>
                     </div>
 
                     <!-- Dynamic Table Rows -->
-                    <div id="modalScheduleRowsContainer" class="divide-y divide-white/5 text-xs">
+                    <div id="modalScheduleRowsContainer" class="divide-y divide-[var(--n-line)] text-xs">
                         <!-- Populated dynamically by updateSchoolScheduleUI -->
                     </div>
                 </div>
 
                 <!-- Notes & Rules Box -->
-                <div class="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-2.5 text-[11px] text-amber-200">
-                    <i data-lucide="lightbulb" class="w-[18px] h-[18px] shrink-0"></i>
-                    <div class="leading-relaxed space-y-1">
-                        <strong class="text-amber-300 block font-bold">قواعد توقيت اليوم الدراسي:</strong>
-                        <div>• <strong>الحصص:</strong> 8 حصص دراسية، مدة كل حصة 55 دقيقة، البداية 7:30 صباحاً.</div>
-                        <div>• <strong>البريك:</strong> يبدأ الساعة 11:10 صباحاً لمدة 40 دقيقة كاملة (حتى 11:50 صباحاً).</div>
-                        <div>• <strong>البايونيك (Bionic):</strong> الساعة 3:30 عصراً لمدة 30 دقيقة (الأحد إلى الأربعاء فقط).</div>
-                        <div>• <strong>المرواح:</strong> الساعة 4:00 عصراً (الأحد للأربعاء)، ويوم <strong>الخميس</strong> المرواح 3:30 عصراً فوراً بعد الحصة الثامنة (لا يوجد بايونيك).</div>
+                <div class="p-3.5 rounded-2xl bg-[var(--n-sunken)] border border-[var(--n-line)] flex items-start gap-3 text-xs text-[var(--n-ink)]">
+                    <i data-lucide="lightbulb" class="w-5 h-5 shrink-0 text-[var(--n-accent)] mt-0.5"></i>
+                    <div class="leading-relaxed space-y-1.5 text-[11px]">
+                        <strong class="text-[var(--n-ink)] block font-extrabold text-xs">قواعد توقيت اليوم الدراسي:</strong>
+                        <div class="text-[var(--n-muted)]">• <strong class="text-[var(--n-ink)]">الحصص:</strong> 8 حصص دراسية، مدة كل حصة 55 دقيقة، البداية 7:30 صباحاً.</div>
+                        <div class="text-[var(--n-muted)]">• <strong class="text-[var(--n-ink)]">البريك:</strong> يبدأ الساعة 11:10 صباحاً لمدة 40 دقيقة كاملة (حتى 11:50 صباحاً).</div>
+                        <div class="text-[var(--n-muted)]">• <strong class="text-[var(--n-ink)]">البايونيك (Bionic):</strong> الساعة 3:30 عصراً لمدة 30 دقيقة (الأحد إلى الأربعاء فقط).</div>
+                        <div class="text-[var(--n-muted)]">• <strong class="text-[var(--n-ink)]">المرواح:</strong> الساعة 4:00 عصراً (الأحد للأربعاء)، ويوم <strong class="text-[var(--n-ink)]">الخميس</strong> المرواح 3:30 عصراً فوراً بعد الحصة الثامنة (لا يوجد بايونيك).</div>
                     </div>
                 </div>
             </div>
@@ -2257,6 +2288,84 @@
                 <button type="button" onclick="startMemoryGame()" class="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-black text-xs flex items-center justify-center gap-2">
                     <i data-lucide="rotate-ccw" class="w-[14px] h-[14px]"></i>
                     <span>لعبة جديدة</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ⚡ REFLEX BATTLE (تحدي سرعة رد الفعل) -->
+    <div id="reflexGameModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+        <div class="n-paper-card glass-panel-elevated rounded-3xl p-5 sm:p-6 max-w-md w-full border border-amber-500/40 shadow-2xl relative">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shadow-inner">
+                        <i data-lucide="zap" class="w-5 h-5 text-amber-300"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-black text-white">تحدي سرعة رد الفعل</h3>
+                        <p class="text-[11px] text-amber-400/80">الشاشة بتتحول من الأحمر للأخضر فجأة — أسرع ضغطة تفوز</p>
+                    </div>
+                </div>
+                <button type="button" onclick="hideModal('reflexGameModal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Idle state -->
+            <div id="reflexGameIdleView">
+                <div class="p-4 rounded-2xl bg-slate-900/80 border border-white/5 mb-4 text-center">
+                    <div class="flex items-center justify-center gap-2 mb-2 text-amber-300 font-bold text-xs">
+                        <i data-lucide="timer" class="w-4 h-4"></i>
+                        <span>قواعد التحدي (5 جولات سريعة)</span>
+                    </div>
+                    <p class="text-xs text-slate-400 leading-relaxed">
+                        1. انتظر الشاشة الحمراء "استعد..."<br>
+                        2. أول ما تتحول للأخضر، اضغط بأقصى سرعة على الشاشة أو زر المسافة (Spacebar)!<br>
+                        3. ممنوع التسرع! الضغط قبل الأخضر يحسب خطأ للجولة.
+                    </p>
+                </div>
+                <button type="button" onclick="startReflexGame()" class="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/30 transition cursor-pointer">
+                    <i data-lucide="play" class="w-4 h-4"></i>
+                    <span>ابدأ التحدي في المعمل</span>
+                </button>
+            </div>
+
+            <!-- Active arena state -->
+            <div id="reflexGameArenaView" class="hidden">
+                <div class="flex items-center justify-between mb-3 text-micro text-slate-400 font-bold">
+                    <span id="reflexRoundProgress">جولة 1 / 5</span>
+                    <span id="reflexRoundFastest" class="text-emerald-400 font-mono"></span>
+                </div>
+
+                <!-- Big Interactive Touch / Click Arena Pad -->
+                <div id="reflexPad" onclick="handleReflexPadClick()" class="w-full h-56 rounded-2xl border-2 flex flex-col items-center justify-center cursor-pointer select-none transition-all duration-150 p-4 text-center bg-rose-950/40 border-rose-500/50 text-rose-200 shadow-inner">
+                    <div id="reflexPadIcon" class="mb-2">
+                        <i data-lucide="timer" class="w-10 h-10 text-rose-400 animate-pulse"></i>
+                    </div>
+                    <div id="reflexPadMainText" class="text-xl sm:text-2xl font-black mb-1">استعد... ركّز! 🛑</div>
+                    <div id="reflexPadSubText" class="text-xs opacity-80">لا تضغط قبل ظهور اللون الأخضر</div>
+                </div>
+
+                <div class="mt-3">
+                    <div class="text-[11px] font-bold text-slate-400 mb-1.5 flex items-center justify-between">
+                        <span>لوحة الشرف اللحظية للجولة:</span>
+                        <span class="text-micro text-slate-500">مسافة أو لمس</span>
+                    </div>
+                    <div id="reflexLiveScores" class="space-y-1 max-h-28 overflow-y-auto custom-scrollbar"></div>
+                </div>
+            </div>
+
+            <!-- Finished state -->
+            <div id="reflexGameFinishedView" class="hidden">
+                <div class="text-center mb-4">
+                    <i data-lucide="trophy" class="w-12 h-12 text-amber-400 mx-auto mb-2"></i>
+                    <h4 class="text-base font-black text-white">انتهى تحدي سرعة رد الفعل!</h4>
+                    <p id="reflexFastestEverBadge" class="text-xs text-amber-300 font-bold mt-1"></p>
+                </div>
+                <div id="reflexFinalScores" class="space-y-1.5 mb-4 max-h-48 overflow-y-auto custom-scrollbar"></div>
+                <button type="button" onclick="startReflexGame()" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 cursor-pointer">
+                    <i data-lucide="rotate-ccw" class="w-[14px] h-[14px]"></i>
+                    <span>تحدي جديد</span>
                 </button>
             </div>
         </div>

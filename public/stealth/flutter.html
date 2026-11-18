@@ -1,96 +1,276 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl" class="dark">
+<html lang="ar" dir="rtl" data-no2ta-theme="paper">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منصة التقييم والتدريب التفاعلي — مراجعة كفاءة وتطوير تطبيقات فلاتر (Flutter Competency)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <title>كشكول التقييم والمراجعة — مراجعة كفاءة وتطوير تطبيقات فلاتر (Flutter Competency)</title>
+    <script>
+        (function() {
+            try {
+                var mode = localStorage.getItem('no2ta_theme_mode') || 'light';
+                document.documentElement.setAttribute('data-theme', mode);
+                document.documentElement.setAttribute('data-no2ta-theme', 'paper');
+                if (mode === 'dark') {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.classList.remove('light');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.classList.add('light');
+                }
+            } catch(e) {}
+        })();
+    </script>
+
+    <!-- No2ta Offline Design System & Tokens -->
+    <link rel="stylesheet" href="/css/tailwind.css?v=20261104-1">
+    <link rel="stylesheet" href="/css/design-tokens.css">
+    <link rel="stylesheet" href="/css/paper-tokens.css?v=20261105-1">
+    <link rel="stylesheet" href="/css/paper-components.css?v=20261105-1">
+    <script src="/js/vendor/lucide.min.js?v=0.468.0"></script>
+
     <style>
-        body { font-family: 'Cairo', sans-serif; background-color: #030712; }
-        .en-font { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .mono-font { font-family: 'JetBrains Mono', monospace; }
-        .quiz-card { transition: all 0.25s ease-in-out; }
-        .quiz-card:hover { border-color: rgba(6, 182, 212, 0.4); }
+        body { 
+            font-family: var(--n-font); 
+            background-color: var(--n-bg); 
+            color: var(--n-ink); 
+        }
+        .en-font { font-family: var(--n-font), sans-serif; }
+        .mono-font { font-family: var(--n-mono), monospace; }
+        
+        .quiz-card { 
+            background: var(--n-surface);
+            border: 1px solid var(--n-line);
+            border-radius: var(--n-radius-lg);
+            padding: var(--n-space-4);
+            transition: all var(--n-fast);
+        }
+        .quiz-card:hover { 
+            border-color: var(--n-primary); 
+            box-shadow: var(--n-shadow-sm);
+        }
+
+        .quiz-input {
+            background: var(--n-raised) !important;
+            border: 1px solid var(--n-input-line) !important;
+            color: var(--n-ink) !important;
+            border-radius: var(--n-radius-md);
+            padding: 8px 14px;
+            font-size: 13px;
+            font-family: var(--n-font);
+            transition: border-color var(--n-fast);
+        }
+        .quiz-input:focus {
+            border-color: var(--n-primary) !important;
+            outline: 2px solid var(--n-primary-soft);
+        }
+        .quiz-input-correct {
+            background: var(--n-success-soft) !important;
+            border-color: var(--n-success) !important;
+            color: var(--n-success) !important;
+        }
+        .quiz-input-wrong {
+            background: var(--n-danger-soft) !important;
+            border-color: var(--n-danger) !important;
+            color: var(--n-danger) !important;
+        }
+
+        .quiz-answer-box {
+            background: var(--n-success-soft);
+            border: 1px solid var(--n-success);
+            color: var(--n-success);
+            border-radius: var(--n-radius-md);
+            padding: 10px 14px;
+            font-weight: 600;
+        }
+
+        .quiz-explain-box {
+            background: var(--n-primary-soft);
+            border: 1px solid var(--n-primary);
+            color: var(--n-primary);
+            border-radius: var(--n-radius-md);
+            padding: 12px 16px;
+        }
+
+        .tf-btn {
+            background: var(--n-surface);
+            border: 1px solid var(--n-input-line);
+            color: var(--n-ink);
+            border-radius: var(--n-radius-md);
+            padding: 8px 16px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all var(--n-fast);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .tf-btn:hover {
+            background: var(--n-sunken);
+            border-color: var(--n-primary);
+        }
+        .tf-btn-correct {
+            background: var(--n-success) !important;
+            color: var(--n-on-primary) !important;
+            border-color: var(--n-success) !important;
+            font-weight: 700;
+        }
+        .tf-btn-wrong {
+            background: var(--n-danger) !important;
+            color: var(--n-on-primary) !important;
+            border-color: var(--n-danger) !important;
+            font-weight: 700;
+        }
+
+        .mcq-btn {
+            background: var(--n-raised);
+            border: 1px solid var(--n-line);
+            color: var(--n-ink);
+            border-radius: var(--n-radius-md);
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--n-fast);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            text-align: right;
+        }
+        .mcq-btn:hover {
+            border-color: var(--n-primary);
+            background: var(--n-sunken);
+        }
+        .mcq-btn-correct {
+            background: var(--n-success-soft) !important;
+            border: 2px solid var(--n-success) !important;
+            color: var(--n-success) !important;
+            font-weight: 700;
+        }
+        .mcq-btn-wrong {
+            background: var(--n-danger-soft) !important;
+            border: 2px solid var(--n-danger) !important;
+            color: var(--n-danger) !important;
+            font-weight: 700;
+        }
+        .mcq-btn-faded {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
     </style>
 </head>
-<body class="bg-gray-950 text-slate-100 min-h-screen selection:bg-cyan-500 selection:text-black pb-28">
+<body class="n-page min-h-screen pb-28 selection:bg-[var(--n-primary)] selection:text-[var(--n-on-primary)]">
 
-    <!-- Sticky Live Score & Control Header -->
-    <header class="sticky top-0 z-50 bg-gray-900/95 backdrop-blur-md border-b border-gray-800 px-4 md:px-6 py-3 shadow-xl">
+    <!-- Sticky Live Score & Control Header (No2ta Identity) -->
+    <header class="sticky top-0 z-50 bg-[var(--n-surface)]/95 backdrop-blur-md border-b border-[var(--n-line)] px-4 md:px-6 py-3 shadow-sm">
         <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            
+            <!-- Brand & Title -->
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-500 flex items-center justify-center text-white text-xl shadow-lg shadow-cyan-500/20 font-black">
-                    💙
-                </div>
+                <img src="/brand/no2ta-paper-mark.svg" alt="نؤطة" class="w-9 h-9 shrink-0">
                 <div>
-                    <h1 class="text-sm md:text-base font-extrabold text-white leading-tight flex items-center gap-2">
-                        <span>اختبار وتقييم مهارات فلاتر التفاعلي</span>
-                        <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono font-bold">Q121 - Q202</span>
+                    <h1 class="text-sm md:text-base font-extrabold text-[var(--n-ink)] leading-tight flex items-center gap-2">
+                        <span>كشكول التقييم والمراجعة — مهارات وتطبيقات فلاتر</span>
+                        <span class="n-badge font-mono text-[11px]">Q121 - Q202</span>
                     </h1>
-                    <span class="text-[11px] text-gray-400 en-font">Flutter Competency & Mobile App Development • Official Model Answers</span>
+                    <span class="text-xs text-[var(--n-muted)] block">Flutter Competency Exam Revision • نموذج الإجابة المعتمد · نؤطة</span>
                 </div>
             </div>
 
-            <!-- Live Score Badges -->
-            <div class="flex items-center gap-2 en-font text-xs">
-                <div class="px-3 py-1.5 rounded-xl bg-gray-950 border border-gray-800 flex items-center gap-1.5 shadow-inner">
-                    <span class="text-gray-400">Score:</span>
-                    <span id="score-display" class="font-black text-cyan-400 text-sm">0</span>
-                    <span class="text-gray-600">/</span>
-                    <span id="total-questions-display" class="text-gray-400">71</span>
+            <!-- Live Score Badges & Controls -->
+            <div class="flex items-center gap-2 text-xs flex-wrap">
+                <!-- Score Counter -->
+                <div class="n-badge" style="background:var(--n-raised); color:var(--n-ink); border:1px solid var(--n-line);">
+                    <span class="text-[var(--n-muted)]">النتيجة:</span>
+                    <strong id="score-display" class="font-mono text-sm text-[var(--n-primary)]">0</strong>
+                    <span class="text-[var(--n-muted)]">/</span>
+                    <span id="total-questions-display" class="font-mono">71</span>
                 </div>
-                <div class="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold flex items-center gap-1">
-                    <span>✓</span>
+
+                <!-- Correct Count -->
+                <div class="n-badge n-badge-success font-bold">
+                    <i data-lucide="check" class="w-3.5 h-3.5"></i>
                     <span id="correct-count">0</span>
                 </div>
-                <div class="px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 font-bold flex items-center gap-1">
-                    <span>✗</span>
+
+                <!-- Wrong Count -->
+                <div class="n-badge n-badge-danger font-bold">
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
                     <span id="wrong-count">0</span>
                 </div>
-                <div class="px-3 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-black" id="percentage-badge">
+
+                <!-- Percentage -->
+                <div class="n-badge font-bold" id="percentage-badge">
                     0%
                 </div>
-                <button onclick="toggleAllAnswers()" id="toggle-answers-btn" class="px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 transition text-xs font-bold flex items-center gap-1 cursor-pointer">
-                    👁️ <span class="hidden sm:inline">إظهار كافة الإجابات</span>
+
+                <!-- Controls -->
+                <button onclick="toggleAllAnswers()" id="toggle-answers-btn" class="n-btn" style="min-height:36px; padding:6px 12px; font-size:12px;">
+                    <i data-lucide="eye" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">إظهار كافة الإجابات</span>
                 </button>
-                <button onclick="resetQuiz()" title="إعادة الاختبار بالكامل" class="px-2.5 py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition text-xs font-bold flex items-center gap-1 cursor-pointer">
-                    🔄 <span class="hidden sm:inline">إعادة</span>
+
+                <button onclick="toggleLeaderboard()" id="leaderboard-toggle-btn" class="n-btn" style="min-height:36px; padding:6px 12px; font-size:12px;">
+                    <i data-lucide="trophy" class="w-4 h-4 text-[var(--n-accent)]"></i>
+                    <span class="hidden sm:inline">المتصدرين</span>
+                </button>
+
+                <button onclick="toggleExamTheme()" id="exam-theme-toggle-btn" class="n-btn n-btn-icon" style="min-height:36px; width:36px; padding:8px;" title="تبديل المظهر">
+                    <i data-lucide="moon" class="w-4 h-4"></i>
+                </button>
+
+                <button onclick="resetQuiz()" title="إعادة الاختبار بالكامل" class="n-btn n-btn-icon" style="min-height:36px; width:36px; padding:8px;">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
                 </button>
             </div>
         </div>
 
-        <!-- Progress Bar -->
-        <div class="max-w-6xl mx-auto mt-2.5 w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
-            <div id="quiz-progress-bar" class="bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 h-full w-0 transition-all duration-300"></div>
+        <!-- Progress Bar Track -->
+        <div class="max-w-6xl mx-auto mt-2.5 w-full bg-[var(--n-line)] h-1.5 rounded-full overflow-hidden">
+            <div id="quiz-progress-bar" class="bg-[var(--n-primary)] h-full w-0 transition-all duration-300"></div>
+        </div>
+
+        <!-- Leaderboard Panel -->
+        <div id="leaderboard-panel" class="hidden max-w-6xl mx-auto mt-3 p-4 rounded-2xl bg-[var(--n-surface)] border border-[var(--n-line)] shadow-lg">
+            <div class="flex items-center justify-between mb-3 border-b border-[var(--n-line)] pb-2">
+                <h3 class="text-sm font-black text-[var(--n-ink)] flex items-center gap-1.5">
+                    <i data-lucide="trophy" class="w-4 h-4 text-[var(--n-accent)]"></i>
+                    <span>لوحة المتصدرين في الامتحان</span>
+                </h3>
+                <button onclick="toggleLeaderboard()" class="w-7 h-7 rounded-full bg-[var(--n-raised)] text-[var(--n-ink)] flex items-center justify-center text-xs border border-[var(--n-line)]">
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+            <div id="leaderboard-content" class="text-xs text-[var(--n-muted)]">جاري التحميل...</div>
         </div>
     </header>
 
     <main class="max-w-6xl mx-auto px-4 md:px-6 py-6 space-y-8">
 
-        <!-- Welcome Banner & Quick Jump Nav -->
-        <div class="bg-gradient-to-r from-slate-900 via-gray-900 to-slate-950 border border-cyan-500/30 rounded-3xl p-6 relative overflow-hidden shadow-2xl">
-            <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <!-- Welcome Banner & Quick Jump Nav (No2ta Paper Style) -->
+        <div class="n-card relative overflow-hidden">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
                 <div class="space-y-2">
-                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/15 text-cyan-300 text-xs font-bold border border-cyan-500/30">
-                        <span>🚀</span> بنك أسئلة ونموذج إجابة مادة تطبيقات الهاتف (Flutter Competency)
+                    <div class="inline-flex items-center gap-1.5 n-badge">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                        <span>كشكول بنك الأسئلة والنموذج المعتمد — Flutter Competency</span>
                     </div>
-                    <h2 class="text-xl md:text-2xl font-black text-white">
-                        وضع الاختبار والتقييم الذاتي المتطابق مع الفايل 100% ⚡
+                    <h2 class="text-xl md:text-2xl font-black text-[var(--n-ink)]">
+                        وضع المراجعة والتقييم الذاتي المتطابق مع الفايل 100%
                     </h2>
-                    <p class="text-gray-300 text-xs md:text-sm leading-relaxed max-w-3xl">
+                    <p class="text-[var(--n-muted)] text-xs md:text-sm leading-relaxed max-w-3xl">
                         جميع الأسئلة من <strong>Q121 إلى Q202</strong> مجهزة بنماذج الإجابة الأصلية نصياً وبدقة تامة. تم تفعيل خانات الكتابة في جميع الأقسام بما فيها قسم الشرح (Explain) لكتابة إجابتك بحرية والتحقق منها ومقارنتها بنموذج الفايل!
                     </p>
                 </div>
 
-                <div class="flex flex-wrap gap-1.5 items-center">
-                    <a href="#section-complete" class="px-2.5 py-1.5 rounded-xl bg-gray-800 hover:bg-cyan-500/20 hover:text-cyan-300 border border-gray-700 text-xs font-bold transition">1. أكمل (121-130)</a>
-                    <a href="#section-correct" class="px-2.5 py-1.5 rounded-xl bg-gray-800 hover:bg-cyan-500/20 hover:text-cyan-300 border border-gray-700 text-xs font-bold transition">2. التصويب (131-140)</a>
-                    <a href="#section-terms" class="px-2.5 py-1.5 rounded-xl bg-gray-800 hover:bg-cyan-500/20 hover:text-cyan-300 border border-gray-700 text-xs font-bold transition">3. مصطلحات (141-150)</a>
-                    <a href="#section-explain" class="px-2.5 py-1.5 rounded-xl bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 border border-indigo-500/30 text-xs font-bold transition">✍️ 4. الشرح والكتابة (151-172)</a>
-                    <a href="#section-tf" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30 text-xs font-bold transition">5. صح وغلط (173-192)</a>
-                    <a href="#section-mcq" class="px-2.5 py-1.5 rounded-xl bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25 border border-cyan-500/30 text-xs font-bold transition">6. اختيارات (193-202)</a>
+                <div class="flex flex-wrap gap-2 items-center">
+                    <a href="#section-complete" class="n-btn text-xs font-bold py-1.5 px-3" style="min-height:36px;"><i data-lucide="pencil-line" class="w-3.5 h-3.5"></i> 1. أكمل (121-130)</a>
+                    <a href="#section-correct" class="n-btn text-xs font-bold py-1.5 px-3" style="min-height:36px;"><i data-lucide="spell-check" class="w-3.5 h-3.5"></i> 2. التصويب (131-140)</a>
+                    <a href="#section-terms" class="n-btn text-xs font-bold py-1.5 px-3" style="min-height:36px;"><i data-lucide="book-open" class="w-3.5 h-3.5"></i> 3. مصطلحات (141-150)</a>
+                    <a href="#section-explain" class="n-btn text-xs font-bold py-1.5 px-3" style="min-height:36px;"><i data-lucide="pen-tool" class="w-3.5 h-3.5"></i> 4. الشرح والكتابة (151-172)</a>
+                    <a href="#section-tf" class="n-btn text-xs font-bold py-1.5 px-3" style="min-height:36px;"><i data-lucide="check-check" class="w-3.5 h-3.5"></i> 5. صح وغلط (173-192)</a>
+                    <a href="#section-mcq" class="n-btn text-xs font-bold py-1.5 px-3" style="min-height:36px;"><i data-lucide="list-checks" class="w-3.5 h-3.5"></i> 6. اختيارات (193-202)</a>
                 </div>
             </div>
         </div>
@@ -98,16 +278,16 @@
         <!-- ==========================================
              SECTION 1: COMPLETE THE FOLLOWING SENTENCES (121 - 130)
              ========================================== -->
-        <section id="section-complete" class="bg-gray-900/90 border border-gray-800 rounded-3xl p-5 md:p-7 space-y-4 shadow-lg">
-            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+        <section id="section-complete" class="n-card space-y-4">
+            <div class="flex items-center justify-between border-b border-[var(--n-line)] pb-3">
                 <div class="flex items-center gap-2.5">
-                    <span class="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs font-black">Q1</span>
+                    <span class="n-badge font-mono font-black text-xs">Q1</span>
                     <div>
-                        <h2 class="text-base md:text-lg font-bold text-white">Complete the Following sentences</h2>
-                        <span class="text-xs text-gray-400 en-font">Questions 121 to 130 (10 Questions)</span>
+                        <h2 class="text-base md:text-lg font-bold text-[var(--n-ink)]">Complete the Following sentences</h2>
+                        <span class="text-xs text-[var(--n-muted)] en-font">Questions 121 to 130 (10 Questions)</span>
                     </div>
                 </div>
-                <span id="complete-score-badge" class="text-xs px-2.5 py-1 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono font-bold">0 / 10 المحلول</span>
+                <span id="complete-score-badge" class="n-badge font-mono font-bold">0 / 10 المحلول</span>
             </div>
 
             <div id="complete-container" class="space-y-3">
@@ -115,20 +295,19 @@
             </div>
         </section>
 
-
         <!-- ==========================================
              SECTION 2: CORRECT THE UNDERLINED WORD (131 - 140)
              ========================================== -->
-        <section id="section-correct" class="bg-gray-900/90 border border-gray-800 rounded-3xl p-5 md:p-7 space-y-4 shadow-lg">
-            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+        <section id="section-correct" class="n-card space-y-4">
+            <div class="flex items-center justify-between border-b border-[var(--n-line)] pb-3">
                 <div class="flex items-center gap-2.5">
-                    <span class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs font-black">Q2</span>
+                    <span class="n-badge font-mono font-black text-xs">Q2</span>
                     <div>
-                        <h2 class="text-base md:text-lg font-bold text-white">Correct the underlined word for the following sentence</h2>
-                        <span class="text-xs text-gray-400 en-font">Questions 131 to 140 (10 Questions)</span>
+                        <h2 class="text-base md:text-lg font-bold text-[var(--n-ink)]">Correct the underlined word for the following sentence</h2>
+                        <span class="text-xs text-[var(--n-muted)] en-font">Questions 131 to 140 (10 Questions)</span>
                     </div>
                 </div>
-                <span id="correct-score-badge" class="text-xs px-2.5 py-1 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono font-bold">0 / 10 المحلول</span>
+                <span id="correct-score-badge" class="n-badge font-mono font-bold">0 / 10 المحلول</span>
             </div>
 
             <div id="correct-container" class="space-y-3">
@@ -136,20 +315,19 @@
             </div>
         </section>
 
-
         <!-- ==========================================
              SECTION 3: WRITE THE TECHNICAL TERM (141 - 150)
              ========================================== -->
-        <section id="section-terms" class="bg-gray-900/90 border border-gray-800 rounded-3xl p-5 md:p-7 space-y-4 shadow-lg">
-            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+        <section id="section-terms" class="n-card space-y-4">
+            <div class="flex items-center justify-between border-b border-[var(--n-line)] pb-3">
                 <div class="flex items-center gap-2.5">
-                    <span class="w-8 h-8 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center text-xs font-black">Q3</span>
+                    <span class="n-badge font-mono font-black text-xs">Q3</span>
                     <div>
-                        <h2 class="text-base md:text-lg font-bold text-white">Write the Technical term which is this description</h2>
-                        <span class="text-xs text-gray-400 en-font">Questions 141 to 150 (10 Questions)</span>
+                        <h2 class="text-base md:text-lg font-bold text-[var(--n-ink)]">Write the Technical term which is this description</h2>
+                        <span class="text-xs text-[var(--n-muted)] en-font">Questions 141 to 150 (10 Questions)</span>
                     </div>
                 </div>
-                <span id="terms-score-badge" class="text-xs px-2.5 py-1 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20 font-mono font-bold">0 / 10 المحلول</span>
+                <span id="terms-score-badge" class="n-badge font-mono font-bold">0 / 10 المحلول</span>
             </div>
 
             <div id="terms-container" class="space-y-3">
@@ -157,23 +335,22 @@
             </div>
         </section>
 
-
         <!-- ==========================================
-             SECTION 4: EXPLAIN THE FOLLOWING (151 - 172) - WITH WRITING AREA ✍️
+             SECTION 4: EXPLAIN THE FOLLOWING (151 - 172) - WITH WRITING AREA
              ========================================== -->
-        <section id="section-explain" class="bg-gray-900/90 border border-indigo-500/30 rounded-3xl p-5 md:p-7 space-y-4 shadow-lg">
-            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+        <section id="section-explain" class="n-card space-y-4">
+            <div class="flex items-center justify-between border-b border-[var(--n-line)] pb-3">
                 <div class="flex items-center gap-2.5">
-                    <span class="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-black">Q4</span>
+                    <span class="n-badge font-mono font-black text-xs">Q4</span>
                     <div>
-                        <h2 class="text-base md:text-lg font-bold text-white flex items-center gap-2">
+                        <h2 class="text-base md:text-lg font-bold text-[var(--n-ink)] flex items-center gap-2">
                             <span>Explain the following sentences</span>
-                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-normal">✍️ متاح لك الكتابة والتحقق الذاتي</span>
+                            <span class="text-[11px] px-2 py-0.5 rounded-full bg-[var(--n-primary-soft)] text-[var(--n-primary)] font-normal">متاح لك الكتابة والتحقق الذاتي</span>
                         </h2>
-                        <span class="text-xs text-gray-400 en-font">Questions 151 to 172 (11 Questions — Type & Verify with exact file answer)</span>
+                        <span class="text-xs text-[var(--n-muted)] en-font">Questions 151 to 172 (11 Questions — Type & Verify with exact file answer)</span>
                     </div>
                 </div>
-                <span id="explain-score-badge" class="text-xs px-2.5 py-1 rounded-xl bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono font-bold">0 / 11 المحلول</span>
+                <span id="explain-score-badge" class="n-badge font-mono font-bold">0 / 11 المحلول</span>
             </div>
 
             <div id="explain-container" class="space-y-4">
@@ -181,20 +358,19 @@
             </div>
         </section>
 
-
         <!-- ==========================================
              SECTION 5: WRITE TRUE OR FALSE (173 - 192)
              ========================================== -->
-        <section id="section-tf" class="bg-gray-900/90 border border-emerald-500/30 rounded-3xl p-5 md:p-7 space-y-4 shadow-lg">
-            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+        <section id="section-tf" class="n-card space-y-4">
+            <div class="flex items-center justify-between border-b border-[var(--n-line)] pb-3">
                 <div class="flex items-center gap-2.5">
-                    <span class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-black">Q5</span>
+                    <span class="n-badge font-mono font-black text-xs">Q5</span>
                     <div>
-                        <h2 class="text-base md:text-lg font-bold text-white">Write True/False for the following Sentences</h2>
-                        <span class="text-xs text-gray-400 en-font">Questions 173 to 192 (20 Questions — Interactive Click)</span>
+                        <h2 class="text-base md:text-lg font-bold text-[var(--n-ink)]">Write True/False for the following Sentences</h2>
+                        <span class="text-xs text-[var(--n-muted)] en-font">Questions 173 to 192 (20 Questions — Interactive Click)</span>
                     </div>
                 </div>
-                <span id="tf-score-badge" class="text-xs px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-bold">0 / 20 المحلول</span>
+                <span id="tf-score-badge" class="n-badge font-mono font-bold">0 / 20 المحلول</span>
             </div>
 
             <div id="tf-container" class="space-y-3">
@@ -202,20 +378,19 @@
             </div>
         </section>
 
-
         <!-- ==========================================
              SECTION 6: MULTIPLE CHOICE QUESTIONS (193 - 202)
              ========================================== -->
-        <section id="section-mcq" class="bg-gray-900/90 border border-cyan-500/30 rounded-3xl p-5 md:p-7 space-y-4 shadow-lg">
-            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+        <section id="section-mcq" class="n-card space-y-4">
+            <div class="flex items-center justify-between border-b border-[var(--n-line)] pb-3">
                 <div class="flex items-center gap-2.5">
-                    <span class="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs font-black">Q6</span>
+                    <span class="n-badge font-mono font-black text-xs">Q6</span>
                     <div>
-                        <h2 class="text-base md:text-lg font-bold text-white">Multiple Choice Questions</h2>
-                        <span class="text-xs text-gray-400 en-font">Questions 193 to 202 (10 Questions — Real-time Grading)</span>
+                        <h2 class="text-base md:text-lg font-bold text-[var(--n-ink)]">Multiple Choice Questions</h2>
+                        <span class="text-xs text-[var(--n-muted)] en-font">Questions 193 to 202 (10 Questions — Real-time Grading)</span>
                     </div>
                 </div>
-                <span id="mcq-score-badge" class="text-xs px-2.5 py-1 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono font-bold">0 / 10 المحلول</span>
+                <span id="mcq-score-badge" class="n-badge font-mono font-bold">0 / 10 المحلول</span>
             </div>
 
             <div id="mcq-container" class="space-y-4">
@@ -225,12 +400,12 @@
 
     </main>
 
-    <footer class="border-t border-gray-800 py-6 text-center text-xs text-gray-500 en-font">
-        Flutter Competency & Mobile Development Exam Engine • Official Answers Verbatim • Real-time Interactive Grading
+    <footer class="border-t border-[var(--n-line)] py-6 text-center text-xs text-[var(--n-muted)]">
+        نؤطة · كشكول مراجعة وتقييم كفاءة تطبيقات فلاتر (Flutter Competency) • نماذج الإجابة الأصلية 100%
     </footer>
 
     <!-- ========================================================
-         FLUTTER QUIZ DATA & EVALUATION ENGINE SCRIPT
+         QUIZ DATA & EVALUATION ENGINE SCRIPT (NO2TA INTEGRATED)
          ======================================================== -->
     <script>
         // Global State
@@ -241,8 +416,83 @@
             correct: 0,
             wrong: 0,
             userAnswers: {},
-            showAllAnswers: false
+            showAllAnswers: false,
+            scoreSubmitted: false
         };
+
+        function renderIcons() {
+            if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                window.lucide.createIcons();
+            }
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = String(str == null ? '' : str);
+            return div.innerHTML;
+        }
+
+        function getCurrentNo2taUser() {
+            try {
+                const raw = localStorage.getItem('no2ta_user');
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) { return null; }
+        }
+
+        async function submitQuizScoreIfComplete() {
+            if (state.scoreSubmitted) return;
+            if (state.answered < state.totalQuestions) return;
+            state.scoreSubmitted = true;
+            const user = getCurrentNo2taUser();
+            try {
+                await fetch('/api/quiz/submit-score', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: user ? user.id : null,
+                        nickname: user ? user.nickname : 'طالب',
+                        score: state.score,
+                        total: state.totalQuestions,
+                        quizId: 'flutter_competency'
+                    })
+                });
+            } catch (e) { console.warn('Quiz score submit failed:', e); }
+        }
+
+        function toggleLeaderboard() {
+            const panel = document.getElementById('leaderboard-panel');
+            if (!panel) return;
+            const willShow = panel.classList.contains('hidden');
+            panel.classList.toggle('hidden');
+            if (willShow) loadLeaderboard();
+        }
+
+        async function loadLeaderboard() {
+            const el = document.getElementById('leaderboard-content');
+            if (!el) return;
+            el.textContent = 'جاري التحميل...';
+            try {
+                const data = await fetch('/api/quiz/leaderboard?quizId=flutter_competency').then(r => r.json());
+                if (!data.success) throw new Error('failed');
+                const row = (label, entry) => entry
+                    ? `<div class="flex items-center justify-between py-1.5 border-b border-[var(--n-line)]"><span class="text-[var(--n-muted)]">${label}</span><span class="font-bold text-[var(--n-ink)]">${escapeHtml(entry.nickname)} — ${entry.score}/${entry.total_questions} (${entry.percentage}%)</span></div>`
+                    : `<div class="flex items-center justify-between py-1.5 border-b border-[var(--n-line)]"><span class="text-[var(--n-muted)]">${label}</span><span class="text-[var(--n-muted)] opacity-60">لا يوجد بعد</span></div>`;
+
+                let html = row('أعلى درجة اليوم', data.topToday) + row('أعلى درجة على الإطلاق', data.topAllTime);
+                if (data.topTen && data.topTen.length) {
+                    html += '<div class="mt-3 mb-1.5 text-[var(--n-ink)] font-bold">أفضل 10 نتائج</div>';
+                    html += data.topTen.map((e, i) => `
+                        <div class="flex items-center justify-between py-1 text-xs">
+                            <span class="text-[var(--n-muted)]">#${i + 1} ${escapeHtml(e.nickname)}</span>
+                            <span class="font-mono font-bold text-[var(--n-primary)]">${e.score}/${e.total_questions} (${e.percentage}%)</span>
+                        </div>
+                    `).join('');
+                }
+                el.innerHTML = html;
+            } catch (e) {
+                el.textContent = 'تعذر تحميل لوحة المتصدرين';
+            }
+        }
 
         // 1. DATA: Complete Section (121 - 130) - EXACT FILE ANSWERS
         const COMPLETE_QUESTIONS = [
@@ -260,16 +510,16 @@
 
         // 2. DATA: Correct Underlined Word (131 - 140) - EXACT FILE ANSWERS
         const CORRECT_QUESTIONS = [
-            { id: 131, sentence: "Swift is mainly used for <span class='underline decoration-rose-400 font-bold text-rose-300'>Android</span> application development.", wrong: "Android", ans: "Java or Kotlin", match: ["java or kotlin", "java", "kotlin"] },
-            { id: 132, sentence: "<span class='underline decoration-rose-400 font-bold text-rose-300'>Google Play Store</span> is used for publishing iOS applications.", wrong: "Google Play Store", ans: "Apple App", match: ["apple app", "apple app store", "app store", "apple store"] },
-            { id: 133, sentence: "Google Play Store is used for publishing <span class='underline decoration-rose-400 font-bold text-rose-300'>iOS</span> applications.", wrong: "iOS", ans: "Android", match: ["android"] },
-            { id: 134, sentence: "Swift is used for <span class='underline decoration-rose-400 font-bold text-rose-300'>Android</span> app development.", wrong: "Android", ans: "IOS", match: ["ios", "apple"] },
-            { id: 135, sentence: "<span class='underline decoration-rose-400 font-bold text-rose-300'>iOS</span> apps are published on the Play store.", wrong: "iOS", ans: "Android", match: ["android"] },
-            { id: 136, sentence: "iOS is developed by <span class='underline decoration-rose-400 font-bold text-rose-300'>Google</span> .", wrong: "Google", ans: "Apple", match: ["apple", "apple inc"] },
-            { id: 137, sentence: "<span class='underline decoration-rose-400 font-bold text-rose-300'>UX</span> design focuses specifically on the buttons, colors, and layout of the app screens.", wrong: "UX", ans: "UI Or User interface", match: ["ui", "user interface", "ui or user interface"] },
-            { id: 138, sentence: "Flutter uses the <span class='underline decoration-rose-400 font-bold text-rose-300'>Java</span> programming language to create high-performance mobile apps.", wrong: "Java", ans: "Dart", match: ["dart"] },
-            { id: 139, sentence: "A widget that can change state is called <span class='underline decoration-rose-400 font-bold text-rose-300'>StatelessWidget</span>.", wrong: "StatelessWidget", ans: "StatefulWidget", match: ["statefulwidget", "stateful"] },
-            { id: 140, sentence: "A widget that can’t change state is called <span class='underline decoration-rose-400 font-bold text-rose-300'>StatefulWidget</span>.", wrong: "StatefulWidget", ans: "StatelessWidget", match: ["statelesswidget", "stateless"] }
+            { id: 131, sentence: "Swift is mainly used for <span class='underline decoration-[var(--n-danger)] font-bold text-[var(--n-danger)]'>Android</span> application development.", wrong: "Android", ans: "Java or Kotlin", match: ["java or kotlin", "java", "kotlin"] },
+            { id: 132, sentence: "<span class='underline decoration-[var(--n-danger)] font-bold text-[var(--n-danger)]'>Google Play Store</span> is used for publishing iOS applications.", wrong: "Google Play Store", ans: "Apple App", match: ["apple app", "apple app store", "app store", "apple store"] },
+            { id: 133, sentence: "Google Play Store is used for publishing <span class='underline decoration-[var(--n-danger)] font-bold text-[var(--n-danger)]'>iOS</span> applications.", wrong: "iOS", ans: "Android", match: ["android"] },
+            { id: 134, sentence: "Swift is used for <span class='underline decoration-[var(--n-danger)] font-bold text-[var(--n-danger)]'>Android</span> app development.", wrong: "Android", ans: "IOS", match: ["ios", "apple"] },
+            { id: 135, sentence: "<span class='underline decoration-[var(--n-danger)] font-bold text-[var(--n-danger)]'>iOS</span> apps are published on the Play store.", wrong: "iOS", ans: "Android", match: ["android"] },
+            { id: 136, sentence: "iOS is developed by <span class='underline decoration-[var(--n-danger)] font-bold text-[var(--n-danger)]'>Google</span> .", wrong: "Google", ans: "Apple", match: ["apple", "apple inc"] },
+            { id: 137, sentence: "<span class='underline decoration-[var(--n-danger)] font-bold text-[var(--n-danger)]'>UX</span> design focuses specifically on the buttons, colors, and layout of the app screens.", wrong: "UX", ans: "UI Or User interface", match: ["ui", "user interface", "ui or user interface"] },
+            { id: 138, sentence: "Flutter uses the <span class='underline decoration-[var(--n-danger)] font-bold text-[var(--n-danger)]'>Java</span> programming language to create high-performance mobile apps.", wrong: "Java", ans: "Dart", match: ["dart"] },
+            { id: 139, sentence: "A widget that can change state is called <span class='underline decoration-[var(--n-danger)] font-bold text-[var(--n-danger)]'>StatelessWidget</span>.", wrong: "StatelessWidget", ans: "StatefulWidget", match: ["statefulwidget", "stateful"] },
+            { id: 140, sentence: "A widget that can’t change state is called <span class='underline decoration-[var(--n-danger)] font-bold text-[var(--n-danger)]'>StatefulWidget</span>.", wrong: "StatefulWidget", ans: "StatelessWidget", match: ["statelesswidget", "stateless"] }
         ];
 
         // 3. DATA: Technical Terms (141 - 150) - EXACT FILE ANSWERS
@@ -515,24 +765,24 @@
             }
         ];
 
-        // RENDER FUNCTIONS
+        // RENDER FUNCTIONS (No2ta Paper Style)
         function renderCompleteSection() {
             const container = document.getElementById('complete-container');
             if (!container) return;
             container.innerHTML = COMPLETE_QUESTIONS.map(item => `
-                <div class="quiz-card p-4 rounded-2xl bg-gray-950 border border-gray-800 space-y-2.5">
+                <div class="quiz-card space-y-2.5">
                     <div class="flex items-center justify-between gap-2">
-                        <span class="px-2.5 py-0.5 rounded-lg bg-cyan-500/10 text-cyan-400 font-mono text-xs font-bold">Q${item.id}</span>
+                        <span class="n-badge font-mono text-xs font-bold">Q${item.id}</span>
                         <span id="complete-status-${item.id}" class="text-xs font-bold"></span>
                     </div>
-                    <p class="text-sm md:text-base font-medium text-white en-font leading-relaxed">${item.q}</p>
+                    <p class="text-sm md:text-base font-medium text-[var(--n-ink)] en-font leading-relaxed">${item.q}</p>
                     <div class="flex flex-wrap items-center gap-2 pt-1">
-                        <input type="text" id="complete-input-${item.id}" placeholder="اكتب الكلمة الناقصة..." class="flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-gray-900 border border-gray-700 text-white text-xs en-font focus:outline-none focus:border-cyan-500 transition" onkeydown="if(event.key==='Enter') checkComplete(${item.id})">
-                        <button onclick="checkComplete(${item.id})" class="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition cursor-pointer">تحقق</button>
-                        <button onclick="revealComplete(${item.id})" class="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold transition cursor-pointer">نموذج الفايل</button>
+                        <input type="text" id="complete-input-${item.id}" placeholder="اكتب الكلمة الناقصة..." class="quiz-input flex-1 min-w-[200px]" onkeydown="if(event.key==='Enter') checkComplete(${item.id})">
+                        <button onclick="checkComplete(${item.id})" class="n-btn n-btn-primary" style="min-height:36px; padding:6px 14px; font-size:12px;">تحقق</button>
+                        <button onclick="revealComplete(${item.id})" class="n-btn" style="min-height:36px; padding:6px 12px; font-size:12px;">نموذج الفايل</button>
                     </div>
-                    <div id="complete-answer-${item.id}" class="hidden p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 font-bold en-font">
-                        ✓ إجابة الفايل: <span class="text-white font-mono">${item.ans}</span>
+                    <div id="complete-answer-${item.id}" class="hidden quiz-answer-box text-xs font-bold en-font">
+                        ✓ إجابة الفايل المعتمدة: <span class="font-mono underline font-bold">${item.ans}</span>
                     </div>
                 </div>
             `).join('');
@@ -542,19 +792,19 @@
             const container = document.getElementById('correct-container');
             if (!container) return;
             container.innerHTML = CORRECT_QUESTIONS.map(item => `
-                <div class="quiz-card p-4 rounded-2xl bg-gray-950 border border-gray-800 space-y-2.5">
+                <div class="quiz-card space-y-2.5">
                     <div class="flex items-center justify-between gap-2">
-                        <span class="px-2.5 py-0.5 rounded-lg bg-amber-500/10 text-amber-400 font-mono text-xs font-bold">Q${item.id}</span>
+                        <span class="n-badge font-mono text-xs font-bold" style="background:var(--n-warning-soft); color:var(--n-warning);">Q${item.id}</span>
                         <span id="correct-status-${item.id}" class="text-xs font-bold"></span>
                     </div>
-                    <p class="text-sm md:text-base font-medium text-white en-font leading-relaxed">${item.sentence}</p>
+                    <p class="text-sm md:text-base font-medium text-[var(--n-ink)] en-font leading-relaxed">${item.sentence}</p>
                     <div class="flex flex-wrap items-center gap-2 pt-1">
-                        <input type="text" id="correct-input-${item.id}" placeholder="اكتب التصويب..." class="flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-gray-900 border border-gray-700 text-white text-xs en-font focus:outline-none focus:border-amber-500 transition" onkeydown="if(event.key==='Enter') checkCorrection(${item.id})">
-                        <button onclick="checkCorrection(${item.id})" class="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-slate-950 text-xs font-black transition cursor-pointer">تصويب</button>
-                        <button onclick="revealCorrection(${item.id})" class="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold transition cursor-pointer">نموذج الفايل</button>
+                        <input type="text" id="correct-input-${item.id}" placeholder="اكتب التصويب..." class="quiz-input flex-1 min-w-[200px]" onkeydown="if(event.key==='Enter') checkCorrection(${item.id})">
+                        <button onclick="checkCorrection(${item.id})" class="n-btn n-btn-primary" style="min-height:36px; padding:6px 14px; font-size:12px;">تصويب</button>
+                        <button onclick="revealCorrection(${item.id})" class="n-btn" style="min-height:36px; padding:6px 12px; font-size:12px;">نموذج الفايل</button>
                     </div>
-                    <div id="correct-answer-${item.id}" class="hidden p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 font-bold en-font">
-                        ✓ إجابة الفايل: <span class="text-white font-mono">${item.ans}</span>
+                    <div id="correct-answer-${item.id}" class="hidden quiz-answer-box text-xs font-bold en-font">
+                        ✓ إجابة الفايل المعتمدة: <span class="font-mono underline font-bold">${item.ans}</span>
                     </div>
                 </div>
             `).join('');
@@ -564,19 +814,19 @@
             const container = document.getElementById('terms-container');
             if (!container) return;
             container.innerHTML = TERMS_QUESTIONS.map(item => `
-                <div class="quiz-card p-4 rounded-2xl bg-gray-950 border border-gray-800 space-y-2.5">
+                <div class="quiz-card space-y-2.5">
                     <div class="flex items-center justify-between gap-2">
-                        <span class="px-2.5 py-0.5 rounded-lg bg-teal-500/10 text-teal-400 font-mono text-xs font-bold">Q${item.id}</span>
+                        <span class="n-badge font-mono text-xs font-bold">Q${item.id}</span>
                         <span id="terms-status-${item.id}" class="text-xs font-bold"></span>
                     </div>
-                    <p class="text-sm md:text-base font-medium text-white en-font leading-relaxed">${item.desc}</p>
+                    <p class="text-sm md:text-base font-medium text-[var(--n-ink)] en-font leading-relaxed">${item.desc}</p>
                     <div class="flex flex-wrap items-center gap-2 pt-1">
-                        <input type="text" id="terms-input-${item.id}" placeholder="اكتب المصطلح (Technical term)..." class="flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-gray-900 border border-gray-700 text-white text-xs en-font focus:outline-none focus:border-teal-500 transition" onkeydown="if(event.key==='Enter') checkTerm(${item.id})">
-                        <button onclick="checkTerm(${item.id})" class="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition cursor-pointer">تحقق</button>
-                        <button onclick="revealTerm(${item.id})" class="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold transition cursor-pointer">نموذج الفايل</button>
+                        <input type="text" id="terms-input-${item.id}" placeholder="اكتب المصطلح (Technical term)..." class="quiz-input flex-1 min-w-[200px]" onkeydown="if(event.key==='Enter') checkTerm(${item.id})">
+                        <button onclick="checkTerm(${item.id})" class="n-btn n-btn-primary" style="min-height:36px; padding:6px 14px; font-size:12px;">تحقق</button>
+                        <button onclick="revealTerm(${item.id})" class="n-btn" style="min-height:36px; padding:6px 12px; font-size:12px;">نموذج الفايل</button>
                     </div>
-                    <div id="terms-answer-${item.id}" class="hidden p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 font-bold en-font">
-                        ✓ إجابة الفايل: <span class="text-white font-mono">${item.ans}</span>
+                    <div id="terms-answer-${item.id}" class="hidden quiz-answer-box text-xs font-bold en-font">
+                        ✓ إجابة الفايل المعتمدة: <span class="font-mono underline font-bold">${item.ans}</span>
                     </div>
                 </div>
             `).join('');
@@ -586,30 +836,32 @@
             const container = document.getElementById('explain-container');
             if (!container) return;
             container.innerHTML = EXPLAIN_QUESTIONS.map(item => `
-                <div class="quiz-card p-4 md:p-5 rounded-2xl bg-gray-950 border border-gray-800 space-y-3">
+                <div class="quiz-card space-y-3">
                     <div class="flex items-center justify-between gap-2">
-                        <span class="px-2.5 py-0.5 rounded-lg bg-indigo-500/15 text-indigo-300 font-mono text-xs font-bold">Q${item.numText}</span>
+                        <span class="n-badge font-mono text-xs font-bold" style="background:var(--n-primary-soft); color:var(--n-primary);">Q${item.numText}</span>
                         <span id="explain-status-${item.id}" class="text-xs font-bold"></span>
                     </div>
-                    <h3 class="text-sm md:text-base font-bold text-white en-font">${item.title}</h3>
+                    <h3 class="text-sm md:text-base font-bold text-[var(--n-ink)] en-font">${item.title}</h3>
                     
-                    <!-- Writing Area so student can type freely ✍️ -->
+                    <!-- Writing Area -->
                     <div class="space-y-2">
-                        <textarea id="explain-input-${item.id}" rows="2" placeholder="اكتب شرحك وإجابتك هنا..." class="w-full px-3.5 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-white text-xs md:text-sm en-font focus:outline-none focus:border-indigo-500 transition leading-relaxed"></textarea>
+                        <textarea id="explain-input-${item.id}" rows="2" placeholder="اكتب شرحك وإجابتك هنا..." class="quiz-input w-full leading-relaxed"></textarea>
                         
                         <div class="flex flex-wrap items-center gap-2">
-                            <button onclick="checkExplain('${item.id}')" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition cursor-pointer shadow-sm">
-                                ✍️ حفظ وتحقق من إجابتي
+                            <button onclick="checkExplain('${item.id}')" class="n-btn n-btn-primary" style="min-height:36px; padding:6px 14px; font-size:12px;">
+                                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                                <span>حفظ وتحقق من إجابتي</span>
                             </button>
-                            <button onclick="revealExplain('${item.id}')" class="px-3.5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold transition cursor-pointer">
-                                👁️ نموذج الفايل
+                            <button onclick="revealExplain('${item.id}')" class="n-btn" style="min-height:36px; padding:6px 12px; font-size:12px;">
+                                <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                                <span>نموذج الفايل</span>
                             </button>
                         </div>
                     </div>
 
-                    <div id="explain-ans-${item.id}" class="hidden p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-xs md:text-sm text-indigo-200 leading-relaxed en-font">
-                        <span class="font-bold text-white block mb-0.5">✓ إجابة الفايل بالضبط:</span>
-                        <span class="text-white font-medium select-all">${item.ans}</span>
+                    <div id="explain-ans-${item.id}" class="hidden quiz-explain-box text-xs md:text-sm leading-relaxed en-font">
+                        <span class="font-bold text-[var(--n-ink)] block mb-0.5">✓ إجابة الفايل بالضبط:</span>
+                        <span class="text-[var(--n-ink)] font-medium select-all font-mono">${item.ans}</span>
                     </div>
                 </div>
             `).join('');
@@ -619,23 +871,23 @@
             const container = document.getElementById('tf-container');
             if (!container) return;
             container.innerHTML = TF_QUESTIONS.map(item => `
-                <div class="quiz-card p-4 rounded-2xl bg-gray-950 border border-gray-800 space-y-2.5">
+                <div class="quiz-card space-y-2.5">
                     <div class="flex items-center justify-between gap-2">
-                        <span class="px-2.5 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 font-mono text-xs font-bold">Q${item.id}</span>
+                        <span class="n-badge font-mono text-xs font-bold">Q${item.id}</span>
                         <span id="tf-status-${item.id}" class="text-xs font-bold"></span>
                     </div>
-                    <p class="text-sm md:text-base font-medium text-white en-font leading-relaxed">${item.q}</p>
+                    <p class="text-sm md:text-base font-medium text-[var(--n-ink)] en-font leading-relaxed">${item.q}</p>
                     <div class="flex items-center gap-3 pt-1">
-                        <button onclick="answerTF(${item.id}, true)" id="tf-btn-true-${item.id}" class="flex-1 py-2 px-3 rounded-xl bg-gray-900 hover:bg-emerald-500/20 hover:text-emerald-300 border border-gray-700 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
-                            <span>✓</span>
+                        <button onclick="answerTF(${item.id}, true)" id="tf-btn-true-${item.id}" class="tf-btn flex-1">
+                            <i data-lucide="check" class="w-4 h-4 text-[var(--n-success)]"></i>
                             <span>True</span>
                         </button>
-                        <button onclick="answerTF(${item.id}, false)" id="tf-btn-false-${item.id}" class="flex-1 py-2 px-3 rounded-xl bg-gray-900 hover:bg-rose-500/20 hover:text-rose-300 border border-gray-700 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
-                            <span>✗</span>
+                        <button onclick="answerTF(${item.id}, false)" id="tf-btn-false-${item.id}" class="tf-btn flex-1">
+                            <i data-lucide="x" class="w-4 h-4 text-[var(--n-danger)]"></i>
                             <span>False</span>
                         </button>
                     </div>
-                    <div id="tf-reason-${item.id}" class="hidden p-2 rounded-xl bg-gray-900 border border-gray-800 text-xs text-emerald-400 font-mono font-bold">
+                    <div id="tf-reason-${item.id}" class="hidden p-2 rounded-xl text-xs font-mono font-bold" style="background:var(--n-raised); color:var(--n-primary);">
                         ✓ إجابة الفايل: ${item.ansStr}
                     </div>
                 </div>
@@ -646,21 +898,21 @@
             const container = document.getElementById('mcq-container');
             if (!container) return;
             container.innerHTML = MCQ_QUESTIONS.map(item => `
-                <div class="quiz-card p-4 md:p-5 rounded-2xl bg-gray-950 border border-gray-800 space-y-3">
+                <div class="quiz-card space-y-3">
                     <div class="flex items-center justify-between gap-2">
-                        <span class="px-2.5 py-0.5 rounded-lg bg-cyan-500/10 text-cyan-400 font-mono text-xs font-bold">Q${item.id}</span>
+                        <span class="n-badge font-mono text-xs font-bold">Q${item.id}</span>
                         <span id="mcq-status-${item.id}" class="text-xs font-bold"></span>
                     </div>
-                    <p class="text-sm md:text-base font-bold text-white en-font leading-relaxed">${item.q}</p>
+                    <p class="text-sm md:text-base font-bold text-[var(--n-ink)] en-font leading-relaxed">${item.q}</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                         ${item.options.map(opt => `
-                            <button onclick="answerMCQ(${item.id}, '${opt.val}')" id="mcq-btn-${item.id}-${opt.val}" class="text-right py-2.5 px-3.5 rounded-xl bg-gray-900 hover:bg-cyan-500/15 hover:border-cyan-500/30 border border-gray-800 text-xs md:text-sm font-medium text-gray-200 transition flex items-center justify-between cursor-pointer">
+                            <button onclick="answerMCQ(${item.id}, '${opt.val}')" id="mcq-btn-${item.id}-${opt.val}" class="mcq-btn">
                                 <span>${opt.label}</span>
                                 <span id="mcq-icon-${item.id}-${opt.val}" class="opacity-0 font-bold">✓</span>
                             </button>
                         `).join('')}
                     </div>
-                    <div id="mcq-exp-${item.id}" class="hidden p-2.5 rounded-xl bg-gray-900 border border-gray-800 text-xs text-cyan-300 font-mono font-bold">
+                    <div id="mcq-exp-${item.id}" class="hidden p-2.5 rounded-xl text-xs font-mono font-bold" style="background:var(--n-raised); color:var(--n-primary);">
                         ✓ إجابة الفايل: (${item.fileAns})
                     </div>
                 </div>
@@ -675,6 +927,7 @@
             const pct = state.totalQuestions > 0 ? Math.round((state.score / state.totalQuestions) * 100) : 0;
             document.getElementById('percentage-badge').textContent = pct + '%';
             document.getElementById('quiz-progress-bar').style.width = Math.min(100, Math.round((state.answered / state.totalQuestions) * 100)) + '%';
+            submitQuizScoreIfComplete();
         }
 
         function checkComplete(id) {
@@ -700,15 +953,16 @@
             }
 
             if (isCorrect) {
-                input.className = 'flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-emerald-950/40 border border-emerald-500 text-emerald-300 text-xs en-font';
-                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ صحيح</span>';
+                input.className = 'quiz-input quiz-input-correct flex-1 min-w-[200px]';
+                status.innerHTML = '<span class="text-[var(--n-success)] font-bold">✓ صحيح</span>';
                 ansBox.classList.remove('hidden');
             } else {
-                input.className = 'flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-rose-950/40 border border-rose-500 text-rose-300 text-xs en-font';
-                status.innerHTML = '<span class="text-rose-400 font-bold">✗ خطأ</span>';
+                input.className = 'quiz-input quiz-input-wrong flex-1 min-w-[200px]';
+                status.innerHTML = '<span class="text-[var(--n-danger)] font-bold">✗ خطأ</span>';
                 ansBox.classList.remove('hidden');
             }
             updateScoreHeader();
+            renderIcons();
         }
 
         function revealComplete(id) {
@@ -739,15 +993,16 @@
             }
 
             if (isCorrect) {
-                input.className = 'flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-emerald-950/40 border border-emerald-500 text-emerald-300 text-xs en-font';
-                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ تصويب صحيح</span>';
+                input.className = 'quiz-input quiz-input-correct flex-1 min-w-[200px]';
+                status.innerHTML = '<span class="text-[var(--n-success)] font-bold">✓ تصويب صحيح</span>';
                 ansBox.classList.remove('hidden');
             } else {
-                input.className = 'flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-rose-950/40 border border-rose-500 text-rose-300 text-xs en-font';
-                status.innerHTML = '<span class="text-rose-400 font-bold">✗ خطأ</span>';
+                input.className = 'quiz-input quiz-input-wrong flex-1 min-w-[200px]';
+                status.innerHTML = '<span class="text-[var(--n-danger)] font-bold">✗ خطأ</span>';
                 ansBox.classList.remove('hidden');
             }
             updateScoreHeader();
+            renderIcons();
         }
 
         function revealCorrection(id) {
@@ -778,15 +1033,16 @@
             }
 
             if (isCorrect) {
-                input.className = 'flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-emerald-950/40 border border-emerald-500 text-emerald-300 text-xs en-font';
-                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ مصطلح صحيح</span>';
+                input.className = 'quiz-input quiz-input-correct flex-1 min-w-[200px]';
+                status.innerHTML = '<span class="text-[var(--n-success)] font-bold">✓ مصطلح صحيح</span>';
                 ansBox.classList.remove('hidden');
             } else {
-                input.className = 'flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-rose-950/40 border border-rose-500 text-rose-300 text-xs en-font';
-                status.innerHTML = '<span class="text-rose-400 font-bold">✗ خطأ</span>';
+                input.className = 'quiz-input quiz-input-wrong flex-1 min-w-[200px]';
+                status.innerHTML = '<span class="text-[var(--n-danger)] font-bold">✗ خطأ</span>';
                 ansBox.classList.remove('hidden');
             }
             updateScoreHeader();
+            renderIcons();
         }
 
         function revealTerm(id) {
@@ -794,7 +1050,6 @@
             if (box) box.classList.toggle('hidden');
         }
 
-        // Check Explain with Typed Answer & Smart Keyword Matching ✍️
         function checkExplain(id) {
             const item = EXPLAIN_QUESTIONS.find(i => i.id === id);
             const input = document.getElementById('explain-input-' + id);
@@ -804,11 +1059,10 @@
 
             const val = input.value.trim().toLowerCase();
             if (!val) {
-                alert('اكتب إجابتك أو شرحك في الخانة أولاً ثم اضغط تحقق ✍️');
+                alert('اكتب إجابتك أو شرحك في الخانة أولاً ثم اضغط تحقق');
                 return;
             }
 
-            // Keyword check
             const matchCount = item.keywords.filter(k => val.includes(k.toLowerCase())).length;
             const isGood = matchCount >= 1 || val.length >= 15;
 
@@ -824,13 +1078,14 @@
             }
 
             if (isGood) {
-                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ إجابة ممتازة ومكتوبة!</span>';
-                input.className = 'w-full px-3.5 py-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/50 text-white text-xs md:text-sm en-font leading-relaxed';
+                status.innerHTML = '<span class="text-[var(--n-success)] font-bold">✓ إجابة ممتازة ومكتوبة!</span>';
+                input.className = 'quiz-input quiz-input-correct w-full leading-relaxed';
             } else {
-                status.innerHTML = '<span class="text-amber-400 font-bold">قارن إجابتك بنموذج الفايل:</span>';
+                status.innerHTML = '<span class="text-[var(--n-warning)] font-bold">قارن إجابتك بنموذج الفايل:</span>';
             }
             ansBox.classList.remove('hidden');
             updateScoreHeader();
+            renderIcons();
         }
 
         function revealExplain(id) {
@@ -860,21 +1115,22 @@
             }
 
             if (item.correct === true) {
-                btnTrue.className = 'flex-1 py-2 px-3 rounded-xl bg-emerald-600 text-white border border-emerald-400 text-xs font-black shadow-lg shadow-emerald-500/20';
-                btnFalse.className = 'flex-1 py-2 px-3 rounded-xl bg-gray-900 border border-gray-800 text-gray-500 text-xs opacity-50';
+                btnTrue.className = 'tf-btn tf-btn-correct flex-1';
+                btnFalse.className = 'tf-btn flex-1 opacity-50';
             } else {
-                btnFalse.className = 'flex-1 py-2 px-3 rounded-xl bg-rose-600 text-white border border-rose-400 text-xs font-black shadow-lg shadow-rose-500/20';
-                btnTrue.className = 'flex-1 py-2 px-3 rounded-xl bg-gray-900 border border-gray-800 text-gray-500 text-xs opacity-50';
+                btnFalse.className = 'tf-btn tf-btn-wrong flex-1';
+                btnTrue.className = 'tf-btn flex-1 opacity-50';
             }
 
             if (isCorrect) {
-                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ صحيح</span>';
+                status.innerHTML = '<span class="text-[var(--n-success)] font-bold">✓ صحيح</span>';
             } else {
-                status.innerHTML = '<span class="text-rose-400 font-bold">✗ خطأ</span>';
+                status.innerHTML = '<span class="text-[var(--n-danger)] font-bold">✗ خطأ</span>';
             }
 
             if (reason) reason.classList.remove('hidden');
             updateScoreHeader();
+            renderIcons();
         }
 
         function answerMCQ(id, chosenVal) {
@@ -902,48 +1158,53 @@
                 if (!btn) return;
 
                 if (opt.val === item.correct) {
-                    btn.className = 'text-right py-2.5 px-3.5 rounded-xl bg-emerald-950/50 border-2 border-emerald-500 text-emerald-200 text-xs md:text-sm font-bold shadow-lg shadow-emerald-500/10 flex items-center justify-between';
+                    btn.className = 'mcq-btn mcq-btn-correct';
                     if (icon) {
                         icon.textContent = '✓ صح';
-                        icon.className = 'opacity-100 text-emerald-400 font-black';
+                        icon.className = 'opacity-100 text-[var(--n-success)] font-black';
                     }
                 } else if (opt.val === chosenVal && !isCorrect) {
-                    btn.className = 'text-right py-2.5 px-3.5 rounded-xl bg-rose-950/50 border-2 border-rose-500 text-rose-200 text-xs md:text-sm font-bold flex items-center justify-between';
+                    btn.className = 'mcq-btn mcq-btn-wrong';
                     if (icon) {
                         icon.textContent = '✗ خطأ';
-                        icon.className = 'opacity-100 text-rose-400 font-black';
+                        icon.className = 'opacity-100 text-[var(--n-danger)] font-black';
                     }
                 } else {
-                    btn.className = 'text-right py-2.5 px-3.5 rounded-xl bg-gray-900 border border-gray-800 text-gray-500 text-xs md:text-sm opacity-50 flex items-center justify-between';
+                    btn.className = 'mcq-btn mcq-btn-faded';
                     if (icon) icon.className = 'opacity-0';
                 }
             });
 
             if (isCorrect) {
-                status.innerHTML = '<span class="text-emerald-400 font-bold">✓ ممتاز</span>';
+                status.innerHTML = '<span class="text-[var(--n-success)] font-bold">✓ ممتاز</span>';
             } else {
-                status.innerHTML = '<span class="text-rose-400 font-bold">✗ خطأ</span>';
+                status.innerHTML = '<span class="text-[var(--n-danger)] font-bold">✗ خطأ</span>';
             }
 
             if (exp) exp.classList.remove('hidden');
             updateScoreHeader();
+            renderIcons();
         }
 
         function toggleAllAnswers() {
             state.showAllAnswers = !state.showAllAnswers;
             const btn = document.getElementById('toggle-answers-btn');
-            if (btn) btn.innerHTML = state.showAllAnswers ? '🙈 <span class="hidden sm:inline">إخفاء الإجابات</span>' : '👁️ <span class="hidden sm:inline">إظهار كافة الإجابات</span>';
+            if (btn) {
+                btn.innerHTML = state.showAllAnswers 
+                    ? '<i data-lucide="eye-off" class="w-4 h-4"></i><span class="hidden sm:inline">إخفاء الإجابات</span>' 
+                    : '<i data-lucide="eye" class="w-4 h-4"></i><span class="hidden sm:inline">إظهار كافة الإجابات</span>';
+            }
 
             COMPLETE_QUESTIONS.forEach(i => {
-                const b = document.getElementById('complete-answer-' + i.id);
+                const b = document.getElementById(`complete-answer-${i.id}`);
                 if (b) { if (state.showAllAnswers) b.classList.remove('hidden'); else b.classList.add('hidden'); }
             });
             CORRECT_QUESTIONS.forEach(i => {
-                const b = document.getElementById('correct-answer-' + i.id);
+                const b = document.getElementById(`correct-answer-${i.id}`);
                 if (b) { if (state.showAllAnswers) b.classList.remove('hidden'); else b.classList.add('hidden'); }
             });
             TERMS_QUESTIONS.forEach(i => {
-                const b = document.getElementById('terms-answer-' + i.id);
+                const b = document.getElementById(`terms-answer-${i.id}`);
                 if (b) { if (state.showAllAnswers) b.classList.remove('hidden'); else b.classList.add('hidden'); }
             });
             EXPLAIN_QUESTIONS.forEach(i => {
@@ -951,22 +1212,24 @@
                 if (b) { if (state.showAllAnswers) b.classList.remove('hidden'); else b.classList.add('hidden'); }
             });
             TF_QUESTIONS.forEach(i => {
-                const b = document.getElementById('tf-reason-' + i.id);
+                const b = document.getElementById(`tf-reason-${i.id}`);
                 if (b) { if (state.showAllAnswers) b.classList.remove('hidden'); else b.classList.add('hidden'); }
             });
             MCQ_QUESTIONS.forEach(i => {
-                const b = document.getElementById('mcq-exp-' + i.id);
+                const b = document.getElementById(`mcq-exp-${i.id}`);
                 if (b) { if (state.showAllAnswers) b.classList.remove('hidden'); else b.classList.add('hidden'); }
             });
+            renderIcons();
         }
 
         function resetQuiz() {
-            if (confirm('هل تريد تصفير درجات الاختبار والبدء من جديد؟ 🔄')) {
+            if (confirm('هل أنت متأكد من رغبتك في إعادة تصفير الامتحان والبدء من جديد؟')) {
                 state.score = 0;
                 state.answered = 0;
                 state.correct = 0;
                 state.wrong = 0;
                 state.userAnswers = {};
+                state.scoreSubmitted = false;
                 renderAllSections();
                 updateScoreHeader();
             }
@@ -979,10 +1242,53 @@
             renderExplainSection();
             renderTFSection();
             renderMCQSection();
+            renderIcons();
         }
+
+        // ☀️🌙 Theme Management in Exam
+        function applyExamTheme(mode) {
+            const isDark = (mode === 'dark');
+            document.documentElement.setAttribute('data-theme', mode);
+            document.documentElement.setAttribute('data-no2ta-theme', 'paper');
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                document.documentElement.classList.remove('light');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.classList.add('light');
+            }
+            const btn = document.getElementById('exam-theme-toggle-btn');
+            if (btn) {
+                btn.innerHTML = `<i data-lucide="${isDark ? 'sun' : 'moon'}" class="w-4 h-4"></i>`;
+                btn.setAttribute('title', isDark ? 'التبديل إلى الوضع الفاتح' : 'التبديل إلى الوضع الداكن');
+            }
+            renderIcons();
+        }
+
+        function toggleExamTheme() {
+            const currentMode = document.documentElement.getAttribute('data-theme') || 'light';
+            const nextMode = (currentMode === 'dark') ? 'light' : 'dark';
+            try {
+                localStorage.setItem('no2ta_theme_mode', nextMode);
+            } catch (e) {}
+            applyExamTheme(nextMode);
+            if (window.parent && window.parent !== window) {
+                try {
+                    window.parent.postMessage({ type: 'theme_change', mode: nextMode }, '*');
+                } catch (e) {}
+            }
+        }
+
+        window.addEventListener('message', (e) => {
+            if (e.data && e.data.type === 'theme_change' && (e.data.mode === 'light' || e.data.mode === 'dark')) {
+                applyExamTheme(e.data.mode);
+            }
+        });
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', () => {
+            const savedMode = localStorage.getItem('no2ta_theme_mode') || 'light';
+            applyExamTheme(savedMode);
             renderAllSections();
             updateScoreHeader();
         });
