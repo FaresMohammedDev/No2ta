@@ -2387,7 +2387,7 @@ Fix_Firewall.bat          ← يفتح المنفذ 5000 في فايروول و�
 
 ### 5.4 الجسم الرئيسي (Main Grid)
 Grid بعمودين:
-- **Sidebar (يسار/4 أعمدة)**: تابات (الفصل العام / الجروبات / الزملاء) + ويدجت مواقيت الصلاة والحصص (تقويم مدرسي كامل: البريك 11:10، البايونيك 3:30، المرواح 4:00) + قائمة الزملاء/الجروبات مع الـ Streaks.
+- **Sidebar (يسار/4 أعمدة)**: تابات (الفصل العام / الجروبات / الزملاء) + ويدجت مواقيت الصلاة والحصص (تقويم مدرسي كامل: البريك 11:30، البايونيك 3:30، المرواح 4:00) + قائمة الزملاء/الجروبات مع الـ Streaks.
 - **نافذة الشات (يمين/8 أعمدة)**: هيدر الشات (اسم المحادثة + استريك + أزرار الجروب) + بانر بث الشاشة (لو فعّال) + بانر "وضع التركيز" (لو الأدمن قفل الشات) + تدفق الرسائل + مؤشر الكتابة + شريط تسجيل صوتي + فورم الإدخال (مرفقات، كود، نص، تسجيل صوتي، إرسال).
 
 ### 5.5 ⚠️ أوفرلاي التمويه الكامل (`stealthPhysicsOverlay`)
@@ -4881,7 +4881,7 @@ body {
                     <!-- 3 School Countdowns Grid: Break, Bionic, Dismissal -->
                     <div class="grid grid-cols-3 gap-1 text-center font-mono text-micro">
                         <div class="p-1 rounded-lg bg-black/50 border border-white/5 flex flex-col justify-between">
-                            <div class="text-slate-400 flex items-center justify-center gap-1"><i data-lucide="coffee" class="w-3 h-3"></i> البريك (11:10)</div>
+                            <div class="text-slate-400 flex items-center justify-center gap-1"><i data-lucide="coffee" class="w-3 h-3"></i> البريك (11:30)</div>
                             <div id="sidebarSchoolBreakCountdown" class="font-bold text-amber-300 mt-0.5">باقي: --</div>
                         </div>
                         <div class="p-1 rounded-lg bg-black/50 border border-white/5 flex flex-col justify-between">
@@ -6238,7 +6238,7 @@ body {
                             <span class="text-xl">🏫</span>
                             <div>
                                 <span class="font-black text-white text-sm block" id="modalSchoolCurrentStatus">--</span>
-                                <span class="text-micro text-slate-400" id="modalSchoolSessionInfo">الحصة 55 دقيقة • يبدأ اليوم 7:30 ص</span>
+                                <span class="text-micro text-slate-400" id="modalSchoolSessionInfo">الحصة 60 دقيقة (قبل البريك) و50 دقيقة (بعده) • يبدأ 7:30 ص</span>
                             </div>
                         </div>
                         <span id="modalSchoolSessionTimer" class="px-2.5 py-1 rounded-xl bg-cyan-500/20 text-cyan-300 font-mono font-bold text-xs border border-cyan-500/30">--</span>
@@ -6246,7 +6246,7 @@ body {
 
                     <div class="grid grid-cols-3 gap-1.5 text-center font-mono text-micro">
                         <div class="p-2 rounded-xl bg-black/40 border border-white/5">
-                            <span class="text-slate-400 text-micro block">☕ البريك (11:10)</span>
+                            <span class="text-slate-400 text-micro block">☕ البريك (11:30)</span>
                             <strong id="modalSchoolBreakTimer" class="text-amber-300 text-xs block mt-0.5">--</strong>
                         </div>
                         <div class="p-2 rounded-xl bg-black/40 border border-white/5">
@@ -6281,8 +6281,8 @@ body {
                     <span class="text-lg shrink-0">💡</span>
                     <div class="leading-relaxed space-y-1">
                         <strong class="text-amber-300 block font-bold">قواعد توقيت اليوم الدراسي:</strong>
-                        <div>• <strong>الحصص:</strong> 8 حصص دراسية، مدة كل حصة 55 دقيقة، البداية 7:30 صباحاً.</div>
-                        <div>• <strong>البريك:</strong> يبدأ الساعة 11:10 صباحاً لمدة 40 دقيقة كاملة (حتى 11:50 صباحاً).</div>
+                        <div>• <strong>الحصص:</strong> 8 حصص دراسية (الحصص 1 إلى 4 مدتها 60 دقيقة، والحصص 5 إلى 8 مدتها 50 دقيقة)، البداية 7:30 صباحاً.</div>
+                        <div>• <strong>البريك:</strong> يبدأ الساعة 11:30 صباحاً لمدة 40 دقيقة كاملة (حتى 12:10 ظهراً).</div>
                         <div>• <strong>البايونيك (Bionic):</strong> الساعة 3:30 عصراً لمدة 30 دقيقة (الأحد إلى الأربعاء فقط).</div>
                         <div>• <strong>المرواح:</strong> الساعة 4:00 عصراً (الأحد للأربعاء)، ويوم <strong>الخميس</strong> المرواح 3:30 عصراً فوراً بعد الحصة الثامنة (لا يوجد بايونيك).</div>
                     </div>
@@ -12771,22 +12771,23 @@ function calculateSchoolSchedule(now = new Date()) {
     const isThursday = (dayName === 'Thu');
     const isWeekend = (dayName === 'Fri' || dayName === 'Sat');
 
-    // 8 Sessions of 55 minutes each starting at 7:30 AM
-    // Break at 11:10 for 40 minutes (ends 11:50)
+    // Sessions before break: 60 minutes each starting at 7:30 AM
+    // Break at 11:30 for 40 minutes (ends 12:10)
+    // Sessions after break: 50 minutes each (ends 15:30)
     const schedule = [
-        { type: 'session', num: 1, name: 'الحصة الأولى', startSec: (7 * 60 + 30) * 60, endSec: (8 * 60 + 25) * 60 },
-        { type: 'session', num: 2, name: 'الحصة الثانية', startSec: (8 * 60 + 25) * 60, endSec: (9 * 60 + 20) * 60 },
-        { type: 'session', num: 3, name: 'الحصة الثالثة', startSec: (9 * 60 + 20) * 60, endSec: (10 * 60 + 15) * 60 },
-        { type: 'session', num: 4, name: 'الحصة الرابعة', startSec: (10 * 60 + 15) * 60, endSec: (11 * 60 + 10) * 60 },
-        { type: 'break', num: 0, name: 'البريك / الفسحة ☕', startSec: (11 * 60 + 10) * 60, endSec: (11 * 60 + 50) * 60 },
-        { type: 'session', num: 5, name: 'الحصة الخامسة', startSec: (11 * 60 + 50) * 60, endSec: (12 * 60 + 45) * 60 },
-        { type: 'session', num: 6, name: 'الحصة السادسة', startSec: (12 * 60 + 45) * 60, endSec: (13 * 60 + 40) * 60 },
-        { type: 'session', num: 7, name: 'الحصة السابعة', startSec: (13 * 60 + 40) * 60, endSec: (14 * 60 + 35) * 60 },
-        { type: 'session', num: 8, name: 'الحصة الثامنة', startSec: (14 * 60 + 35) * 60, endSec: (15 * 60 + 30) * 60 }
+        { type: 'session', num: 1, name: 'الحصة الأولى', startSec: (7 * 60 + 30) * 60, endSec: (8 * 60 + 30) * 60 },
+        { type: 'session', num: 2, name: 'الحصة الثانية', startSec: (8 * 60 + 30) * 60, endSec: (9 * 60 + 30) * 60 },
+        { type: 'session', num: 3, name: 'الحصة الثالثة', startSec: (9 * 60 + 30) * 60, endSec: (10 * 60 + 30) * 60 },
+        { type: 'session', num: 4, name: 'الحصة الرابعة', startSec: (10 * 60 + 30) * 60, endSec: (11 * 60 + 30) * 60 },
+        { type: 'break', num: 0, name: 'البريك / الفسحة ☕', startSec: (11 * 60 + 30) * 60, endSec: (12 * 60 + 10) * 60 },
+        { type: 'session', num: 5, name: 'الحصة الخامسة', startSec: (12 * 60 + 10) * 60, endSec: (13 * 60) * 60 },
+        { type: 'session', num: 6, name: 'الحصة السادسة', startSec: (13 * 60) * 60, endSec: (13 * 60 + 50) * 60 },
+        { type: 'session', num: 7, name: 'الحصة السابعة', startSec: (13 * 60 + 50) * 60, endSec: (14 * 60 + 40) * 60 },
+        { type: 'session', num: 8, name: 'الحصة الثامنة', startSec: (14 * 60 + 40) * 60, endSec: (15 * 60 + 30) * 60 }
     ];
 
-    const breakStart = (11 * 60 + 10) * 60;
-    const breakEnd = (11 * 60 + 50) * 60;
+    const breakStart = (11 * 60 + 30) * 60;
+    const breakEnd = (12 * 60 + 10) * 60;
     const bionicStart = (15 * 60 + 30) * 60;
     const dismissalSec = isThursday ? (15 * 60 + 30) * 60 : (16 * 60) * 60;
 
@@ -12856,7 +12857,7 @@ function calculateSchoolSchedule(now = new Date()) {
     } else if (currentItem) {
         const rem = currentItem.endSec - curSec;
         if (currentItem.type === 'break') {
-            statusBadge = 'وقت البريك ☕ (11:10 - 11:50)';
+            statusBadge = 'وقت البريك ☕ (11:30 - 12:10)';
             sessionShortBadge = 'بريك ☕';
             sessionTimer = 'نهاية البريك: ' + fmtRemaining(rem);
         } else {
@@ -12879,15 +12880,15 @@ function calculateSchoolSchedule(now = new Date()) {
     }
 
     const timetableRows = [
-        { num: 1, name: 'الحصة الأولى', time: '07:30 ص - 08:25 ص', duration: '55 دقيقة', icon: '1️⃣', startSec: (7 * 60 + 30) * 60, endSec: (8 * 60 + 25) * 60, type: 'session' },
-        { num: 2, name: 'الحصة الثانية', time: '08:25 ص - 09:20 ص', duration: '55 دقيقة', icon: '2️⃣', startSec: (8 * 60 + 25) * 60, endSec: (9 * 60 + 20) * 60, type: 'session' },
-        { num: 3, name: 'الحصة الثالثة', time: '09:20 ص - 10:15 ص', duration: '55 دقيقة', icon: '3️⃣', startSec: (9 * 60 + 20) * 60, endSec: (10 * 60 + 15) * 60, type: 'session' },
-        { num: 4, name: 'الحصة الرابعة', time: '10:15 ص - 11:10 ص', duration: '55 دقيقة', icon: '4️⃣', startSec: (10 * 60 + 15) * 60, endSec: (11 * 60 + 10) * 60, type: 'session' },
-        { num: 0, name: 'البريك / الفسحة المدرسية', time: '11:10 ص - 11:50 ص', duration: '40 دقيقة', icon: '☕', startSec: (11 * 60 + 10) * 60, endSec: (11 * 60 + 50) * 60, type: 'break' },
-        { num: 5, name: 'الحصة الخامسة', time: '11:50 ص - 12:45 م', duration: '55 دقيقة', icon: '5️⃣', startSec: (11 * 60 + 50) * 60, endSec: (12 * 60 + 45) * 60, type: 'session' },
-        { num: 6, name: 'الحصة السادسة', time: '12:45 م - 01:40 م', duration: '55 دقيقة', icon: '6️⃣', startSec: (12 * 60 + 45) * 60, endSec: (13 * 60 + 40) * 60, type: 'session' },
-        { num: 7, name: 'الحصة السابعة', time: '01:40 م - 02:35 م', duration: '55 دقيقة', icon: '7️⃣', startSec: (13 * 60 + 40) * 60, endSec: (14 * 60 + 35) * 60, type: 'session' },
-        { num: 8, name: 'الحصة الثامنة', time: '02:35 م - 03:30 م', duration: '55 دقيقة', icon: '8️⃣', startSec: (14 * 60 + 35) * 60, endSec: (15 * 60 + 30) * 60, type: 'session' },
+        { num: 1, name: 'الحصة الأولى', time: '07:30 ص - 08:30 ص', duration: '60 دقيقة', icon: '1️⃣', startSec: (7 * 60 + 30) * 60, endSec: (8 * 60 + 30) * 60, type: 'session' },
+        { num: 2, name: 'الحصة الثانية', time: '08:30 ص - 09:30 ص', duration: '60 دقيقة', icon: '2️⃣', startSec: (8 * 60 + 30) * 60, endSec: (9 * 60 + 30) * 60, type: 'session' },
+        { num: 3, name: 'الحصة الثالثة', time: '09:30 ص - 10:30 ص', duration: '60 دقيقة', icon: '3️⃣', startSec: (9 * 60 + 30) * 60, endSec: (10 * 60 + 30) * 60, type: 'session' },
+        { num: 4, name: 'الحصة الرابعة', time: '10:30 ص - 11:30 ص', duration: '60 دقيقة', icon: '4️⃣', startSec: (10 * 60 + 30) * 60, endSec: (11 * 60 + 30) * 60, type: 'session' },
+        { num: 0, name: 'البريك / الفسحة المدرسية', time: '11:30 ص - 12:10 م', duration: '40 دقيقة', icon: '☕', startSec: (11 * 60 + 30) * 60, endSec: (12 * 60 + 10) * 60, type: 'break' },
+        { num: 5, name: 'الحصة الخامسة', time: '12:10 م - 01:00 م', duration: '50 دقيقة', icon: '5️⃣', startSec: (12 * 60 + 10) * 60, endSec: (13 * 60) * 60, type: 'session' },
+        { num: 6, name: 'الحصة السادسة', time: '01:00 م - 01:50 م', duration: '50 دقيقة', icon: '6️⃣', startSec: (13 * 60) * 60, endSec: (13 * 60 + 50) * 60, type: 'session' },
+        { num: 7, name: 'الحصة السابعة', time: '01:50 م - 02:40 م', duration: '50 دقيقة', icon: '7️⃣', startSec: (13 * 60 + 50) * 60, endSec: (14 * 60 + 40) * 60, type: 'session' },
+        { num: 8, name: 'الحصة الثامنة', time: '02:40 م - 03:30 م', duration: '50 دقيقة', icon: '8️⃣', startSec: (14 * 60 + 40) * 60, endSec: (15 * 60 + 30) * 60, type: 'session' },
         { num: 0, name: 'فترة البايونيك (Bionic)', time: '03:30 م - 04:00 م', duration: '30 دقيقة', icon: '🔬', startSec: (15 * 60 + 30) * 60, endSec: (16 * 60) * 60, type: 'bionic' },
         { num: 0, name: 'المرواح ونهاية اليوم الدراسي', time: isThursday ? '03:30 م فوراً' : '04:00 م', duration: 'نهاية اليوم', icon: '🏠', startSec: (isThursday ? 15.5 : 16) * 3600, endSec: 24 * 3600, type: 'dismissal' }
     ];

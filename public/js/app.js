@@ -7273,22 +7273,23 @@ function calculateSchoolSchedule(now = new Date()) {
     const isThursday = (dayName === 'Thu');
     const isWeekend = (dayName === 'Fri' || dayName === 'Sat');
 
-    // 8 Sessions of 55 minutes each starting at 7:30 AM
-    // Break at 11:10 for 40 minutes (ends 11:50)
+    // Sessions before break: 60 minutes each starting at 7:30 AM
+    // Break at 11:30 for 40 minutes (ends 12:10)
+    // Sessions after break: 50 minutes each (ends 15:30)
     const schedule = [
-        { type: 'session', num: 1, name: 'الحصة الأولى', startSec: (7 * 60 + 30) * 60, endSec: (8 * 60 + 25) * 60 },
-        { type: 'session', num: 2, name: 'الحصة الثانية', startSec: (8 * 60 + 25) * 60, endSec: (9 * 60 + 20) * 60 },
-        { type: 'session', num: 3, name: 'الحصة الثالثة', startSec: (9 * 60 + 20) * 60, endSec: (10 * 60 + 15) * 60 },
-        { type: 'session', num: 4, name: 'الحصة الرابعة', startSec: (10 * 60 + 15) * 60, endSec: (11 * 60 + 10) * 60 },
-        { type: 'break', num: 0, name: 'البريك / الفسحة ☕', startSec: (11 * 60 + 10) * 60, endSec: (11 * 60 + 50) * 60 },
-        { type: 'session', num: 5, name: 'الحصة الخامسة', startSec: (11 * 60 + 50) * 60, endSec: (12 * 60 + 45) * 60 },
-        { type: 'session', num: 6, name: 'الحصة السادسة', startSec: (12 * 60 + 45) * 60, endSec: (13 * 60 + 40) * 60 },
-        { type: 'session', num: 7, name: 'الحصة السابعة', startSec: (13 * 60 + 40) * 60, endSec: (14 * 60 + 35) * 60 },
-        { type: 'session', num: 8, name: 'الحصة الثامنة', startSec: (14 * 60 + 35) * 60, endSec: (15 * 60 + 30) * 60 }
+        { type: 'session', num: 1, name: 'الحصة الأولى', startSec: (7 * 60 + 30) * 60, endSec: (8 * 60 + 30) * 60 },
+        { type: 'session', num: 2, name: 'الحصة الثانية', startSec: (8 * 60 + 30) * 60, endSec: (9 * 60 + 30) * 60 },
+        { type: 'session', num: 3, name: 'الحصة الثالثة', startSec: (9 * 60 + 30) * 60, endSec: (10 * 60 + 30) * 60 },
+        { type: 'session', num: 4, name: 'الحصة الرابعة', startSec: (10 * 60 + 30) * 60, endSec: (11 * 60 + 30) * 60 },
+        { type: 'break', num: 0, name: 'البريك / الفسحة ☕', startSec: (11 * 60 + 30) * 60, endSec: (12 * 60 + 10) * 60 },
+        { type: 'session', num: 5, name: 'الحصة الخامسة', startSec: (12 * 60 + 10) * 60, endSec: (13 * 60) * 60 },
+        { type: 'session', num: 6, name: 'الحصة السادسة', startSec: (13 * 60) * 60, endSec: (13 * 60 + 50) * 60 },
+        { type: 'session', num: 7, name: 'الحصة السابعة', startSec: (13 * 60 + 50) * 60, endSec: (14 * 60 + 40) * 60 },
+        { type: 'session', num: 8, name: 'الحصة الثامنة', startSec: (14 * 60 + 40) * 60, endSec: (15 * 60 + 30) * 60 }
     ];
 
-    const breakStart = (11 * 60 + 10) * 60;
-    const breakEnd = (11 * 60 + 50) * 60;
+    const breakStart = (11 * 60 + 30) * 60;
+    const breakEnd = (12 * 60 + 10) * 60;
     const bionicStart = (15 * 60 + 30) * 60;
     const dismissalSec = isThursday ? (15 * 60 + 30) * 60 : (16 * 60) * 60;
 
@@ -7358,7 +7359,7 @@ function calculateSchoolSchedule(now = new Date()) {
     } else if (currentItem) {
         const rem = currentItem.endSec - curSec;
         if (currentItem.type === 'break') {
-            statusBadge = 'وقت البريك ☕ (11:10 - 11:50)';
+            statusBadge = 'وقت البريك ☕ (11:30 - 12:10)';
             sessionShortBadge = 'بريك ☕';
             sessionTimer = 'نهاية البريك: ' + fmtRemaining(rem);
         } else {
@@ -7381,15 +7382,15 @@ function calculateSchoolSchedule(now = new Date()) {
     }
 
     const timetableRows = [
-        { num: 1, name: 'الحصة الأولى', time: '07:30 ص - 08:25 ص', duration: '55 دقيقة', icon: '1️⃣', startSec: (7 * 60 + 30) * 60, endSec: (8 * 60 + 25) * 60, type: 'session' },
-        { num: 2, name: 'الحصة الثانية', time: '08:25 ص - 09:20 ص', duration: '55 دقيقة', icon: '2️⃣', startSec: (8 * 60 + 25) * 60, endSec: (9 * 60 + 20) * 60, type: 'session' },
-        { num: 3, name: 'الحصة الثالثة', time: '09:20 ص - 10:15 ص', duration: '55 دقيقة', icon: '3️⃣', startSec: (9 * 60 + 20) * 60, endSec: (10 * 60 + 15) * 60, type: 'session' },
-        { num: 4, name: 'الحصة الرابعة', time: '10:15 ص - 11:10 ص', duration: '55 دقيقة', icon: '4️⃣', startSec: (10 * 60 + 15) * 60, endSec: (11 * 60 + 10) * 60, type: 'session' },
-        { num: 0, name: 'البريك / الفسحة المدرسية', time: '11:10 ص - 11:50 ص', duration: '40 دقيقة', icon: '☕', startSec: (11 * 60 + 10) * 60, endSec: (11 * 60 + 50) * 60, type: 'break' },
-        { num: 5, name: 'الحصة الخامسة', time: '11:50 ص - 12:45 م', duration: '55 دقيقة', icon: '5️⃣', startSec: (11 * 60 + 50) * 60, endSec: (12 * 60 + 45) * 60, type: 'session' },
-        { num: 6, name: 'الحصة السادسة', time: '12:45 م - 01:40 م', duration: '55 دقيقة', icon: '6️⃣', startSec: (12 * 60 + 45) * 60, endSec: (13 * 60 + 40) * 60, type: 'session' },
-        { num: 7, name: 'الحصة السابعة', time: '01:40 م - 02:35 م', duration: '55 دقيقة', icon: '7️⃣', startSec: (13 * 60 + 40) * 60, endSec: (14 * 60 + 35) * 60, type: 'session' },
-        { num: 8, name: 'الحصة الثامنة', time: '02:35 م - 03:30 م', duration: '55 دقيقة', icon: '8️⃣', startSec: (14 * 60 + 35) * 60, endSec: (15 * 60 + 30) * 60, type: 'session' },
+        { num: 1, name: 'الحصة الأولى', time: '07:30 ص - 08:30 ص', duration: '60 دقيقة', icon: '1️⃣', startSec: (7 * 60 + 30) * 60, endSec: (8 * 60 + 30) * 60, type: 'session' },
+        { num: 2, name: 'الحصة الثانية', time: '08:30 ص - 09:30 ص', duration: '60 دقيقة', icon: '2️⃣', startSec: (8 * 60 + 30) * 60, endSec: (9 * 60 + 30) * 60, type: 'session' },
+        { num: 3, name: 'الحصة الثالثة', time: '09:30 ص - 10:30 ص', duration: '60 دقيقة', icon: '3️⃣', startSec: (9 * 60 + 30) * 60, endSec: (10 * 60 + 30) * 60, type: 'session' },
+        { num: 4, name: 'الحصة الرابعة', time: '10:30 ص - 11:30 ص', duration: '60 دقيقة', icon: '4️⃣', startSec: (10 * 60 + 30) * 60, endSec: (11 * 60 + 30) * 60, type: 'session' },
+        { num: 0, name: 'البريك / الفسحة المدرسية', time: '11:30 ص - 12:10 م', duration: '40 دقيقة', icon: '☕', startSec: (11 * 60 + 30) * 60, endSec: (12 * 60 + 10) * 60, type: 'break' },
+        { num: 5, name: 'الحصة الخامسة', time: '12:10 م - 01:00 م', duration: '50 دقيقة', icon: '5️⃣', startSec: (12 * 60 + 10) * 60, endSec: (13 * 60) * 60, type: 'session' },
+        { num: 6, name: 'الحصة السادسة', time: '01:00 م - 01:50 م', duration: '50 دقيقة', icon: '6️⃣', startSec: (13 * 60) * 60, endSec: (13 * 60 + 50) * 60, type: 'session' },
+        { num: 7, name: 'الحصة السابعة', time: '01:50 م - 02:40 م', duration: '50 دقيقة', icon: '7️⃣', startSec: (13 * 60 + 50) * 60, endSec: (14 * 60 + 40) * 60, type: 'session' },
+        { num: 8, name: 'الحصة الثامنة', time: '02:40 م - 03:30 م', duration: '50 دقيقة', icon: '8️⃣', startSec: (14 * 60 + 40) * 60, endSec: (15 * 60 + 30) * 60, type: 'session' },
         { num: 0, name: 'فترة البايونيك (Bionic)', time: '03:30 م - 04:00 م', duration: '30 دقيقة', icon: '🔬', startSec: (15 * 60 + 30) * 60, endSec: (16 * 60) * 60, type: 'bionic' },
         { num: 0, name: 'المرواح ونهاية اليوم الدراسي', time: isThursday ? '03:30 م فوراً' : '04:00 م', duration: 'نهاية اليوم', icon: '🏠', startSec: (isThursday ? 15.5 : 16) * 3600, endSec: 24 * 3600, type: 'dismissal' }
     ];
