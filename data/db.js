@@ -235,6 +235,23 @@ const initDB = async () => {
     );`);
     await run(`CREATE INDEX IF NOT EXISTS idx_quiz_scores_quiz ON quiz_scores (quiz_id, percentage DESC);`);
 
+    // Access requests table for pending IP connection requests & assigned passwords
+    await run(`CREATE TABLE IF NOT EXISTS access_requests (
+        id TEXT PRIMARY KEY,
+        ip_address TEXT NOT NULL,
+        nickname TEXT NOT NULL,
+        avatar TEXT DEFAULT 'rocket',
+        status TEXT DEFAULT 'pending',
+        assigned_password TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );`);
+    await run(`CREATE INDEX IF NOT EXISTS idx_access_requests_ip ON access_requests (ip_address, status);`);
+
+    try {
+        await run(`ALTER TABLE users ADD COLUMN assigned_password TEXT;`);
+    } catch (e) {}
+
     console.log('✅ SQLite Database & Tables Initialized Successfully');
 };
 

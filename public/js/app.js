@@ -1039,6 +1039,8 @@ async function fetchNetworkInfo() {
     }
 }
 
+let accessPollingInterval = null;
+
 async function checkExistingAuth() {
     try {
         const response = await fetch('/api/auth/me');
@@ -1049,9 +1051,182 @@ async function checkExistingAuth() {
             return;
         }
     } catch {}
+
     localStorage.removeItem('no2ta_user');
     STATE.user = null;
-    showModal('authModal');
+
+    // Check IP status for auto-login, whitelisting, or access request
+    await evaluateIpAndPrepareAuth();
+}
+
+async function evaluateIpAndPrepareAuth() {
+    try {
+        const res = await fetch('/api/auth/ip-status');
+        if (!res.ok) throw new Error('Failed to get IP status');
+        const ipStatus = await res.json();
+        STATE.ipStatus = ipStatus;
+
+        const ipBadge = document.getElementById('authClientIpBadge');
+        if (ipBadge) ipBadge.textContent = `IP: ${ipStatus.clientIp || 'غير معروف'}`;
+
+        const wlBadge = document.getElementById('authWhitelistBadge');
+        if (wlBadge) {
+            if (ipStatus.isWhitelisted) wlBadge.classList.remove('hidden');
+            else wlBadge.classList.add('hidden');
+        }
+
+        // CASE 1: Named Whitelisted IP or Admin IP -> AUTO-LOGIN INSTANTLY!
+        if (ipStatus.isWhitelisted && ipStatus.isNamed) {
+            showNotification(`مرحباً يا ${ipStatus.rosterName}! جاري الدخول المباشر... 🚀`);
+            try {
+                const loginRes = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nickname: ipStatus.rosterName,
+                        avatar: ipStatus.rosterAvatar || 'rocket',
+                        deviceId: localStorage.getItem('no2ta_device_id') || undefined
+                    })
+                });
+                const loginData = await loginRes.json();
+                if (loginRes.ok && loginData.success) {
+                    STATE.user = loginData.user;
+                    localStorage.setItem('no2ta_user', JSON.stringify(STATE.user));
+                    localStorage.setItem('no2ta_device_id', STATE.user.device_id || `dev_${Date.now()}`);
+                    hideModal('authModal');
+                    finishLoginSuccess();
+                    return;
+                }
+            } catch (err) {
+                console.error('Auto-login attempt error:', err);
+            }
+        }
+
+        // Prepare UI according to IP status
+        setupAuthModalState(ipStatus);
+        showModal('authModal');
+    } catch (e) {
+        console.error('Error in evaluateIpAndPrepareAuth:', e);
+        showModal('authModal');
+    }
+}
+
+function setupAuthModalState(ipStatus) {
+    const form = document.getElementById('authForm');
+    const pendingBox = document.getElementById('authPendingContainer');
+    const rejectedBox = document.getElementById('authRejectedContainer');
+    const wlBanner = document.getElementById('authWhitelistedBanner');
+    const appBanner = document.getElementById('authApprovedBanner');
+    const passContainer = document.getElementById('authPasswordContainer');
+    const nickContainer = document.getElementById('authNicknameContainer');
+    const nickInput = document.getElementById('authNickname');
+    const passInput = document.getElementById('authPassword');
+    const submitBtnText = document.getElementById('authSubmitBtnText');
+    const title = document.getElementById('authModalTitle');
+    const subtitle = document.getElementById('authModalSubtitle');
+
+    if (accessPollingInterval) {
+        clearInterval(accessPollingInterval);
+        accessPollingInterval = null;
+    }
+
+    if (form) form.classList.remove('hidden');
+    if (pendingBox) pendingBox.classList.add('hidden');
+    if (rejectedBox) rejectedBox.classList.add('hidden');
+    if (wlBanner) wlBanner.classList.add('hidden');
+    if (appBanner) appBanner.classList.add('hidden');
+
+    if (ipStatus.isWhitelisted) {
+        // CASE 2: Unnamed whitelisted device (e.g. .45, .48, .52, .55, .62)
+        // No password needed! Enter name directly.
+        if (title) title.textContent = 'دخول شبكة فصل "نؤطة"';
+        if (subtitle) subtitle.textContent = 'جهازك معتمد في الفصل • ادخل اسمك للدخول مباشرة';
+        if (wlBanner) wlBanner.classList.remove('hidden');
+        if (passContainer) passContainer.classList.add('hidden');
+        if (passInput) passInput.value = '';
+        if (nickContainer) nickContainer.classList.remove('hidden');
+        if (nickInput) {
+            nickInput.value = '';
+            nickInput.placeholder = 'اكتب اسمك الحقيقي للدخول...';
+        }
+        if (submitBtnText) submitBtnText.textContent = 'دخول المنصة 🚀';
+        return;
+    }
+
+    // Non-whitelisted IP
+    const req = ipStatus.request;
+    if (req && req.status === 'pending') {
+        // CASE 3: Request Pending
+        if (form) form.classList.add('hidden');
+        if (pendingBox) pendingBox.classList.remove('hidden');
+        const pNick = document.getElementById('authPendingNickname');
+        if (pNick) pNick.textContent = req.nickname;
+
+        // Poll every 2.5s for admin approval
+        accessPollingInterval = setInterval(async () => {
+            try {
+                const res = await fetch('/api/auth/ip-status');
+                if (res.ok) {
+                    const freshStatus = await res.json();
+                    if (freshStatus.request && freshStatus.request.status !== 'pending') {
+                        clearInterval(accessPollingInterval);
+                        accessPollingInterval = null;
+                        STATE.ipStatus = freshStatus;
+                        setupAuthModalState(freshStatus);
+                    }
+                }
+            } catch (e) {}
+        }, 2500);
+        return;
+    }
+
+    if (req && req.status === 'approved') {
+        // CASE 4: Request Approved with password
+        if (title) title.textContent = 'أهلاً بك في شبكة الفصل! 🎉';
+        if (subtitle) subtitle.textContent = 'وافق الأدمن على انضمامك • أدخل كلمة المرور المخصصة لك للدخول';
+        if (appBanner) appBanner.classList.remove('hidden');
+        if (passContainer) passContainer.classList.remove('hidden');
+        if (passInput) {
+            passInput.value = '';
+            passInput.placeholder = 'اكتب كلمة المرور التي عينها لك الأدمن...';
+        }
+        const passLabel = document.getElementById('authPasswordLabel');
+        if (passLabel) passLabel.textContent = 'كلمة المرور المعينة من الأدمن';
+        if (nickContainer) nickContainer.classList.remove('hidden');
+        if (nickInput) nickInput.value = req.nickname || '';
+        if (submitBtnText) submitBtnText.textContent = 'دخول المنصة 🚀';
+        return;
+    }
+
+    if (req && req.status === 'rejected') {
+        // CASE 5: Request Rejected
+        if (form) form.classList.add('hidden');
+        if (rejectedBox) rejectedBox.classList.remove('hidden');
+        return;
+    }
+
+    // CASE 6: No request yet -> Need Access Request
+    if (title) title.textContent = 'طلب انضمام لشبكة الفصل 🔒';
+    if (subtitle) subtitle.textContent = 'هذا الجهاز غير مسجل • أرسل طلب انضمام للأدمن ليوافق ويعين لك كلمة مرور';
+    if (passContainer) passContainer.classList.add('hidden');
+    if (passInput) passInput.value = '';
+    if (nickContainer) nickContainer.classList.remove('hidden');
+    if (nickInput) {
+        nickInput.value = '';
+        nickInput.placeholder = 'اكتب اسمك الثلاثي أو الثنائي...';
+    }
+    if (submitBtnText) submitBtnText.textContent = 'إرسال طلب الانضمام للأدمن 🚀';
+}
+
+function resetToAccessRequestForm() {
+    if (accessPollingInterval) {
+        clearInterval(accessPollingInterval);
+        accessPollingInterval = null;
+    }
+    if (STATE.ipStatus) {
+        STATE.ipStatus.request = null;
+        setupAuthModalState(STATE.ipStatus);
+    }
 }
 
 async function handleLoginSubmit(e) {
@@ -1062,17 +1237,51 @@ async function handleLoginSubmit(e) {
     const errorEl = document.getElementById('authError');
 
     errorEl.classList.add('hidden');
-    const password = passInput.value.trim();
-    const nickname = nickInput.value.trim();
+    const password = passInput ? passInput.value.trim() : '';
+    const nickname = nickInput ? nickInput.value.trim() : '';
     const avatar = STATE.pendingAuthAvatarUrl || (avatarInput ? avatarInput.value : 'rocket');
 
+    const ipStatus = STATE.ipStatus || {};
 
+    // If non-whitelisted and has no approved request yet -> this submit sends an access request!
+    if (!ipStatus.isWhitelisted && (!ipStatus.request || ipStatus.request.status !== 'approved')) {
+        if (!nickname) {
+            errorEl.textContent = 'من فضلك اكتب اسمك لطلب الانضمام!';
+            errorEl.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            const reqRes = await fetch('/api/auth/request-access', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nickname, avatar })
+            });
+            const reqData = await reqRes.json();
+            if (!reqRes.ok || !reqData.success) {
+                errorEl.textContent = reqData.error || 'فشل إرسال طلب الانضمام!';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            STATE.ipStatus.request = reqData.request;
+            setupAuthModalState(STATE.ipStatus);
+            showNotification('تم إرسال طلبك للأدمن بنجاح! في انتظار الموافقة ⏳');
+            return;
+        } catch (err) {
+            errorEl.textContent = 'تعذر الاتصال بالسيرفر لإرسال الطلب!';
+            errorEl.classList.remove('hidden');
+            return;
+        }
+    }
+
+    // Normal or approved login
     try {
         const res = await fetch('/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                password,
+                password: password || undefined,
                 nickname: nickname || undefined,
                 avatar,
                 deviceId: localStorage.getItem('no2ta_device_id') || undefined
@@ -1448,6 +1657,22 @@ function getSyncedServerTime() {
         if (STATE.activeChat.type === 'group' && STATE.activeChat.group?.id === data.groupId) {
             showNotification(`تم حذف الجروب "${data.groupName || ''}". العودة لشات الفصل.`);
             selectGeneralChat();
+        }
+    });
+
+    STATE.socket.on('new_access_request', (data) => {
+        if (STATE.user && STATE.user.role === 'admin') {
+            if (window.soundEngine && typeof window.soundEngine.playNotification === 'function') {
+                window.soundEngine.playNotification();
+            }
+            showNotification(`🚨 طلب دخول جديد من ${data.nickname || 'جهاز جديد'} (IP: ${data.ip_address})!`);
+            loadAdminAccessRequests();
+        }
+    });
+
+    STATE.socket.on('access_request_resolved', (data) => {
+        if (STATE.user && STATE.user.role === 'admin') {
+            loadAdminAccessRequests();
         }
     });
 
@@ -5681,8 +5906,9 @@ function formatAudioSeconds(sec) {
 // 10. Admin Superpowers Dashboard
 // ----------------------------------------------------
 async function openAdminDashboard() {
-    // Strictly ONLY the hardware admin (MAC D0:8E:79:18:9F:A0) can open this!
-    if (!STATE.networkInfo || !STATE.networkInfo.isHostAdmin) {
+    const isHostAdmin = STATE.networkInfo && STATE.networkInfo.isHostAdmin;
+    const isUserAdmin = STATE.user && STATE.user.role === 'admin';
+    if (!isHostAdmin && !isUserAdmin) {
         return; // Silent abort for any other student
     }
 
@@ -5691,9 +5917,121 @@ async function openAdminDashboard() {
         if (!res.ok) return;
         const data = await res.json();
         renderAdminDashboard(data);
+        await loadAdminAccessRequests();
         showModal('adminModal');
     } catch (e) {
         alert('فشل تحميل لوحة الأدمن!');
+    }
+}
+
+async function loadAdminAccessRequests() {
+    try {
+        const res = await fetch('/api/admin/access-requests');
+        if (!res.ok) return;
+        const data = await res.json();
+        renderAdminAccessRequests(data.requests || []);
+    } catch (e) {
+        console.error('Failed to load access requests:', e);
+    }
+}
+
+function renderAdminAccessRequests(requests) {
+    const container = document.getElementById('adminAccessRequestsContainer');
+    const badge = document.getElementById('adminPendingRequestsBadge');
+    if (!container) return;
+
+    const pending = requests.filter(r => r.status === 'pending');
+    if (badge) badge.textContent = `${pending.length} طلب معلق`;
+
+    if (requests.length === 0) {
+        container.innerHTML = '<div class="text-center text-xs text-slate-500 py-3">لا توجد طلبات انضمام جديدة حالياً</div>';
+        return;
+    }
+
+    container.innerHTML = requests.map(r => {
+        const isPending = (r.status === 'pending');
+        const isApproved = (r.status === 'approved');
+        const statusBadge = isPending 
+            ? '<span class="px-2 py-0.5 rounded text-micro font-bold bg-amber-500/20 text-amber-400">معلق ⏳</span>'
+            : (isApproved ? `<span class="px-2 py-0.5 rounded text-micro font-bold bg-emerald-500/20 text-emerald-400">مقبول: ${escapeHtml(r.assigned_password || '')}</span>` : '<span class="px-2 py-0.5 rounded text-micro font-bold bg-red-500/20 text-red-400">مرفوض ❌</span>');
+
+        return `
+            <div class="p-2.5 rounded-xl bg-slate-900 border ${isPending ? 'border-amber-500/40 bg-amber-500/5' : 'border-slate-800'} flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <span class="w-8 h-8 rounded-full overflow-hidden inline-flex items-center justify-center text-sm shrink-0 bg-slate-800 border border-slate-700">${renderAvatarHTML(r.avatar)}</span>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <strong class="text-white truncate font-bold">${escapeHtml(r.nickname)}</strong>
+                            ${statusBadge}
+                        </div>
+                        <div class="font-mono text-cyan-400 text-micro mt-0.5 flex items-center gap-2">
+                            <span>IP: ${r.ip_address}</span>
+                            <span class="text-slate-500">• ${new Date(r.created_at).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'})}</span>
+                        </div>
+                    </div>
+                </div>
+
+                ${isPending ? `
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <input id="reqPass_${r.id}" type="text" placeholder="عيّن كلمة المرور..." value="1234" class="bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-lg px-2.5 py-1 text-xs text-white outline-none w-36 font-mono">
+                        <button type="button" onclick="adminApproveAccessRequest('${r.id}')" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg transition-all flex items-center gap-1">
+                            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                            <span>قبول</span>
+                        </button>
+                        <button type="button" onclick="adminRejectAccessRequest('${r.id}')" class="px-2 py-1 bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white font-bold text-xs rounded-lg transition-all flex items-center gap-1">
+                            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                            <span>رفض</span>
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+
+    renderIcons();
+}
+
+async function adminApproveAccessRequest(id) {
+    const passInput = document.getElementById(`reqPass_${id}`);
+    const password = passInput ? passInput.value.trim() : '';
+    if (!password) {
+        alert('من فضلك اكتب كلمة مرور للطالب!');
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/admin/access-requests/${id}/approve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showNotification('تم قبول الطالب وتعيين كلمة المرور بنجاح ✅');
+            await loadAdminAccessRequests();
+        } else {
+            alert(data.error || 'فشل قبول الطلب');
+        }
+    } catch (e) {
+        alert('حدث خطأ أثناء الاتصال بالسيرفر');
+    }
+}
+
+async function adminRejectAccessRequest(id) {
+    if (!confirm('هل أنت متأكد من رفض طلب هذا الجهاز؟')) return;
+    try {
+        const res = await fetch(`/api/admin/access-requests/${id}/reject`, {
+            method: 'POST'
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showNotification('تم رفض الطلب');
+            await loadAdminAccessRequests();
+        } else {
+            alert(data.error || 'فشل رفض الطلب');
+        }
+    } catch (e) {
+        alert('حدث خطأ أثناء الاتصال بالسيرفر');
     }
 }
 

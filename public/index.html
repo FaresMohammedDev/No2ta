@@ -534,22 +534,35 @@
         <div class="n-paper-card glass-panel-elevated rounded-3xl p-6 sm:p-8 max-w-md w-full border border-white/10 relative">
             <div class="text-center mb-6">
                 <img src="/brand/no2ta-paper-mark.svg" alt="نؤطة" class="w-14 h-14 mx-auto mb-3">
-                <h3 class="text-xl font-black text-white">دخول شبكة فصل "نؤطة"</h3>
-                <p class="text-xs text-slate-400 mt-1">تطبيق التواصل السري والمحلي لشبكة الفصل</p>
+                <h3 id="authModalTitle" class="text-xl font-black text-white">دخول شبكة فصل "نؤطة"</h3>
+                <p id="authModalSubtitle" class="text-xs text-slate-400 mt-1">تطبيق التواصل السري والمحلي لشبكة الفصل</p>
+                <div class="mt-2 flex items-center justify-center gap-1.5">
+                    <span id="authClientIpBadge" class="font-mono text-micro text-cyan-400 bg-cyan-950/60 border border-cyan-800/60 px-2.5 py-0.5 rounded-full">IP: جاري الفحص...</span>
+                    <span id="authWhitelistBadge" class="hidden font-bold text-micro text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2.5 py-0.5 rounded-full">معتمد ⚡</span>
+                </div>
             </div>
 
+            <div id="authWhitelistedBanner" class="hidden p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-bold text-center mb-4 leading-relaxed">
+                ✨ جهازك معتمد في الفصل! اكتب اسمك فقط للدخول مباشرة بدون باسوورد.
+            </div>
+
+            <div id="authApprovedBanner" class="hidden p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-xs font-bold text-center mb-4 leading-relaxed">
+                🎉 وافق الأدمن على انضمام جهازك! أدخل كلمة المرور التي حددها لك الأدمن للدخول.
+            </div>
+
+            <!-- Main Auth Form (for whitelisted unnamed or approved devices) -->
             <form id="authForm" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-slate-300 mb-1">كلمة مرور الفصل السرية (Master Password)</label>
-                    <input type="password" id="authPassword" placeholder="اكتب SdSdSdSd" value="SdSdSdSd" class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none">
+                <div id="authPasswordContainer">
+                    <label id="authPasswordLabel" class="block text-xs font-bold text-slate-300 mb-1">كلمة المرور للدخول</label>
+                    <input type="password" id="authPassword" placeholder="اكتب كلمة المرور..." value="SdSdSdSd" class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none font-mono">
                 </div>
 
-                <div>
-                    <label class="block text-xs font-bold text-slate-300 mb-1">اسم الشهرة أو اللقب (Nickname)</label>
+                <div id="authNicknameContainer">
+                    <label class="block text-xs font-bold text-slate-300 mb-1">اسمك أو اللقب (Nickname)</label>
                     <input type="text" id="authNickname" placeholder="مثال: الباشمهندس أحمد، دحيح الفيزيا..." class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none">
                 </div>
 
-                <div>
+                <div id="authAvatarContainer">
                     <label class="block text-xs font-bold text-slate-300 mb-2">صورتك الشخصية (Avatar)</label>
                     
                     <!-- Upload from Device -->
@@ -593,11 +606,50 @@
 
                 <div id="authError" class="hidden text-xs text-red-400 font-bold bg-red-500/10 p-2.5 rounded-xl border border-red-500/20 text-center"></div>
 
-                <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-sm transition-all shadow-lg shadow-cyan-500/30 flex items-center justify-center gap-2">
-                    <span>دخول المنصة</span>
+                <button type="submit" id="authSubmitBtn" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-sm transition-all shadow-lg shadow-cyan-500/30 flex items-center justify-center gap-2">
+                    <span id="authSubmitBtnText">دخول المنصة</span>
                     <i data-lucide="log-in" class="w-4 h-4"></i>
                 </button>
             </form>
+
+            <!-- State: Request is Pending Approval -->
+            <div id="authPendingContainer" class="hidden text-center py-4 space-y-4">
+                <div class="w-14 h-14 mx-auto rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 animate-pulse">
+                    <i data-lucide="hourglass" class="w-7 h-7"></i>
+                </div>
+                <div>
+                    <h4 class="text-base font-black text-amber-300">طلبك قيد المراجعة لدى الأدمن ⏳</h4>
+                    <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                        تم إرسال طلب انضمام جهازك بنجاح للأدمن.<br>بمجرد أن يوافق الأدمن ويعين لك كلمة المرور، ستتحدث الشاشة تلقائياً لإدخالها.
+                    </p>
+                </div>
+                <div class="p-3 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-slate-400 flex items-center justify-between">
+                    <span>الاسم المسجل في الطلب:</span>
+                    <strong id="authPendingNickname" class="text-white text-sm"></strong>
+                </div>
+                <div class="flex items-center justify-center gap-2 text-micro text-cyan-400 font-mono">
+                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                    <span>في انتظار استجابة الأدمن (تحديث لحظي)...</span>
+                </div>
+                <button type="button" onclick="resetToAccessRequestForm()" class="text-micro text-slate-500 hover:text-slate-300 underline pt-2">
+                    تعديل الاسم أو إعادة إرسال الطلب
+                </button>
+            </div>
+
+            <!-- State: Request was Rejected -->
+            <div id="authRejectedContainer" class="hidden text-center py-4 space-y-4">
+                <div class="w-14 h-14 mx-auto rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400">
+                    <i data-lucide="shield-alert" class="w-7 h-7"></i>
+                </div>
+                <div>
+                    <h4 class="text-base font-black text-red-400">تم رفض طلب الانضمام ❌</h4>
+                    <p class="text-xs text-slate-400 mt-1">عذراً، رفض الأدمن طلب انضمام هذا الجهاز للشبكة.</p>
+                </div>
+                <button type="button" onclick="resetToAccessRequestForm()" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    <span>إرسال طلب جديد للأدمن</span>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -968,6 +1020,20 @@
                     <i data-lucide="shield-check" class="w-[14px] h-[14px]"></i>
                     <span>زر "البشمهندسة مشيت" (فك الإخفاء)</span>
                 </button>
+            </div>
+
+            <!-- Access Requests Section (Pending device authorizations & password assignments) -->
+            <div id="adminAccessRequestsSection" class="mb-4">
+                <div class="flex items-center justify-between pb-1.5 mb-2 border-b border-amber-500/20">
+                    <h4 class="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                        <i data-lucide="user-check" class="w-4 h-4 text-amber-400"></i>
+                        <span>طلبات انضمام الأجهزة الجديدة وتعيين كلمات المرور:</span>
+                    </h4>
+                    <span id="adminPendingRequestsBadge" class="px-2 py-0.5 rounded-full text-micro font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">0 طلب معلق</span>
+                </div>
+                <div id="adminAccessRequestsContainer" class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar border border-slate-800 rounded-xl p-2.5 bg-slate-950/70">
+                    <div class="text-center text-xs text-slate-500 py-2">لا توجد طلبات انضمام جديدة حالياً</div>
+                </div>
             </div>
 
             <!-- Devices Table -->

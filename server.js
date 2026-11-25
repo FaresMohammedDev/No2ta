@@ -15,6 +15,15 @@ const sessions = require('./services/sessions');
 const { cleanIP, getServerLanIPs, resolveMacAddress } = require('./services/network');
 const { recordInteraction, getStreakBetween, getAllUserStreaks, isWeekendFreeze } = require('./services/streaks');
 const { QURAN_RECITERS, getReciterById, getSurahAudioUrl, getSurahName } = require('./data/quran-reciters');
+const {
+    PRECONFIGURED_ROSTER,
+    UNNAMED_WHITELIST_IPS,
+    ADMIN_IPS,
+    isIpAdmin,
+    isIpWhitelisted,
+    getRosterEntry,
+    seedRosterUsers
+} = require('./services/accessControl');
 
 let startBeacon = () => {};
 try {
@@ -36,19 +45,9 @@ const MASTER_PASSWORD = 'SdSdSdSd';
 // The ONE and ONLY physical MAC address of the Classroom Admin machine
 const STRICT_ADMIN_MAC = 'D0:8E:79:18:9F:A0';
 
-// Helper to determine if the connecting device is THIS Admin Machine
+// Helper to determine if the connecting device is an Admin Machine (192.168.20.54, 192.168.20.63, or physical host)
 function isHostAdmin(clientIp, clientMac) {
-    if (clientMac) {
-        const cleanMac = clientMac.toUpperCase().replace(/-/g, ':');
-        if (cleanMac === STRICT_ADMIN_MAC) return true;
-    }
-    // Only allow localhost if THIS physical machine has the STRICT_ADMIN_MAC adapter!
-    const hostLanIps = getServerLanIPs();
-    const hasAdminHardware = hostLanIps.some(net => net.mac && net.mac.toUpperCase().replace(/-/g, ':') === STRICT_ADMIN_MAC);
-    if (hasAdminHardware && (clientIp === '127.0.0.1' || clientIp === '::1' || clientIp === 'localhost')) {
-        return true;
-    }
-    return false;
+    return isIpAdmin(clientIp, clientMac);
 }
 
 // Middlewares
@@ -64,8 +63,8 @@ app.use((req, res, next) => {
     next();
 });
 app.use('/api', async (req, res, next) => {
-    // Agent pairing is a separate migration; its legacy frame intake remains isolated here.
-    if (['/auth/login', '/network-info', '/alexandria-prayers', '/tasbeeh', '/netsupport/frame', '/music/cover', '/music/stream'].includes(req.path)) return next();
+    // Public endpoints exempt from session auth
+    if (['/auth/login', '/auth/ip-status', '/auth/request-access', '/network-info', '/alexandria-prayers', '/tasbeeh', '/netsupport/frame', '/music/cover', '/music/stream'].includes(req.path)) return next();
     req.authUser = await sessions.resolve(req.headers);
     if (!req.authUser) return res.status(401).json({ error: 'سجّل الدخول من جديد' });
     if ((req.path.startsWith('/admin/') || req.path.startsWith('/netsupport/')) && req.authUser.role !== 'admin') return res.sendStatus(403);
@@ -758,42 +757,228 @@ app.get('/api/quiz/leaderboard', async (req, res) => {
     }
 });
 
-// 2. Authentication & Auto-Login
+// 2. Authentication, Auto-Login & Access Requests
+app.get('/api/auth/ip-status', async (req, res) => {
+    try {
+        const clientIp = cleanIP(req.socket.remoteAddress);
+        const clientMac = await resolveMacAddress(clientIp);
+        const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
+        const rosterEntry = getRosterEntry(clientIp);
+        const isUnnamed = UNNAMED_WHITELIST_IPS.has(clientIp);
+        const isWhitelisted = isDeviceAdmin || !!rosterEntry || isUnnamed;
+
+        let request = null;
+        if (!isWhitelisted) {
+            request = await get(
+                "SELECT id, ip_address, nickname, avatar, status, assigned_password, created_at, updated_at FROM access_requests WHERE ip_address = ? ORDER BY created_at DESC LIMIT 1",
+                [clientIp]
+            );
+        }
+
+        res.json({
+            clientIp,
+            isDeviceAdmin,
+            isWhitelisted,
+            isNamed: !!rosterEntry || isDeviceAdmin,
+            rosterName: rosterEntry ? rosterEntry.name : (isDeviceAdmin ? (clientIp === '192.168.20.63' ? 'كبير الفصل (الأدمن 2)' : 'كبير الفصل (الأدمن 1)') : null),
+            rosterAvatar: rosterEntry ? rosterEntry.avatar : (isDeviceAdmin ? 'crown' : null),
+            isUnnamed,
+            request: request ? {
+                id: request.id,
+                nickname: request.nickname,
+                status: request.status,
+                hasPassword: !!request.assigned_password
+            } : null
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/auth/request-access', async (req, res) => {
+    try {
+        const clientIp = cleanIP(req.socket.remoteAddress);
+        const { nickname, avatar } = req.body;
+        if (!nickname || !nickname.trim()) {
+            return res.status(400).json({ error: 'من فضلك اكتب اسمك' });
+        }
+        const cleanName = nickname.trim();
+        const chosenAvatar = avatar || 'rocket';
+
+        const existing = await get("SELECT * FROM access_requests WHERE ip_address = ? ORDER BY created_at DESC LIMIT 1", [clientIp]);
+        let reqId;
+        if (existing && existing.status === 'pending') {
+            reqId = existing.id;
+            await run(
+                `UPDATE access_requests SET nickname = ?, avatar = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+                [cleanName, chosenAvatar, reqId]
+            );
+        } else {
+            reqId = crypto.randomUUID();
+            await run(
+                `INSERT INTO access_requests (id, ip_address, nickname, avatar, status) VALUES (?, ?, ?, ?, 'pending')`,
+                [reqId, clientIp, cleanName, chosenAvatar]
+            );
+        }
+
+        const newRequest = {
+            id: reqId,
+            ip_address: clientIp,
+            nickname: cleanName,
+            avatar: chosenAvatar,
+            status: 'pending',
+            created_at: new Date().toISOString()
+        };
+
+        io.emit('new_access_request', newRequest);
+        res.json({ success: true, request: newRequest });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Admin endpoints for access requests
+app.get('/api/admin/access-requests', async (req, res) => {
+    try {
+        const requests = await all(
+            `SELECT id, ip_address, nickname, avatar, status, assigned_password, created_at, updated_at
+             FROM access_requests
+             ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END, created_at DESC LIMIT 50`
+        );
+        res.json({ success: true, requests });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/admin/access-requests/:id/approve', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { password } = req.body;
+        if (!password || !password.trim()) {
+            return res.status(400).json({ error: 'من فضلك اكتب كلمة السر المخصصة للطالب' });
+        }
+        const assignedPassword = password.trim();
+
+        const requestRow = await get('SELECT * FROM access_requests WHERE id = ?', [id]);
+        if (!requestRow) return res.status(404).json({ error: 'الطلب غير موجود' });
+
+        await run(
+            `UPDATE access_requests SET status = 'approved', assigned_password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+            [assignedPassword, id]
+        );
+
+        io.emit('access_request_resolved', {
+            id,
+            ip_address: requestRow.ip_address,
+            nickname: requestRow.nickname,
+            status: 'approved'
+        });
+
+        res.json({ success: true, message: 'تم قبول الطلب وتعيين كلمة المرور بنجاح' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/admin/access-requests/:id/reject', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const requestRow = await get('SELECT * FROM access_requests WHERE id = ?', [id]);
+        if (!requestRow) return res.status(404).json({ error: 'الطلب غير موجود' });
+
+        await run(
+            `UPDATE access_requests SET status = 'rejected', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+            [id]
+        );
+
+        io.emit('access_request_resolved', {
+            id,
+            ip_address: requestRow.ip_address,
+            nickname: requestRow.nickname,
+            status: 'rejected'
+        });
+
+        res.json({ success: true, message: 'تم رفض الطلب' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { password, nickname, avatar, bio, deviceId } = req.body;
         const clientIp = cleanIP(req.socket.remoteAddress);
         const clientMac = await resolveMacAddress(clientIp);
 
-        // Hardware-based Admin detection: ONLY physical MAC D0:8E:79:18:9F:A0 is Admin!
         const isDeviceAdmin = isHostAdmin(clientIp, clientMac);
+        const rosterEntry = getRosterEntry(clientIp);
+        const isUnnamed = UNNAMED_WHITELIST_IPS.has(clientIp);
+        const isWhitelisted = isDeviceAdmin || !!rosterEntry || isUnnamed;
 
-        if (password !== MASTER_PASSWORD) {
-            return res.status(401).json({ error: 'كلمة السر غير صحيحة، حاول تاني 🔒' });
+        let approvedReq = null;
+        if (!isWhitelisted) {
+            approvedReq = await get(
+                "SELECT * FROM access_requests WHERE ip_address = ? AND status = 'approved' ORDER BY updated_at DESC LIMIT 1",
+                [clientIp]
+            );
+            const passwordMatches = (password && approvedReq && approvedReq.assigned_password && password === approvedReq.assigned_password) || (password === MASTER_PASSWORD);
+
+            if (!passwordMatches) {
+                const pendingReq = await get(
+                    "SELECT * FROM access_requests WHERE ip_address = ? AND status = 'pending' ORDER BY created_at DESC LIMIT 1",
+                    [clientIp]
+                );
+                if (pendingReq) {
+                    return res.status(403).json({ error: 'طلب الانضمام قيد الانتظار، في انتظار موافقة الأدمن ⏳', status: 'pending' });
+                }
+                if (!approvedReq) {
+                    return res.status(403).json({ error: 'هذا الجهاز غير مسجل! يجب إرسال طلب انضمام للأدمن أولاً 🔒', status: 'need_request' });
+                }
+                return res.status(401).json({ error: 'كلمة المرور غير صحيحة، حاول تاني 🔒' });
+            }
         }
 
         let deviceToken = sessions.cookie(req.headers, 'no2ta_device');
         if (!/^[a-f0-9]{64}$/.test(deviceToken)) deviceToken = crypto.randomBytes(32).toString('hex');
         const effectiveDeviceId = sessions.hash(deviceToken);
 
-        // Check if user already exists
+        // Check if user already exists (by device_id or by ip_address)
         let user = await get(`SELECT * FROM users WHERE device_id = ?`, [effectiveDeviceId]);
+        if (!user && clientIp && clientIp !== '127.0.0.1' && clientIp !== '::1') {
+            user = await get(`SELECT * FROM users WHERE ip_address = ?`, [clientIp]);
+        }
 
-        const defaultNickname = isDeviceAdmin ? 'كبير الفصل (الأدمن)' : `عبقري_${clientIp.split('.').pop()}`;
-        const chosenNickname = nickname ? nickname.trim() : (user ? user.nickname : defaultNickname);
-        const chosenAvatar = avatar || (user ? user.avatar : (isDeviceAdmin ? 'crown' : 'rocket'));
-        const chosenBio = bio || (user ? user.bio : (isDeviceAdmin ? 'أدمن الفصل والمتحكم في الشبكة' : 'طالب في فصل العباقرة'));
-        const chosenRole = isDeviceAdmin ? 'admin' : 'student';
+        let defaultNickname;
+        let chosenRole = isDeviceAdmin ? 'admin' : 'student';
+        let defaultAvatar = isDeviceAdmin ? 'crown' : 'rocket';
+        let defaultBio = isDeviceAdmin ? 'أدمن الفصل والمتحكم في الشبكة 👑' : 'طالب في فصل العباقرة ⚡';
+
+        if (rosterEntry) {
+            defaultNickname = rosterEntry.name;
+            chosenRole = rosterEntry.role || 'student';
+            defaultAvatar = rosterEntry.avatar || 'rocket';
+            defaultBio = rosterEntry.bio || defaultBio;
+        } else if (isDeviceAdmin) {
+            defaultNickname = (clientIp === '192.168.20.63') ? 'كبير الفصل (الأدمن 2)' : 'كبير الفصل (الأدمن 1)';
+        } else if (approvedReq) {
+            defaultNickname = approvedReq.nickname;
+            defaultAvatar = approvedReq.avatar || 'rocket';
+        } else {
+            defaultNickname = `عبقري_${clientIp.split('.').pop()}`;
+        }
+
+        const chosenNickname = rosterEntry ? rosterEntry.name : (nickname ? nickname.trim() : (user ? user.nickname : defaultNickname));
+        const chosenAvatar = rosterEntry ? rosterEntry.avatar : (avatar || (user ? user.avatar : defaultAvatar));
+        const chosenBio = rosterEntry ? (rosterEntry.bio || defaultBio) : (bio || (user ? user.bio : defaultBio));
 
         if (user) {
-            // Update existing user
             await run(
-                `UPDATE users SET ip_address = ?, mac_address = ?, nickname = ?, avatar = ?, bio = ?, role = ?, is_online = 1, last_seen = CURRENT_TIMESTAMP WHERE id = ?`,
-                [clientIp, clientMac || user.mac_address, chosenNickname, chosenAvatar, chosenBio, chosenRole, user.id]
+                `UPDATE users SET device_id = ?, ip_address = ?, mac_address = ?, nickname = ?, avatar = ?, bio = ?, role = ?, is_online = 1, last_seen = CURRENT_TIMESTAMP WHERE id = ?`,
+                [effectiveDeviceId, clientIp, clientMac || user.mac_address, chosenNickname, chosenAvatar, chosenBio, chosenRole, user.id]
             );
             user = await get(`SELECT * FROM users WHERE id = ?`, [user.id]);
         } else {
-            // Create new user
             const newId = crypto.randomUUID();
             await run(
                 `INSERT INTO users (id, device_id, ip_address, mac_address, nickname, avatar, bio, role, is_online)
@@ -4084,6 +4269,7 @@ setInterval(async () => {
 
 async function startServer() {
     await initDB();
+    await seedRosterUsers(db);
     await sessions.initialize();
     startBeacon(PORT);
 
